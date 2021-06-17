@@ -18,7 +18,7 @@ def register(dp: Optional[Dispatcher] = None) -> None:
         register_handlers(dp)
 
 
-class Core2(AppConfig):
+class Core(AppConfig):
     """Django App Config"""
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.core'

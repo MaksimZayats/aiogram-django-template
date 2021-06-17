@@ -1,5 +1,5 @@
-from .app import Core2 as Config
+from .app import Core as Config
 from .app import register
 
 
-default_app_config = 'apps.core.app.Core2'
+default_app_config = 'apps.core.app.Core'
