@@ -4,4 +4,5 @@ python-dotenv~=0.17.1
 uvicorn~=0.14.0
 tortoise-orm~=0.17.3
 psycopg2-binary~=2.8.6
+asyncpg~=0.23.0
 git+https://github.com/MaximZayats/orm_converter#egg=orm_converter
