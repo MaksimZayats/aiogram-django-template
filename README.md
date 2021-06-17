@@ -23,8 +23,7 @@
 
 #### 5. Run server (Django):
    * Collect static: `python manage.py collectstatic`
-   * Run server: `uvicorn server:app`
-   * Or `python manage.py runserver --e` (emulate the command)
+   * Run server: `python server.py` or `python manage.py runserver`
 
 
 ## Usage

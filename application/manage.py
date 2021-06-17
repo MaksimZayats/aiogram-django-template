@@ -43,13 +43,9 @@ def main():
                 pass
             sys.argv.append(str(BASE_DIR / 'apps' / sys.argv[-1]))
     elif 'runserver' in sys.argv:
-        if '--e' in sys.argv or '--emulate' in sys.argv:
-            os.system('uvicorn server:app')
-        else:
-            print('To run server use `uvicorn`\n'
-                  'Example: "uvicorn server:app"\n\n'
-                  'Or add "--e" to emulate command: "uvicorn server:app"')
-            exit(0)
+        import server
+
+        return server.run_server()
 
     load_dotenv(BASE_DIR / 'config' / '.env')
 
