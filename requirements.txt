@@ -2,3 +2,6 @@ aiogram~=2.13
 Django~=3.2.3
 python-dotenv~=0.17.1
 uvicorn~=0.14.0
+tortoise-orm~=0.17.3
+psycopg2-binary~=2.8.6
+git+https://github.com/MaximZayats/orm_converter#egg=orm_converter
