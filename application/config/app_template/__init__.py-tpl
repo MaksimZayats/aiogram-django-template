@@ -1,0 +1,5 @@
+from .app import {{ camel_case_app_name }} as Config
+from .app import register
+
+
+default_app_config = 'apps.{{ app_name }}.app.{{ camel_case_app_name }}'
