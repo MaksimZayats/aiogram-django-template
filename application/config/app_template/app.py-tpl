@@ -5,6 +5,12 @@ from django.apps import AppConfig
 
 
 def register(dp: Optional[Dispatcher] = None) -> None:
+    """
+    The function registers the app.
+
+    :param dp:
+        Is Dispatcher is not None — register bots modules.
+    """
     from .models import register_models
     register_models()
 
