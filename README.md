@@ -7,7 +7,6 @@
 
 #### 2. Install Requirements 
    * `pip install -r requirements.txt`
-   * `pip install git+https://github.com/MaximZayats/orm_converter`
 
 #### 3. Change Config:
    * Go to the `application/config/`
@@ -20,11 +19,9 @@
    * Run `python manage.py migrate`
    
 #### 4. Run bot:
-   * Go to the `application/`
-   * Run bot: `python bot.py`   
+   * `python bot.py`   
 
 #### 5. Run server (Django):
-   * Go to the `application/`
    * Collect static: `python manage.py collectstatic`
    * Run server: `uvicorn server:app`
    * Or `python manage.py runserver --e` (emulate the command)
