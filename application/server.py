@@ -17,7 +17,6 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.web.settings")
 
 
 async def on_startup() -> None:
-    load_dotenv(BASE_DIR / 'config' / '.env')
     InjectMiddleware.inject_params['bot'] = Bot(token=os.getenv('BOT_API_TOKEN'),
                                                 parse_mode='HTML')
 
@@ -25,6 +24,8 @@ async def on_startup() -> None:
 
 
 def run_server():
+    load_dotenv(BASE_DIR / 'config' / '.env')
+
     app = get_asgi_application()
 
     loop = asyncio.get_event_loop()
