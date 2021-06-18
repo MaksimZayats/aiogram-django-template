@@ -46,6 +46,10 @@ def main():
         import server
 
         return server.run_server()
+    elif 'runbot' in sys.argv:
+        from bot import run_bot
+
+        return run_bot()
 
     load_dotenv(BASE_DIR / 'config' / '.env')
 

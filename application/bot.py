@@ -1,11 +1,14 @@
 import logging
 from os import getenv
+from pathlib import Path
 
 from aiogram import Bot, Dispatcher, executor
-
+from dotenv import load_dotenv
 
 from config.apps import register_apps
 
+
+BASE_DIR = Path(__file__).resolve().parent
 
 logging.basicConfig(level=logging.INFO)
 
@@ -19,6 +22,8 @@ async def on_shutdown(dp: Dispatcher):
 
 
 def run_bot():
+    load_dotenv(BASE_DIR / 'config' / '.env')
+
     bot = Bot(token=getenv('BOT_API_TOKEN'), parse_mode='HTML')
     dp = Dispatcher(bot=bot)
 
@@ -27,10 +32,4 @@ def run_bot():
 
 
 if __name__ == '__main__':
-    from pathlib import Path
-    from dotenv import load_dotenv
-
-    BASE_DIR = Path(__file__).resolve().parent
-    load_dotenv(BASE_DIR / 'config' / '.env')
-
     run_bot()

@@ -19,7 +19,7 @@
    * Run `python manage.py migrate`
    
 #### 4. Run bot:
-   * `python bot.py`   
+   * `python bot.py` or `python manage.py runbot`
 
 #### 5. Run server (Django):
    * Collect static: `python manage.py collectstatic`
