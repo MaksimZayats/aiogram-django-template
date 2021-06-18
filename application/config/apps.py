@@ -18,7 +18,7 @@ async def register_apps(dp: Optional[Dispatcher] = None) -> None:
     Registers all installed applications.
 
     :param dp:
-        Is Dispatcher is not None — register bots modules.
+        If Dispatcher is not None — register bots modules.
     """
     from config import DatabaseConfig
 
