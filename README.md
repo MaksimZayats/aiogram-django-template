@@ -25,6 +25,8 @@
    * Collect static: `python manage.py collectstatic`
    * Run server: `python manage.py runserver`
 
+#### 6. Run app _(Bot + Server)_:
+   * `python manage.py runapp` or `python app.py`
 
 ## Usage
 
