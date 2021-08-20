@@ -6,15 +6,13 @@ from os import getenv
 from pathlib import Path
 
 import uvicorn
-from aiogram import Bot
-from aiogram import Dispatcher, executor
+from aiogram import Bot, Dispatcher, executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from django.core.asgi import get_asgi_application
 from dotenv import load_dotenv
 
 from apps.core.web.middlewares import InjectMiddleware
 from config.apps import register_apps
-
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -23,7 +21,7 @@ logging.basicConfig(level=logging.INFO)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.web.settings")
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 
-load_dotenv(BASE_DIR / 'config' / '.env')
+load_dotenv(BASE_DIR / "config" / ".env")
 
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
@@ -32,7 +30,7 @@ asyncio.set_event_loop(loop)
 class MyBot:
     storage = MemoryStorage()
 
-    bot = Bot(token=getenv('BOT_API_TOKEN'), parse_mode='HTML')
+    bot = Bot(token=getenv("BOT_API_TOKEN"), parse_mode="HTML")
     dp = Dispatcher(bot=bot, storage=storage)
 
     Bot.set_current(bot)
@@ -40,7 +38,9 @@ class MyBot:
 
     @classmethod
     def run(cls):
-        executor.start_polling(cls.dp, on_startup=cls.on_startup, on_shutdown=cls.on_shutdown)
+        executor.start_polling(
+            cls.dp, on_startup=cls.on_startup, on_shutdown=cls.on_shutdown
+        )
 
     @staticmethod
     async def on_startup(dp: Dispatcher):
@@ -82,5 +82,5 @@ def run_app():
     server.start()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run_app()

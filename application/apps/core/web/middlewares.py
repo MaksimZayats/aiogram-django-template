@@ -1,5 +1,5 @@
 import inspect
-from typing import Dict, Any
+from typing import Any, Dict
 
 from django.utils.deprecation import MiddlewareMixin
 
@@ -14,8 +14,7 @@ class InjectMiddleware(MiddlewareMixin):
 
     inject_params: Dict[str, Any] = {}
 
-    def process_view(self, request,
-                     view_func, view_args, view_kwargs):
+    def process_view(self, request, view_func, view_args, view_kwargs):
         for arg_name in inspect.getfullargspec(view_func).args:
             if arg_name in self.inject_params.keys():
                 view_kwargs[arg_name] = self.inject_params[arg_name]

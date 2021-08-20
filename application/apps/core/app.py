@@ -12,12 +12,13 @@ def register(dp: Optional[Dispatcher] = None) -> None:
         If Dispatcher is not None — register bots modules.
     """
     from .models import register_models
+
     register_models()
 
     if dp is not None:
+        from .bot.filters import register_filters
         from .bot.handlers import register_handlers
         from .bot.middlewares import register_middlewares
-        from .bot.filters import register_filters
 
         register_middlewares(dp)
         register_filters(dp)
@@ -26,9 +27,10 @@ def register(dp: Optional[Dispatcher] = None) -> None:
 
 class Core(AppConfig):
     """Django App Config"""
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'apps.core'
-    verbose_name = 'core'
+
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "apps.core"
+    verbose_name = "core"
 
     def ready(self):
         from .web import admin  # type: ignore

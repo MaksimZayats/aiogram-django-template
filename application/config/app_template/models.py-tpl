@@ -8,8 +8,8 @@ class ExampleModel(Model, ConvertedModel):
 
     class Meta:
         abstract = True
-        table = 'example'
+        table = "example"
 
 
 def register_models() -> None:
-    Tortoise.init_models(models_paths=['apps.{{ app_name }}.models'], app_label='{{ app_name }}')
+    Tortoise.init_models(models_paths=["apps.{{ app_name }}.models"], app_label="{{ app_name }}")

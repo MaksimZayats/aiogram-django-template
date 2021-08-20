@@ -4,8 +4,7 @@ from aiogram.types import Message
 
 def register_handlers(dp: Dispatcher):
     # Register your handlers here
-    dp.register_message_handler(
-        simple_handler, commands=['{{ app_name }}'])
+    dp.register_message_handler(simple_handler, commands=["{{ app_name }}"])
 
 
 # Create your handlers here
