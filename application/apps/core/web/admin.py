@@ -1,12 +1,11 @@
 from django.contrib import admin
-from orm_converter import TortoiseToDjango
 
 from .. import models
 
 # Register your models here.
-# To convert models: TortoiseToDjango.convert(models.ModelName)
+# To get django model: models.<ModelName>.DjangoModel
 
 
-@admin.register(TortoiseToDjango.convert(models.User))
+@admin.register(models.User.DjangoModel)
 class UserAdmin(admin.ModelAdmin):
     pass

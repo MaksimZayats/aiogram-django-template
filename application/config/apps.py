@@ -23,6 +23,9 @@ async def register_apps(dp: Optional[Dispatcher] = None) -> None:
     from config import DatabaseConfig
 
     for app in INSTALLED_APPS:
-        app.register(dp)
+        if not getattr(app, "_registered", False):
+            app.register(dp)
+
+            setattr(app, "_registered", True)
 
     await Tortoise.init(config=DatabaseConfig.get_tortoise_config())

@@ -1,8 +1,9 @@
+from orm_converter.tortoise_to_django import ConvertedModel
 from tortoise import Tortoise, fields
 from tortoise.models import Model
 
 
-class User(Model):
+class User(Model, ConvertedModel):
     tg_id = fields.BigIntField(unique=True, description='Telegram User ID')
     chat_id = fields.BigIntField(unique=False, description='Telegram Chat ID')
     first_name = fields.CharField(max_length=64, description='Telegram Firstname')

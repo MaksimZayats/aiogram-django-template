@@ -30,14 +30,5 @@ class Core(AppConfig):
     name = 'apps.core'
     verbose_name = 'core'
 
-    @staticmethod
-    def convert_models():
-        from orm_converter import TortoiseToDjango
-        from . import models
-
-        TortoiseToDjango.convert_from_module(module=models)
-
     def ready(self):
         from .web import admin  # type: ignore
-
-        self.convert_models()

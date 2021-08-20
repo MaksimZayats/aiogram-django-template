@@ -1,8 +1,9 @@
+from orm_converter.tortoise_to_django import ConvertedModel
 from tortoise import Tortoise, fields
 from tortoise.models import Model
 
 
-class ExampleModel(Model):
+class ExampleModel(Model, ConvertedModel):
     name = fields.CharField(max_length=255)
 
     class Meta:
