@@ -47,11 +47,9 @@ def _get_inited_tortoise_apps() -> Dict[str, Dict[str, Set[str]]]:
     """
     from tortoise import Tortoise
 
-    apps = {}
-    for (
-        app_name,
-        app_models,
-    ) in Tortoise.apps.items():  # type: str, Dict[str, Type[Model]]
+    apps: Dict[str, Dict[str, Set[str]]] = {}
+
+    for app_name, app_models in Tortoise.apps.items():  # type: str, Dict[str, Type[Model]]
         for model_name, model_type in app_models.items():
             try:
                 apps[app_name]["models"] |= {model_type.__module__}
