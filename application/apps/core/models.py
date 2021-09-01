@@ -16,4 +16,8 @@ class User(Model, ConvertedModel):
 
 
 def register_models() -> None:
-    Tortoise.init_models(models_paths=["apps.core.models"], app_label="core")
+    Tortoise.init_models(
+        models_paths=["apps.core.models"],
+        app_label="core",
+        _init_relations=False,
+    )
