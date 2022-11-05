@@ -1,11 +1,9 @@
 import logging
 
 from aiogram import Bot, Dispatcher
-from aiogram.filters import Command
-from aiogram.types import BotCommand, Message
+from aiogram.types import BotCommand
 
 from app.apps.core.bot.handlers import router as core_router
-from app.config.application import INSTALLED_APPS
 from app.config.bot import RUNNING_MODE, TG_TOKEN, RunningMode
 
 bot = Bot(TG_TOKEN, parse_mode="HTML")
@@ -36,12 +34,6 @@ async def on_startup() -> None:
 
     # Set default commands
     await _set_bot_commands()
-
-
-@dispatcher.message(Command(commands=["apps"]))
-async def handle_apps_command(message: Message) -> None:
-    apps_names = [app_name for app_name in INSTALLED_APPS if app_name.startswith("app.")]
-    await message.answer("Installed apps:\n" f"{apps_names}")
 
 
 def run_polling() -> None:
