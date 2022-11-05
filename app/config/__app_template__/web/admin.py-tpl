@@ -1,0 +1,9 @@
+from django.contrib import admin
+from django.contrib.admin import ModelAdmin
+
+from app.apps.{{ app_name }}.models import Example{{ camel_case_app_name }}Model
+
+
+@admin.register(Example{{ camel_case_app_name }}Model)
+class {{ camel_case_app_name }}Admin(ModelAdmin[Example{{ camel_case_app_name }}Model]):
+    pass

@@ -1,0 +1,10 @@
+black~=22.10.0
+flakeheaven~=3.2.1
+isort~=5.10.1
+mypy~=0.982
+perflint~=0.7.3
+pip-check-updates~=0.18.0
+pre-commit~=2.20.0
+pylint~=2.15.5
+pytest~=7.2.0
+pytest-cov~=4.0.0

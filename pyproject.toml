@@ -1,0 +1,93 @@
+[tool.black]
+line-length = 90
+
+[tool.isort]
+profile = "black"
+line_length = 90
+
+[tool.flakeheaven]
+max_line_length = 95
+exclude = [
+    "venv",
+    "migrations",
+    "manage.py",
+]
+
+[tool.flakeheaven.plugins]
+pyflakes = [
+    "+*",
+]
+pycodestyle = [
+    "+*",
+]
+pylint = [
+    "+*",
+    "-C011?",  # Missing ? docstring (missing-?-docstring)
+    "-E1101",  # Class 'AnyModel' has no 'objects' member (no-member)
+    "-W0611",  # Duplicate of "F401" (unused-import)
+    "-R0903",  # Too few public methods (?/2) (too-few-public-methods)
+]
+
+[tool.pylint."BASIC"]
+load-plugins = [
+    "perflint",
+]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports_per_module = true
+ignore_missing_imports = true
+warn_return_any = true
+warn_unused_configs = true
+strict = true
+implicit_reexport = true
+plugins = [
+    "mypy_django_plugin.main",
+]
+exclude = [
+    "venv",
+    "migrations",
+]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "--exitfirst -vv --cov --cov-report=html --cov-fail-under=90"
+testpaths = [
+    "tests",
+]
+
+
+# ↓ Django specific configuration
+[tool.django-stubs]
+django_settings_module = "app.config.settings"
+
+[tool.flakeheaven.exceptions."*/config/application.py"]
+pylint = [
+    "-W8301",  # Use tuple instead of list for a non-mutated sequence (use-tuple-over-list)
+]
+
+[tool.flakeheaven.exceptions."*/config/web.py"]
+pylint = [
+    "-W8301",  # Use tuple instead of list for a non-mutated sequence (use-tuple-over-list)
+]
+
+[tool.flakeheaven.exceptions."*/apps.py"]
+pylint = [
+    "-C0415",  # Import outside toplevel (app.?.web.admin) (import-outside-toplevel)
+]
+
+[tool.flakeheaven.exceptions."*/web/urls.py"]
+pylint = [
+    "-W8301",  # Use tuple instead of list for a non-mutated sequence (use-tuple-over-list)
+]
+
+[tool.flakeheaven.exceptions."*/web/admin.py"]
+pylint = [
+    "-E1136",  # Value 'ModelAdmin' is unsubscriptable (unsubscriptable-object)
+    "-R0903",  # Too few public methods (too-few-public-methods)
+]
+
+[tool.flakeheaven.exceptions."*/models.py"]
+pylint = [
+    "-R0903",  # Too few public methods (too-few-public-methods)
+]
