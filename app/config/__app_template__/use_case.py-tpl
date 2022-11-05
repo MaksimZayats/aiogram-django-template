@@ -1,0 +1,9 @@
+from typing import Final
+
+
+class {{ camel_case_app_name }}UseCase:
+    # Implement your business logic here
+    ...
+
+
+{{app_name|upper}}_USE_CASE: Final[{{ camel_case_app_name }}UseCase] = {{ camel_case_app_name }}UseCase()

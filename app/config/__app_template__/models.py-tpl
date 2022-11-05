@@ -1,0 +1,7 @@
+from django.db import models
+
+
+class Example{{ camel_case_app_name }}Model(models.Model):
+    """Example model for {{ app_name }} app"""
+
+    objects: models.manager.BaseManager["Example{{ camel_case_app_name }}Model"]

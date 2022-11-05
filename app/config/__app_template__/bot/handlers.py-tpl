@@ -1,0 +1,13 @@
+from aiogram import Router
+from aiogram.filters import Command
+from aiogram.types import Message
+
+router = Router()
+
+
+@router.message(Command(commands=["{{ app_name }}"]))
+async def handle_{{ app_name }}_command(message: Message) -> None:
+    if message.from_user is None:
+        return
+
+    await message.answer('Hello from "{{ camel_case_app_name }}" app!')
