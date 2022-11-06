@@ -74,4 +74,3 @@ def _get_app_parameters() -> tuple[str, str]:
 
 if __name__ == "__main__":
     main()
-    input("Press any key to exit...")
