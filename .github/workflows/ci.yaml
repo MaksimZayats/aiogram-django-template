@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: write
+
 jobs:
   check-code:
     runs-on: ${{ matrix.os }}
