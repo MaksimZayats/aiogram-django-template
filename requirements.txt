@@ -4,6 +4,6 @@ Django~=4.1.5
 django-split-settings~=1.2.0
 django-stubs~=1.13.0
 gunicorn~=20.1.0
-python-dotenv~=0.21.0
+python-dotenv~=0.21.1
 starlette~=0.23.1
 uvicorn~=0.20.0
