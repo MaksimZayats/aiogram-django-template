@@ -1,4 +1,4 @@
-black~=22.10.0
+black~=22.12.0
 flakeheaven~=3.2.1
 isort~=5.11.4
 mypy~=0.991
