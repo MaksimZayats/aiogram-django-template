@@ -5,6 +5,6 @@ mypy~=0.991
 perflint~=0.7.3
 pip-check-updates~=0.18.1
 pre-commit~=3.0.3
-pylint~=2.16.0
+pylint~=2.16.1
 pytest~=7.2.1
 pytest-cov~=4.0.0
