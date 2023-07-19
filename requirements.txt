@@ -6,4 +6,4 @@ django-stubs~=4.2.3
 gunicorn~=21.0.1
 python-dotenv~=1.0.0
 starlette~=0.30.0
-uvicorn~=0.23.0
+uvicorn~=0.23.1
