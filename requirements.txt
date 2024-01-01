@@ -1,4 +1,4 @@
-aiogram~=3.2.0
+aiogram~=3.3.0
 dj_database_url~=2.1.0
 Django~=5.0
 django-split-settings~=1.2.0
