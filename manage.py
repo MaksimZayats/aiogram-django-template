@@ -1,26 +1,34 @@
-#!/usr/bin/venv python
+#!/usr/bin/env python
 """Django's command-line utility for administrative tasks."""
+from __future__ import annotations
+
 import os
 import sys
-from typing import Final
+from typing import TypeAlias
 
-_BASE_APPS_DIR: Final[str] = os.path.join("app", "apps")
+from api.config.base import BASE_DIR
+
+_APPS_DIR = BASE_DIR / "api"
+_TEMPLATE_DIR = BASE_DIR / "api" / "config" / "__app_template__"
+
+_AppName: TypeAlias = str
+_AppDirectory: TypeAlias = str
 
 
 def main() -> None:
     """Run administrative tasks."""
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "app.config.settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "api.config.settings")
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
-        raise ImportError(
+        msg = (
             "Couldn't import Django. Are you sure it's installed and "
             "available on your PYTHONPATH environment variable? Did you "
             "forget to activate a virtual environment?"
-        ) from exc
+        )
+        raise ImportError(msg) from exc
 
     _modify_startapp_args()
-
     execute_from_command_line(sys.argv)
 
 
@@ -36,24 +44,21 @@ def _add_template_if_not_provided() -> None:
     if "--no-template" in sys.argv:
         sys.argv.remove("--no-template")
     elif "--template" not in sys.argv:
-        sys.argv.extend(("--template", os.path.join("app", "config", "__app_template__")))
+        sys.argv.extend(("--template", str(_TEMPLATE_DIR)))
 
 
 def _add_app_directory_if_not_provided() -> None:
-    app_name, app_directory = _get_app_parameters()
-    if app_directory:
+    app_name, _app_directory = _get_app_parameters()
+    if _app_directory:
         return
 
-    os.makedirs(os.path.join(_BASE_APPS_DIR, app_name), exist_ok=True)
-    app_directory = os.path.join(_BASE_APPS_DIR, app_name)
+    app_directory = _APPS_DIR / app_name
+    app_directory.mkdir(parents=True, exist_ok=True)
 
-    sys.argv.insert(sys.argv.index(app_name) + 1, app_directory)
+    sys.argv.insert(sys.argv.index(app_name) + 1, str(app_directory))
 
 
-def _get_app_parameters() -> tuple[str, str]:
-    """
-    Returns a tuple of (app_name, app_directory) from the command line arguments.
-    """
+def _get_app_parameters() -> tuple[_AppName, _AppDirectory]:
     app_name = ""
     app_directory = ""
 
@@ -67,7 +72,8 @@ def _get_app_parameters() -> tuple[str, str]:
         elif not app_directory:
             app_directory = sys.argv[index]
         else:
-            raise ValueError("Too many positional arguments for startapp command.")
+            msg = "Too many positional arguments for startapp command."
+            raise ValueError(msg)
 
     return app_name, app_directory
 

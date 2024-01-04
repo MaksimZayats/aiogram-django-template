@@ -1,61 +1,140 @@
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
+# Aiogram & Django API Template
+## Based on [Django API Template](https://github.com/MaksimZayats/python-django-template)
 
+---
 
-# Aiogram-Django Template
+## Table of Contents
+- [Feature Highlights](#feature-highlights)
+- [Configuration Guide](#configuration-guide)
+- [Additional Notes](#additional-notes)
+- [Quick Start Guide](#quick-start-guide)
+   - [Setting Up Locally](#setting-up-locally)
+   - [Setting Up with Docker](#setting-up-with-docker)
 
-## Features
+---
 
-1. [Custom and configurable](app/config/__app_template__) `app` template
-2. [Fully typed](https://github.com/typeddjango/django-stubs) `Django`
-3. Async ORM (`Django 4.1+`)
-4. [aiogram3](https://docs.aiogram.dev/en/dev-3.x/) as Telegram Bot API
-5. [pre-commit hooks](.pre-commit-config.yaml) for code formatting and linting
+## Feature Highlights
 
-## Installation
+This Django API Template is designed to be robust, scalable, and secure, with features that cater to modern application development needs. Here's an overview of the advanced features and how they benefit your project:
 
-1. #### Clone the Template:
-   * `git clone https://github.com/MaximZayats/aiogram-django-template`
+- **[Docker & Docker Compose Integration](https://docs.docker.com/compose/)**: Easily set up and scale your application using Docker containers, ensuring consistent environments across development and production.
 
-2. #### Install Requirements
-   * `pip install -r requirements.txt`
-   * `pip install -r requirements-dev.txt`
+- **[Celery](https://docs.celeryq.dev/en/stable/django/first-steps-with-django.html) with [RabbitMQ](https://rabbitmq.com/) and [Redis](https://redis.io/)**: Leverage Celery for asynchronous task processing, using RabbitMQ as a message broker and Redis as a backend for storing results.
 
-3. #### Change the configuration:
-   * Copy `.env.dist`
-   * Rename it to `.env`
-   * Insert your values
+- **[Sentry for Error Tracking](https://sentry.io/)**: Integrate with Sentry for real-time error tracking and monitoring, helping you identify and fix issues rapidly.
 
-4. #### Make migrations:
-   * `make makemigrations` or `python manage.py makemigrations`
-   * `make migrate` or `python manage.py migrate`
+- **[Django Rest Framework (DRF)](https://www.django-rest-framework.org/)**: Use Django Rest Framework for building RESTful APIs, with support for authentication, serialization, and more.
+   - **[DRF Spectacular for OpenAPI](https://drf-spectacular.readthedocs.io/)**: Use DRF Spectacular for OpenAPI documentation, with support for customizing the schema and UI.
+   - **[DRF Simple JWT for Authentication](https://django-rest-framework-simplejwt.readthedocs.io/)**: Use DRF Simple JWT for JSON Web Token authentication, with support for customizing token claims and expiration.
 
-5. #### Run bot:
-   * `make run-bot` or ```python -m app.delivery.bot```
+- **[Django CORS Headers](https://pypi.org/project/django-cors-headers/)**: Use Django CORS Headers for handling Cross-Origin Resource Sharing (CORS) headers, with support for customizing origins.
 
-6. #### Run server (Django):
-   * Collect static: `python manage.py collectstatic`
-   * Run server (local): `make run-local-server` or `python -m uvicorn app.delivery.web.asgi:application`
-   * Run server (prod): `make run-prod-server`
+- **[Django Silk for Profiling](https://pypi.org/project/django-silk/)**: Utilize Django Silk for profiling and monitoring Django applications, offering insights into performance and optimization.
 
-7. #### Run app _(Bot + Server)_:
-   * `make -j3 run-bot run-local-server`
+- **[Django Axes for Security](https://django-axes.readthedocs.io/)**: Use Django Axes for security, with support for blocking brute force attacks and monitoring login attempts.
 
+- **[AWS S3 Integration](https://django-storages.readthedocs.io/en/latest/backends/amazon-S3.html)**: Option to use Amazon S3 for static and media file storage, enhancing scalability and performance.
 
-## Usage
+- **Scalability Options**: Configure workers and threads to optimize performance under different load conditions.
 
-1. #### Create new app
-   * `python manage.py startapp APP_NAME`
-      * Apps are created using a template: [`app/config/__app_template__`](app/config/__app_template__)
-      * You can use your template: `python manage.py startapp APP_NAME --template TEMPLATE_PATH`
-      * Or without template: `python manage.py startapp APP_NAME --no-template`
+- **Up-to-Date Dependencies**: All dependencies are up-to-date as of the latest release. Thanks to [Dependabot](https://dependabot.com/).
 
-2. #### Register app
-   * Register app in [`app/config/application.py`](app/config/application.py)
+---
 
-3. #### Check your apps
-   * Run bot
-   * Type `/apps`:
-      * You should get a list of all your apps
-   * Type `/APP_NAME`:
-      * You should get a message from your app
+## Configuration Guide
+
+The `.env` file is a central place to manage environment variables. It's pre-configured to work with Docker Compose out of the box, without any changes required for initial setup. However, for production deployment, certain secrets must be updated for security reasons.
+
+1. **Secrets**:
+   - **PostgreSQL, RabbitMQ, Django Secrets**: These are critical for the security of your application. Ensure to replace the placeholder values with strong, unique passwords.
+
+2. **Ports**:
+   - **API Port and RabbitMQ Dashboard Port**: Set these ports according to your infrastructure needs. They are exposed to the host machine.
+
+3. **Performance Tuning**:
+   - **Workers and Threads**: Adjust these values based on your server's capacity and expected load.
+
+4. **Application Settings**:
+   - **Host and Environment**: Set these to match your deployment environment.
+   - **Debug and Logging**: Control debug mode and log levels. Set `DJANGO_DEBUG` to `false` in production.
+   - **Localization**: Configure `LANGUAGE_CODE` and `TIME_ZONE` as per your requirements.
+
+5. **CORS and CSRF Settings**:
+   - Configure these settings to enhance the security of your application by specifying trusted origins.
+
+6. **Database Configuration**:
+   - **Postgres Connection**: Set up the database connection using the `DATABASE_URL` variable.
+
+---
+
+## Additional Notes
+- **Security**: Always prioritize security, especially when handling environment variables and secrets.
+- **Scalability**: Adjust the Docker and Celery configurations as your application scales.
+- **Monitoring**: Regularly monitor the performance and health of your application using integrated tools like Sentry and Silk.
+
+By following this guide and utilizing the advanced features, you'll be able to set up a powerful, efficient, and secure Django API environment. Happy coding!
+
+---
+
+## Quick Start Guide
+
+### Setting Up Locally
+
+#### 1. Repository Initialization
+   - **Clone the Repository**
+
+#### 2. Environment Setup
+   - **Create a Virtual Environment**:
+     ```bash
+     python3.12 -m venv .venv
+     ```
+   - **Activate the Virtual Environment**:
+     ```bash
+     source .venv/bin/activate
+     ```
+
+#### 3. Configuration
+   - **Environment Variables**:
+     - Copy the example environment file:
+       ```bash
+       cp .env.example .env
+       ```
+     - _Note: The API can operate without this step, but configuring the environment variables is recommended for full functionality._
+
+#### 4. Dependency Management
+   - **Install Dependencies**:
+     ```bash
+     pip install -r requirements-dev.txt
+     ```
+
+#### 5. Database Setup
+   - **Run Migrations**:
+     ```bash
+     make migrate
+     ```
+
+#### 6. Launching the Server
+   - **Start the Local Server**:
+     ```bash
+     make run.server.local
+     ```
+
+#### 7. Launching the bot
+   - **Start the bot**:
+     ```bash
+     make run.bot.local
+     ```
+
+### Setting Up with Docker
+
+#### 1. Repository Initialization
+   - **Clone the Repository**
+
+#### 2. Configuration
+   - Follow the steps in the [Configuration Guide](#configuration-guide) to set up the `.env` file.
+
+#### 3. Docker Compose
+   - **Run Docker Compose**:
+     ```bash
+     docker compose up -d
+     ```

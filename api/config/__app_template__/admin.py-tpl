@@ -1,0 +1,11 @@
+from __future__ import annotations
+
+from django.contrib import admin
+from django.contrib.admin import ModelAdmin
+
+from api.{{ app_name }}.models import {{ camel_case_app_name }}Model
+
+
+@admin.register({{ camel_case_app_name }}Model)
+class {{ camel_case_app_name }}Admin(ModelAdmin):
+    pass

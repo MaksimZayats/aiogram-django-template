@@ -140,5 +140,8 @@ cython_debug/
 # PyCharm
 .idea
 
-# Django static files
-static/
+tmp/
+media/
+staticfiles/
+
+.DS_Store

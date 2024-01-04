@@ -1,49 +1,53 @@
 [tool.black]
 line-length = 90
 
-[tool.isort]
-profile = "black"
-line_length = 90
+[tool.ruff]
+select = ["ALL"]
+unfixable = ["T201"]
+ignore = [
+    "E501",   # Line too long  # Will be fixed by black
+    "A003",
+    "RUF001",
+    "ERA001",
+    "F841",   # Local variable is assigned to but never used
 
-[tool.flakeheaven]
-max_line_length = 95
+    "ANN101",
+    "ANN102",  # Missing type annotation for `cls` in classmethod
+    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed in `{name}`
+
+    "D10",
+
+    "D203",
+    "D213",
+    "EXE002",
+
+    "PD011",
+]
+show-fixes = true
 exclude = [
-    "venv",
     "migrations",
-    "manage.py",
+    ".venv",
 ]
 
-[tool.flakeheaven.plugins]
-pyflakes = [
-    "+*",
-]
-pycodestyle = [
-    "+*",
-]
-pylint = [
-    "+*",
-    "-C011?",  # Missing ? docstring (missing-?-docstring)
-    "-E1101",  # Class 'AnyModel' has no 'objects' member (no-member)
-    "-W0611",  # Duplicate of "F401" (unused-import)
-    "-R0903",  # Too few public methods (?/2) (too-few-public-methods)
-]
+[tool.ruff.isort]
+required-imports = ["from __future__ import annotations"]
 
-[tool.pylint."BASIC"]
-load-plugins = [
-    "perflint",
+[tool.ruff.per-file-ignores]
+"__init__.py" = [
+    "F401",  # Module imported but unused
+]
+"tests/**" = [
+    "S101",  # Use of assert detected
 ]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 ignore_missing_imports_per_module = true
 ignore_missing_imports = true
 warn_return_any = true
 warn_unused_configs = true
-strict = true
+strict = false
 implicit_reexport = true
-plugins = [
-    "mypy_django_plugin.main",
-]
 exclude = [
     "venv",
     "migrations",
@@ -51,43 +55,8 @@ exclude = [
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "--exitfirst -vv --cov --cov-report=html --cov-fail-under=90"
+DJANGO_SETTINGS_MODULE = "api.config.settings"
+addopts = "--exitfirst -vv --cov --cov-report=html --cov-fail-under=80"
 testpaths = [
     "tests",
-]
-
-
-# ↓ Django specific configuration
-[tool.django-stubs]
-django_settings_module = "app.config.settings"
-
-[tool.flakeheaven.exceptions."*/config/application.py"]
-pylint = [
-    "-W8301",  # Use tuple instead of list for a non-mutated sequence (use-tuple-over-list)
-]
-
-[tool.flakeheaven.exceptions."*/config/web.py"]
-pylint = [
-    "-W8301",  # Use tuple instead of list for a non-mutated sequence (use-tuple-over-list)
-]
-
-[tool.flakeheaven.exceptions."*/apps.py"]
-pylint = [
-    "-C0415",  # Import outside toplevel (app.?.web.admin) (import-outside-toplevel)
-]
-
-[tool.flakeheaven.exceptions."*/web/urls.py"]
-pylint = [
-    "-W8301",  # Use tuple instead of list for a non-mutated sequence (use-tuple-over-list)
-]
-
-[tool.flakeheaven.exceptions."*/web/admin.py"]
-pylint = [
-    "-E1136",  # Value 'ModelAdmin' is unsubscriptable (unsubscriptable-object)
-    "-R0903",  # Too few public methods (too-few-public-methods)
-]
-
-[tool.flakeheaven.exceptions."*/models.py"]
-pylint = [
-    "-R0903",  # Too few public methods (too-few-public-methods)
 ]

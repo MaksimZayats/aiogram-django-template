@@ -1,0 +1,8 @@
+from __future__ import annotations
+
+from django.db import models
+
+
+class {{ camel_case_app_name }}Model(models.Model):
+    def __str__(self) -> str:
+        raise NotImplementedError

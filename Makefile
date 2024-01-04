@@ -1,78 +1,61 @@
-.PHONY: run-bot
-run-bot:
-	@python -m app.delivery.bot
+run.bot:
+	python -m bot
 
+run.server.local:
+	sh ./run-local.sh
 
-.PHONY: run-local-server
-run-local-server:
-	@python -m uvicorn app.delivery.web.asgi:application
-
-
-.PHONY: run-prod-server
-run-prod-server:
-	@python -m gunicorn app.delivery.web.asgi:application \
-		--worker-class uvicorn.workers.UvicornWorker \
-		--bind ${HOST}:${PORT} \
+run.server.prod:
+	python -m gunicorn api.web.wsgi:application \
+		--bind 0.0.0.0:80 \
 		--workers ${WORKERS} \
-		--log-level ${LOG_LEVEL} \
-		--access-logfile ${ACCESS_LOGFILE} \
-		--error-logfile ${ERROR_LOGFILE} \
+		--threads ${THREADS} \
+		--timeout 480
 
+run.bot.local:
+	python -m bot
 
-.PHONY: makemigrations
+run.bot.prod:
+	python -m bot
+
+run.celery.local:
+	OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES celery -A tasks.app worker --loglevel=DEBUG
+
+run.celery.prod:
+	celery -A tasks.app worker --loglevel=INFO
+
 makemigrations:
-	@python manage.py makemigrations
+	python manage.py makemigrations
 
-
-.PHONY: migrate
 migrate:
-	@python manage.py migrate
+	python manage.py migrate
 
+collectstatic:
+	python manage.py collectstatic --no-input
+
+createsuperuser:
+	python manage.py createsuperuser --email "" --username admin
 
 # Tests, linters & formatters
-.PHONY: lint
+fmt:
+	make -k ruff-fmt black
+
 lint:
-	@make EXIT_ZERO=true black isort
-	@make EXIT_ZERO=true FLAKEHEAVEN_CACHE_TIMEOUT=0 -j 3 flakeheaven mypy
+	make -k ruff black-check mypy
 
-
-.PHONY: test
-test:
-	@pytest
-
-
-.PHONY: check
-check:
-	@make EXIT_ZERO=false FLAKEHEAVEN_CACHE_TIMEOUT=0 -j 6 black isort flakeheaven mypy test
-
-
-.PHONY: black
 black:
-    ifeq ($(EXIT_ZERO), false)
-		@black --check --diff .
-    else
-		@black .
-    endif
+	python -m black .
 
+black-check:
+	python -m black --check .
 
-.PHONY: isort
-isort:
-    ifeq ($(EXIT_ZERO), false)
-		@isort --check .
-    else
-		@isort .
-    endif
+ruff:
+	python -m ruff .
 
+ruff-fmt:
+	python -m ruff --fix-only --unsafe-fixes .
 
-.PHONY: flakeheaven
-flakeheaven:
-    ifeq ($(EXIT_ZERO), false)
-		@flakeheaven lint .
-    else
-		@flakeheaven lint . --exit-zero
-    endif
+test:
+	python -m pytest
 
-
-.PHONY: mypy
 mypy:
-	@mypy .
+	python -m mypy .

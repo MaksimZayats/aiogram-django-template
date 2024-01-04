@@ -1,0 +1,7 @@
+from __future__ import annotations
+
+from rest_framework import serializers
+
+
+class {{ camel_case_app_name }}Serializer(serializers.Serializer):
+    message = serializers.CharField()
