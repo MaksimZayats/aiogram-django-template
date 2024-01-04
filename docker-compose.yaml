@@ -1,0 +1,133 @@
+version: '3.9'
+
+services:
+  api:
+    build: .
+    environment:
+      WORKERS: ${WORKERS:-2}
+      THREADS: ${THREADS:-2}
+    command: make migrate run.server.prod
+    ports:
+      - "${API_PORT}:80"
+    depends_on:
+      - pgbouncer
+      - migrations
+      - collectstatic
+      - redis
+      - rabbitmq
+    restart: always
+    volumes:
+      - .:/application
+    networks:
+      - main
+
+  bot:
+    build: .
+    command: make run.bot.prod
+    depends_on:
+      - api
+    restart: always
+    volumes:
+      - .:/application
+    networks:
+      - main
+
+  db:
+    image: postgres:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_INITDB_ARGS: --auth=md5
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - main
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - POOL_MODE=transaction
+      - MAX_CLIENT_CONN=1000
+      - DEFAULT_POOL_SIZE=20
+      - MIN_POOL_SIZE=5
+      - RESERVE_POOL_SIZE=5
+      - RESERVE_POOL_TIMEOUT=5
+      - SERVER_RESET_QUERY=DISCARD ALL
+      - SERVER_CHECK_QUERY=select 1
+      - LOG_CONNECTIONS=1
+      - LOG_DISCONNECTIONS=1
+      - LOG_POOLER_ERRORS=1
+      - STATS_PERIOD=60
+      - AUTH_TYPE=md5
+    volumes:
+      - pgbouncer-data:/var/lib/pgbouncer
+    networks:
+      - main
+
+  redis:
+    image: redis:latest
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    networks:
+      - main
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: unless-stopped
+    environment:
+        RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+        RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    ports:
+      - "${RABBITMQ_DASHBOARD_PORT:-15672}:15672"
+    networks:
+      - main
+
+  celery:
+    build: .
+    command: make run.celery.prod
+    restart: unless-stopped
+    depends_on:
+      - api
+    volumes:
+      - .:/application
+    networks:
+      - main
+
+  migrations:
+    build: .
+    command: make migrate
+    depends_on:
+      - db
+    volumes:
+      - .:/application
+    networks:
+      - main
+
+  collectstatic:
+    build: .
+    command: make collectstatic
+    depends_on:
+      - db
+    volumes:
+      - .:/application
+    networks:
+      - main
+
+networks:
+  main:
+    ipam:
+      driver: default
+
+volumes:
+  postgres-data:
+  pgbouncer-data:
+  redis-data:
+  rabbitmq-data:

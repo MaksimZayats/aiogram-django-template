@@ -1,0 +1,7 @@
+from __future__ import annotations
+
+from api.{{ app_name }}.views import router
+
+urlpatterns = [
+    *router.urls,
+]
