@@ -21,4 +21,4 @@ pyjwt==2.8.0
 python-dotenv==1.0.1
 pytz==2023.4
 redis==5.0.1
-sentry-sdk==1.39.2
+sentry-sdk==1.40.0
