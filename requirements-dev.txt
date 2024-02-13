@@ -1,5 +1,5 @@
 -r requirements.txt
-black==24.1.1
+black==24.2.0
 mypy==1.8.0
 pip-check-updates==0.23.1
 pre-commit==3.6.1
