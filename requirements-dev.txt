@@ -1,7 +1,7 @@
 -r requirements.txt
 black==24.2.0
 mypy==1.8.0
-pip-check-updates==0.23.1
+pip-check-updates==0.24.0
 pre-commit==3.6.2
 pytest==8.1.0
 pytest-cov==4.1.0
