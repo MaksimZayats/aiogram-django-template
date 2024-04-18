@@ -1,7 +1,7 @@
 aiogram==3.4.1
 boto3==1.34.85
 cachetools==5.3.3
-celery==5.3.6
+celery==5.4.0
 celery-types==0.22.0
 colorlog==6.8.2
 dj_database_url==2.1.0
