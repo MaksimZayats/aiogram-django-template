@@ -4,7 +4,7 @@ cachetools==5.3.3
 celery==5.4.0
 celery-types==0.22.0
 colorlog==6.8.2
-dj_database_url==2.1.0
+dj_database_url==2.2.0
 Django==5.0.6
 django-axes[ipware]==6.5.0
 django-cors-headers==4.4.0
