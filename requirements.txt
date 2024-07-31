@@ -20,5 +20,5 @@ psycopg[c]==3.2.1
 pyjwt==2.8.0
 python-dotenv==1.0.1
 pytz==2024.1
-redis==5.0.7
+redis==5.0.8
 sentry-sdk==2.11.0
