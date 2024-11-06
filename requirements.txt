@@ -3,7 +3,7 @@ boto3==1.35.53
 cachetools==5.5.0
 celery==5.4.0
 celery-types==0.22.0
-colorlog==6.8.2
+colorlog==6.9.0
 dj_database_url==2.2.0
 Django==5.1.2
 django-axes[ipware]==7.0.0
