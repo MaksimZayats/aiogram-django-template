@@ -7,4 +7,4 @@ pytest==8.3.3
 pytest-cov==6.0.0
 pytest-django==4.9.0
 ruff==0.7.4
-ruff-lsp==0.0.58
+ruff-lsp==0.0.59
