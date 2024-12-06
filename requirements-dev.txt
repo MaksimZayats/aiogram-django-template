@@ -6,5 +6,5 @@ pre-commit==4.0.1
 pytest==8.3.4
 pytest-cov==6.0.0
 pytest-django==4.9.0
-ruff==0.8.1
+ruff==0.8.2
 ruff-lsp==0.0.59
