@@ -1,5 +1,5 @@
 aiogram==3.15.0
-boto3==1.35.85
+boto3==1.35.86
 cachetools==5.5.0
 celery==5.4.0
 celery-types==0.22.0
