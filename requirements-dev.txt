@@ -2,7 +2,7 @@
 black==24.10.0
 mypy==1.14.1
 pip-check-updates==0.27.0
-pre-commit==4.0.1
+pre-commit==4.1.0
 pytest==8.3.4
 pytest-cov==6.0.0
 pytest-django==4.9.0
