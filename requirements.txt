@@ -19,6 +19,6 @@ gunicorn==23.0.0
 psycopg[c]==3.2.6
 pyjwt==2.10.1
 python-dotenv==1.1.0
-pytz==2025.1
+pytz==2025.2
 redis==5.2.1
 sentry-sdk==2.24.1
