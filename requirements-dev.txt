@@ -5,6 +5,6 @@ pip-check-updates==0.27.0
 pre-commit==4.2.0
 pytest==8.3.5
 pytest-cov==6.1.0
-pytest-django==4.10.0
+pytest-django==4.11.1
 ruff==0.8.6
 ruff-lsp==0.0.62
