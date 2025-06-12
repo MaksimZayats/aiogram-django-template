@@ -4,7 +4,7 @@ mypy==1.16.0
 pip-check-updates==0.27.0
 pre-commit==4.2.0
 pytest==8.4.0
-pytest-cov==6.1.1
+pytest-cov==6.2.0
 pytest-django==4.11.1
 ruff==0.8.6
 ruff-lsp==0.0.62
