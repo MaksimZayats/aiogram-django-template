@@ -13,7 +13,7 @@ django-split-settings==1.3.2
 django-storages==1.14.5
 django_redis==6.0.0
 djangorestframework==3.16.0
-djangorestframework_simplejwt==5.4.0
+djangorestframework_simplejwt==5.5.1
 drf-spectacular==0.28.0
 gunicorn==23.0.0
 psycopg[c]==3.2.9
