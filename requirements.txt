@@ -14,7 +14,7 @@ django-storages==1.14.5
 django_redis==6.0.0
 djangorestframework==3.16.1
 djangorestframework_simplejwt==5.5.1
-drf-spectacular==0.28.0
+drf-spectacular==0.29.0
 gunicorn==23.0.0
 psycopg[c]==3.2.12
 pyjwt==2.10.1
