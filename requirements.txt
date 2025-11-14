@@ -1,6 +1,6 @@
 aiogram==3.22.0
 boto3==1.40.70
-cachetools==6.2.1
+cachetools==6.2.2
 celery==5.5.3
 celery-types==0.23.0
 colorlog==6.10.1
