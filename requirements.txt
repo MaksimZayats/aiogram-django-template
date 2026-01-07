@@ -5,7 +5,7 @@ celery==5.6.2
 celery-types==0.24.0
 colorlog==6.10.1
 dj_database_url==3.0.1
-Django==6.0
+Django==6.0.1
 django-axes[ipware]==8.1.0
 django-cors-headers==4.9.0
 django-silk==5.4.3
