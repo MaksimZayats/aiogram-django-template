@@ -1,61 +1,25 @@
-run.bot:
-	python -m bot
-
-run.server.local:
-	sh ./run-local.sh
-
-run.server.prod:
-	python -m gunicorn api.web.wsgi:application \
-		--bind 0.0.0.0:80 \
-		--workers ${WORKERS} \
-		--threads ${THREADS} \
-		--timeout 480
-
-run.bot.local:
-	python -m bot
-
-run.bot.prod:
-	python -m bot
-
-run.celery.local:
-	OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES celery -A tasks.app worker --loglevel=DEBUG
-
-run.celery.prod:
-	celery -A tasks.app worker --loglevel=INFO
+dev:
+	DJANGO_DEBUG=true uv run manage.py runserver
 
 makemigrations:
-	python manage.py makemigrations
+	uv run manage.py makemigrations
 
 migrate:
-	python manage.py migrate
+	uv run manage.py migrate
 
 collectstatic:
-	python manage.py collectstatic --no-input
+	uv run manage.py collectstatic --no-input
 
 createsuperuser:
-	python manage.py createsuperuser --email "" --username admin
+	uv run manage.py createsuperuser --email "" --username admin
 
-# Tests, linters & formatters
-fmt:
-	make -k ruff-fmt black
+format:
+	uv run ruff format .
+	uv run ruff check --fix-only .
 
 lint:
-	make -k ruff black-check mypy
-
-black:
-	python -m black .
-
-black-check:
-	python -m black --check .
-
-ruff:
-	python -m ruff check .
-
-ruff-fmt:
-	python -m ruff --fix-only --unsafe-fixes .
+	uv run ruff check .
+	uv run ty check .
 
 test:
-	python -m pytest
-
-mypy:
-	python -m mypy .
+	uv run pytest tests/

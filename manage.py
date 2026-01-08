@@ -1,32 +1,23 @@
 #!/usr/bin/env python
 """Django's command-line utility for administrative tasks."""
-from __future__ import annotations
 
 import os
 import sys
-from typing import TypeAlias
 
-from api.config.base import BASE_DIR
+from django.core.management import execute_from_command_line
+
+from src.api.config.base import BASE_DIR
 
 _APPS_DIR = BASE_DIR / "api"
 _TEMPLATE_DIR = BASE_DIR / "api" / "config" / "__app_template__"
 
-_AppName: TypeAlias = str
-_AppDirectory: TypeAlias = str
+type _AppName = str
+type _AppDirectory = str
 
 
 def main() -> None:
     """Run administrative tasks."""
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "api.config.settings")
-    try:
-        from django.core.management import execute_from_command_line
-    except ImportError as exc:
-        msg = (
-            "Couldn't import Django. Are you sure it's installed and "
-            "available on your PYTHONPATH environment variable? Did you "
-            "forget to activate a virtual environment?"
-        )
-        raise ImportError(msg) from exc
 
     _modify_startapp_args()
     execute_from_command_line(sys.argv)

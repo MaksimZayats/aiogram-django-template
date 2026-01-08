@@ -1,44 +1,58 @@
-[tool.black]
-line-length = 90
-
-[tool.ruff]
-select = ["ALL"]
-unfixable = ["T201"]
-ignore = [
-    "E501",   # Line too long  # Will be fixed by black
-    "A003",
-    "RUF001",
-    "ERA001",
-    "F841",   # Local variable is assigned to but never used
-
-    "ANN101",
-    "ANN102",  # Missing type annotation for `cls` in classmethod
-    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed in `{name}`
-
-    "D10",
-
-    "D203",
-    "D213",
-    "EXE002",
-
-    "PD011",
+[project]
+name = "myproject"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "aiogram>=3.24.0",
+    "boto3>=1.42.24",
+    "cachetools>=6.2.4",
+    "celery>=5.6.2",
+    "celery-types>=0.24.0",
+    "colorlog>=6.10.1",
+    "dj-database-url>=3.1.0",
+    "django>=6.0.1",
+    "django-axes[ipware]>=8.1.0",
+    "django-cors-headers>=4.9.0",
+    "django-redis>=6.0.0",
+    "django-silk>=5.4.3",
+    "django-split-settings>=1.3.2",
+    "django-storages>=1.14.6",
+    "djangorestframework>=3.16.1",
+    "djangorestframework-simplejwt>=5.5.1",
+    "drf-spectacular>=0.29.0",
+    "gunicorn>=23.0.0",
+    "psycopg[c]>=3.3.2",
+    "pyjwt>=2.10.1",
+    "python-dotenv>=1.2.1",
+    "pytz>=2025.2",
+    "redis>=7.1.0",
+    "sentry-sdk>=2.49.0",
 ]
-show-fixes = true
-exclude = [
-    "migrations",
-    ".venv",
+
+[dependency-groups]
+dev = [
+    "black>=25.12.0",
+    "mypy>=1.19.1",
+    "pip-check-updates>=0.28.0",
+    "pre-commit>=4.5.1",
+    "pyrefly>=0.47.0",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "pytest-django>=4.11.1",
+    "ruff>=0.14.10",
+    "ruff-lsp>=0.0.62",
+    "ty>=0.0.9",
 ]
 
-[tool.ruff.isort]
-required-imports = ["from __future__ import annotations"]
+[build-system]
+requires = ["uv_build>=0.9.10,<0.10.0"]
+build-backend = "uv_build"
 
-[tool.ruff.per-file-ignores]
-"__init__.py" = [
-    "F401",  # Module imported but unused
-]
-"tests/**" = [
-    "S101",  # Use of assert detected
-]
+[tool.uv.build-backend]
+namespace = true
+
 
 [tool.mypy]
 python_version = "3.12"
