@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
   api:
-    build: ..
+    build: .
     environment:
       WORKERS: ${WORKERS:-2}
       THREADS: ${THREADS:-2}
@@ -22,7 +22,7 @@ services:
       - main
 
   bot:
-    build: ..
+    build: .
     command: make run.bot.prod
     depends_on:
       - api
@@ -91,7 +91,7 @@ services:
       - main
 
   celery:
-    build: ..
+    build: .
     command: make run.celery.prod
     restart: unless-stopped
     depends_on:
@@ -102,7 +102,7 @@ services:
       - main
 
   migrations:
-    build: ..
+    build: .
     command: make migrate
     depends_on:
       - db
@@ -112,7 +112,7 @@ services:
       - main
 
   collectstatic:
-    build: ..
+    build: .
     command: make collectstatic
     depends_on:
       - db
