@@ -1,35 +1,52 @@
+line-length = 100
+
+[lint]
 select = ["ALL"]
 unfixable = ["T201"]
 ignore = [
-    "E501",   # Line too long  # Will be fixed by black
-    "A003",
-    "RUF001",
-    "ERA001",
-    "F841",   # Local variable is assigned to but never used
-
-    "ANN101",
-    "ANN102",  # Missing type annotation for `cls` in classmethod
-    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed in `{name}`
-
-    "D10",
-    "TC003",
-
-    "D203",
-    "D213",
-    "EXE002",
-
-    "PD011",
-]
-show-fixes = true
-exclude = [
-    "migrations",
-    ".venv",
+    "D100",
+    "D104",
+    "D103",
+    "D101",
+    "ANN401",
+    "E501",
+    "TC002",
 ]
 
-[per-file-ignores]
+[lint.per-file-ignores]
 "__init__.py" = [
     "F401",  # Module imported but unused
+]
+"**/migrations/**" = [
+    "ANN201",  # Missing return type annotation for public function
+    "ANN001",  # Missing type annotation for function argument
+    "ARG001",  # Unused function argument"
+    "RUF012",  # Mutable class attributes
+]
+"**/api.py" = [
+    "ARG001",  # Unused function argument: `request`
 ]
 "tests/**" = [
     "S101",  # Use of assert detected
 ]
+
+[lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+[lint.pep8-naming]
+classmethod-decorators = [
+    "pydantic.validator",
+    "pydantic.field_validator",
+]
+
+[lint.flake8-pytest-style]
+fixture-parentheses = true
+mark-parentheses = false
+
+[lint.pydocstyle]
+convention = "google"

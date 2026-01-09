@@ -1,12 +1,8 @@
 from os import getenv
 
-from api.config.silk import SILKY_MIDDLEWARE_CLASS, USE_SILK
-
-PROJECT_NAME = getenv("PROJECT_NAME", "django_template")
-PROJECT_VERBOSE_NAME = getenv("PROJECT_VERBOSE_NAME", "Django Template")
+from api.configs.silk import SILKY_MIDDLEWARE_CLASS
 
 ENVIRONMENT = getenv("ENVIRONMENT", "local")
-HOST = getenv("HOST", "localhost")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -36,11 +32,8 @@ MIDDLEWARE = [
     "axes.middleware.AxesMiddleware",
 ]
 
-if not USE_SILK:
-    INSTALLED_APPS.remove("silk")
-    MIDDLEWARE.remove(SILKY_MIDDLEWARE_CLASS)
-
-ROOT_URLCONF = "api.web.urls"
+ROOT_URLCONF = "api.delivery.http.urls"
+WSGI_APPLICATION = "api.delivery.http.app.wsgi"
 
 TEMPLATES = [
     {
@@ -58,11 +51,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "api.web.wsgi.application"
-
-LANGUAGE_CODE = getenv("LANGUAGE_CODE", "en-us")
+LANGUAGE_CODE = "en-us"
 
 USE_TZ = True
-TIME_ZONE = getenv("TIME_ZONE", "UTC")
-
-USE_I18N = True
+TIME_ZONE = "UTC"

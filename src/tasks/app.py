@@ -1,6 +1,6 @@
 from celery import Celery
 
-from api.config import celery as config
+from api.configs import celery as config
 
 app = Celery("main")
 app.config_from_object(config)

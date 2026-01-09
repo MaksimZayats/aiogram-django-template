@@ -12,21 +12,19 @@ dependencies = [
     "celery-types>=0.24.0",
     "colorlog>=6.10.1",
     "dj-database-url>=3.1.0",
-    "django>=6.0.1",
+    "django>6",
     "django-axes[ipware]>=8.1.0",
     "django-cors-headers>=4.9.0",
+    "django-ninja>=1.5.2",
     "django-redis>=6.0.0",
     "django-silk>=5.4.3",
     "django-split-settings>=1.3.2",
     "django-storages>=1.14.6",
-    "djangorestframework>=3.16.1",
-    "djangorestframework-simplejwt>=5.5.1",
-    "drf-spectacular>=0.29.0",
+    "django-stubs>=5.2.8",
     "gunicorn>=23.0.0",
     "psycopg[c]>=3.3.2",
     "pyjwt>=2.10.1",
     "python-dotenv>=1.2.1",
-    "pytz>=2025.2",
     "redis>=7.1.0",
     "sentry-sdk>=2.49.0",
 ]
@@ -45,7 +43,7 @@ requires = ["uv_build>=0.9.10,<0.10.0"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
-namespace = true
+module-name = ["api", "bot", "tasks"]
 
 
 [tool.mypy]
@@ -62,8 +60,8 @@ exclude = [
 ]
 
 [tool.pytest.ini_options]
-minversion = "7.0"
-DJANGO_SETTINGS_MODULE = "api.config.settings"
+minversion = "9.0"
+DJANGO_SETTINGS_MODULE = "tests.integration.settings"
 addopts = "--exitfirst -vv --cov --cov-report=html --cov-fail-under=80"
 testpaths = [
     "tests",

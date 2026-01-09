@@ -4,8 +4,8 @@ import sys
 from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
 
-from api.config.logging import LOGGING
-from bot.config.bot import RUNNING_MODE, TELEGRAM_API_TOKEN, RunningMode
+from api.configs.logging import LOGGING
+from bot.configs.bot import TELEGRAM_API_TOKEN
 from bot.handlers import router
 
 logging.config.dictConfig(LOGGING)
@@ -35,16 +35,5 @@ def run_polling() -> None:
     dispatcher.run_polling(bot)
 
 
-def run_webhook() -> None:
-    msg = "Webhook mode is not implemented yet"
-    raise NotImplementedError(msg)
-
-
 if __name__ == "__main__":
-    if RUNNING_MODE == RunningMode.LONG_POLLING:
-        run_polling()
-    elif RUNNING_MODE == RunningMode.WEBHOOK:
-        run_webhook()
-    else:
-        logger.error("Unknown running mode")
-        sys.exit(1)
+    run_polling()

@@ -1,16 +1,18 @@
 #!/usr/bin/env python
 """Django's command-line utility for administrative tasks."""
 
-import os
+import logging
 import sys
 
 from django.core.management import execute_from_command_line
 
+from api import __version__
+
+logger = logging.getLogger(__name__)
+
 
 def main() -> None:
-    """Run administrative tasks."""
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "api.config.settings")
-
+    logger.info("Running API version %s", __version__)
     execute_from_command_line(sys.argv)
 
 

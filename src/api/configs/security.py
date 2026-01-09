@@ -12,9 +12,7 @@ if _default_secret_key == SECRET_KEY:
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = getenv("DJANGO_DEBUG", "false").lower() == "true"
 
-ALLOWED_HOSTS = [
-    host.strip() for host in getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
-]
+ALLOWED_HOSTS = [host.strip() for host in getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")]
 
 AUTHENTICATION_BACKENDS = [
     "axes.backends.AxesStandaloneBackend",
@@ -22,8 +20,7 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    host.strip()
-    for host in getenv("CSRF_TRUSTED_ORIGINS", "http://localhost").split(",")
+    host.strip() for host in getenv("CSRF_TRUSTED_ORIGINS", "http://localhost").split(",")
 ]
 
 CORS_ALLOW_ALL_ORIGINS = getenv("CORS_ALLOW_ALL_ORIGINS", "False").lower() == "true"

@@ -4,7 +4,7 @@ from os import environ, getenv
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 
-from api.config.application import ENVIRONMENT
+from api.configs.application import ENVIRONMENT
 
 logger = logging.getLogger(__name__)
 

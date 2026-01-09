@@ -1,10 +1,10 @@
 import logging
 from os import getenv
-from typing import Any, cast
+from typing import Any
 
 from storages.backends.s3 import S3Storage
 
-from api.config.base import BASE_DIR
+from api.configs.base import BASE_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ AWS_S3_ACCESS_KEY_ID = getenv("AWS_S3_ACCESS_KEY_ID", "access_key")
 AWS_S3_SECRET_ACCESS_KEY = getenv("AWS_S3_SECRET_ACCESS_KEY", "secret_key")
 
 AWS_S3_CONFIG = {
-    "BACKEND": "api.config.storage.CustomDomainS3Storage",
+    "BACKEND": "api.configs.storage.CustomDomainS3Storage",
     "OPTIONS": {
         "bucket_name": AWS_STORAGE_BUCKET_NAME,
         "access_key": AWS_S3_ACCESS_KEY_ID,
@@ -66,15 +66,9 @@ class CustomDomainS3Storage(S3Storage):
 
     custom_domain = False
 
-    def url(
-        self,
-        name: str,
-        parameters: Any = None,
-        expire: Any = None,
-        http_method: Any = None,
-    ) -> str:
+    def url(self, *args: Any, **kwargs: Any) -> str:
         """Replace internal domain with custom domain for signed URLs."""
-        url = cast("str", super().url(name, parameters, expire, http_method))
+        url = super().url(*args, **kwargs)
 
         return url.replace(
             f"https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com",

@@ -1,12 +1,8 @@
-from typing import TYPE_CHECKING
-
 from aiogram import Router
 from aiogram.filters import Command
+from aiogram.types import Message
 
 from api.user.models import User
-
-if TYPE_CHECKING:
-    from aiogram.types import Message
 
 router = Router()
 
