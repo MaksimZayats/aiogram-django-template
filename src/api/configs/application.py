@@ -14,8 +14,6 @@ INSTALLED_APPS = [
     "corsheaders",
     "axes",
     "silk",
-    "rest_framework",
-    "drf_spectacular",
     "api.user.apps.UserConfig",
 ]
 

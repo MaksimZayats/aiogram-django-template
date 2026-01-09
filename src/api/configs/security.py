@@ -28,3 +28,5 @@ CORS_ALLOW_CREDENTIALS = getenv("CORS_ALLOW_CREDENTIALS", "False").lower() == "t
 CORS_ALLOWED_ORIGINS = getenv("CORS_ALLOWED_ORIGINS", "http://localhost").split(
     ",",
 )
+
+JWT_SECRET_KEY = getenv("DJANGO_JWT_SECRET_KEY", default=SECRET_KEY)
