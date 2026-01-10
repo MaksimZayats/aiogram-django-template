@@ -1,24 +1,27 @@
 import hashlib
 import secrets
-from dataclasses import dataclass
 from datetime import timedelta
+from typing import NamedTuple
 
 from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.http import HttpRequest
 from django.utils import timezone
+from pydantic_settings import BaseSettings
 
 from infrastructure.django.refresh_sessions.models import BaseRefreshSession
 
 
-@dataclass(kw_only=True, frozen=True, slots=True)
-class RefreshSessionServiceSettings:
+class RefreshSessionServiceSettings(BaseSettings):
     refresh_token_nbytes: int = 32
-    refresh_token_ttl: timedelta = timedelta(days=30)
+    refresh_token_ttl_days: int = 30
+
+    @property
+    def refresh_token_ttl(self) -> timedelta:
+        return timedelta(days=self.refresh_token_ttl_days)
 
 
-@dataclass(kw_only=True, frozen=True, slots=True)
-class RefreshSessionResult:
+class RefreshSessionResult(NamedTuple):
     refresh_token: str
     session: BaseRefreshSession
 

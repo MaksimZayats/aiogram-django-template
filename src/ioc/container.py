@@ -1,6 +1,5 @@
 from punq import Container, Scope
 
-from api.configs.settings import Settings
 from api.user.models import RefreshSession
 from delivery.http.health.controllers import HealthController
 from delivery.http.user.controllers import UserController, UserTokenController
@@ -26,8 +25,7 @@ def get_container() -> Container:
 def _register_services(container: Container) -> None:
     container.register(
         JWTServiceSettings,
-        factory=lambda: JWTServiceSettings(secret_key=Settings.JWT_SECRET_KEY),  # ty: ignore[invalid-argument-type]
-        scope=Scope.singleton,
+        factory=lambda: JWTServiceSettings(),  # type: ignore[missing-argument]
     )
 
     container.register(

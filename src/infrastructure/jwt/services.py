@@ -1,15 +1,21 @@
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-@dataclass(kw_only=True, frozen=True, slots=True)
-class JWTServiceSettings:
-    secret_key: str
+class JWTServiceSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="JWT_")
+
+    secret_key: SecretStr
     algorithm: str = "HS256"
-    access_token_expire: timedelta = timedelta(minutes=15)
+    access_token_expire_minutes: int = 15
+
+    @property
+    def access_token_expire(self) -> timedelta:
+        return timedelta(minutes=self.access_token_expire_minutes)
 
 
 class JWTService:
@@ -34,13 +40,13 @@ class JWTService:
 
         return jwt.encode(
             payload=payload,
-            key=self._settings.secret_key,
+            key=self._settings.secret_key.get_secret_value(),
             algorithm=self._settings.algorithm,
         )
 
     def decode_token(self, token: str) -> dict[str, Any]:
         return jwt.decode(
             jwt=token,
-            key=self._settings.secret_key,
+            key=self._settings.secret_key.get_secret_value(),
             algorithms=[self._settings.algorithm],
         )

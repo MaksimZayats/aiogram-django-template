@@ -1,14 +1,17 @@
-from configurations.values import ListValue
+from typing import Any
+
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 
-class HTTPSettings:
-    ALLOWED_HOSTS = ListValue(default=["127.0.0.1", "localhost"])
-    CSRF_TRUSTED_ORIGINS = ListValue(default=["http://localhost"])
+class HTTPSettings(BaseSettings):
+    allowed_hosts: list[str] = Field(default_factory=lambda: ["localhost", "127.0.0.1"])
+    csrf_trusted_origins: list[str] = Field(default_factory=lambda: ["http://localhost"])
 
-    ROOT_URLCONF = "delivery.http.urls"
-    WSGI_APPLICATION = "delivery.http.app.wsgi"
+    root_urlconf: str = "delivery.http.urls"
+    wsgi_application: str = "delivery.http.app.wsgi"
 
-    MIDDLEWARE = (
+    middleware: tuple[str, ...] = (
         "django.middleware.security.SecurityMiddleware",
         "django.contrib.sessions.middleware.SessionMiddleware",
         "django.middleware.common.CommonMiddleware",
@@ -19,8 +22,8 @@ class HTTPSettings:
     )
 
 
-class TemplateSettings:
-    TEMPLATES = (
+class TemplateSettings(BaseSettings):
+    templates: tuple[dict[str, Any], ...] = (
         {
             "BACKEND": "django.template.backends.django.DjangoTemplates",
             "DIRS": [],
@@ -37,10 +40,10 @@ class TemplateSettings:
     )
 
 
-class AuthSettings:
-    AUTH_USER_MODEL = "user.User"
-    AUTHENTICATION_BACKENDS = ("django.contrib.auth.backends.ModelBackend",)
-    AUTH_PASSWORD_VALIDATORS = (
+class AuthSettings(BaseSettings):
+    auth_user_model: str = "user.User"
+    authentication_backends: tuple[str, ...] = ("django.contrib.auth.backends.ModelBackend",)
+    password_validators: tuple[dict[str, str], ...] = (
         {
             "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
         },
