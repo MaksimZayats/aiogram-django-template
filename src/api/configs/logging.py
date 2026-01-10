@@ -28,4 +28,6 @@ LOGGING = {
     },
 }
 
-logging.config.dictConfig(LOGGING)
+
+def setup_logging() -> None:
+    logging.config.dictConfig(LOGGING)

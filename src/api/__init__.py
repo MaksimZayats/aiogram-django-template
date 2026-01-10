@@ -6,10 +6,13 @@ import django_stubs_ext
 from configurations import importer
 from dotenv import load_dotenv
 
+from api.configs.logging import setup_logging
+
 
 @cache
 def setup_environment() -> None:
     load_dotenv()
+    setup_logging()
 
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "api.configs.settings")
     os.environ.setdefault("DJANGO_CONFIGURATION", "Settings")
