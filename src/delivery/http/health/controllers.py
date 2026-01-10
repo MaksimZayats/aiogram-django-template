@@ -4,7 +4,7 @@ from django.http import HttpRequest
 from ninja import Router
 from pydantic import BaseModel
 
-from infrastructure.django.controller import Controller
+from infrastructure.delivery.controllers import Controller
 
 
 class HealthCheckResponseSchema(BaseModel):
@@ -12,8 +12,8 @@ class HealthCheckResponseSchema(BaseModel):
 
 
 class HealthController(Controller):
-    def register_routes(self, router: Router) -> None:
-        router.add_api_operation(
+    def register_routes(self, registry: Router) -> None:
+        registry.add_api_operation(
             path="v1/health",
             methods=["GET"],
             view_func=self.health_check,

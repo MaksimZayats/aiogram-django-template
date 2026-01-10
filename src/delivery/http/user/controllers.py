@@ -7,15 +7,15 @@ from ninja.errors import HttpError
 from pydantic import BaseModel
 
 from api.user.models import User
+from infrastructure.delivery.controllers import Controller
 from infrastructure.django.auth import JWTAuth
-from infrastructure.django.controller import Controller
 from infrastructure.django.refresh_sessions.services import (
     ExpiredRefreshTokenError,
     InvalidRefreshTokenError,
     RefreshSessionService,
     RefreshTokenError,
 )
-from infrastructure.jwt.service import JWTService
+from infrastructure.jwt.services import JWTService
 
 
 class IssueTokenRequestSchema(BaseModel):
@@ -43,22 +43,22 @@ class UserTokenController(Controller):
         self._refresh_token_service = refresh_token_service
         self._jwt_auth = jwt_auth
 
-    def register_routes(self, router: Router) -> None:
-        router.add_api_operation(
+    def register_routes(self, registry: Router) -> None:
+        registry.add_api_operation(
             path="/v1/users/me/token",
             methods=["POST"],
             view_func=self.issue_user_token,
             auth=None,
         )
 
-        router.add_api_operation(
+        registry.add_api_operation(
             path="/v1/users/me/token/refresh",
             methods=["POST"],
             view_func=self.refresh_user_token,
             auth=None,
         )
 
-        router.add_api_operation(
+        registry.add_api_operation(
             path="/v1/users/me/token/revoke",
             methods=["POST"],
             view_func=self.revoke_refresh_token,
@@ -160,15 +160,15 @@ class UserController(Controller):
     ) -> None:
         self._auth = auth
 
-    def register_routes(self, router: Router) -> None:
-        router.add_api_operation(
+    def register_routes(self, registry: Router) -> None:
+        registry.add_api_operation(
             path="/v1/users/",
             methods=["POST"],
             view_func=self.create_user,
             auth=None,
         )
 
-        router.add_api_operation(
+        registry.add_api_operation(
             path="/v1/users/me",
             methods=["GET"],
             view_func=self.get_current_user,

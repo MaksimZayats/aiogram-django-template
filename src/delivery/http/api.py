@@ -23,7 +23,7 @@ def get_ninja_api(
     ninja_api.add_router("/", health_router)
 
     health_controller = container.resolve(HealthController)
-    health_controller.register_routes(router=health_router)
+    health_controller.register_routes(registry=health_router)
 
     user_router = Router(tags=["user"])
     ninja_api.add_router("/", user_router)
@@ -33,7 +33,7 @@ def get_ninja_api(
         UserController,
     ):
         controller = container.resolve(controller_class)
-        controller.register_routes(router=user_router)
+        controller.register_routes(registry=user_router)
 
     return ninja_api
 

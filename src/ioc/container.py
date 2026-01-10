@@ -10,7 +10,7 @@ from infrastructure.django.refresh_sessions.services import (
     RefreshSessionService,
     RefreshSessionServiceSettings,
 )
-from infrastructure.jwt.service import JWTService, JWTServiceSettings
+from infrastructure.jwt.services import JWTService, JWTServiceSettings
 
 
 def get_container() -> Container:
