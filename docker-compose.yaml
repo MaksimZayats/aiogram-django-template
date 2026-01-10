@@ -1,34 +1,49 @@
+x-common: &common
+  env_file:
+    - .env
+
+  environment:
+    DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB}
+
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+  networks:
+    - main
+
 services:
   api:
+    <<: *common
     build: .
     ports:
       - "8009:8000"
     command:
       - gunicorn
+      - delivery.http.app:wsgi
       - --workers=4
       - --bind=0.0.0.0
       - --timeout=120
-      - delivery.http.app:app
     depends_on:
       - pgbouncer
       - migrations
       - collectstatic
     restart: always
-    volumes:
-      - .:/application
     networks:
       - main
 
-#  bot:
-#    build: .
-#    command: make run.bot.prod
-#    depends_on:
-#      - api
-#    restart: always
-#    volumes:
-#      - .:/application
-#    networks:
-#      - main
+  bot:
+    <<: *common
+    build: .
+    command: python -m delivery.bot
+    depends_on:
+      - pgbouncer
+      - migrations
+    restart: always
+    networks:
+      - main
 
   db:
     image: postgres:latest
@@ -67,44 +82,21 @@ services:
     networks:
       - main
 
-  redis:
-    image: redis:latest
-    restart: unless-stopped
-    volumes:
-      - redis-data:/data
-    networks:
-      - main
-
-  rabbitmq:
-    image: rabbitmq:3-management
-    restart: unless-stopped
-    environment:
-        RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
-        RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
-    volumes:
-      - rabbitmq-data:/var/lib/rabbitmq
-    ports:
-      - "${RABBITMQ_DASHBOARD_PORT:-15672}:15672"
-    networks:
-      - main
-
   migrations:
+    <<: *common
     build: .
     command: python manage.py migrate --noinput
     depends_on:
-      - db
-    volumes:
-      - .:/application
+      - pgbouncer
     networks:
       - main
 
   collectstatic:
+    <<: *common
     build: .
     command: python manage.py collectstatic --noinput
     depends_on:
-      - db
-    volumes:
-      - .:/application
+      - pgbouncer
     networks:
       - main
 
@@ -116,5 +108,3 @@ networks:
 volumes:
   postgres-data:
   pgbouncer-data:
-  redis-data:
-  rabbitmq-data:

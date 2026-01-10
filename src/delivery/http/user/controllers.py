@@ -111,7 +111,10 @@ class UserTokenController(Controller):
         request: HttpRequest,
         body: RefreshTokenRequestSchema,
     ) -> None:
-        self._refresh_token_service.revoke_refresh_token(refresh_token=body.refresh_token)
+        self._refresh_token_service.revoke_refresh_token(
+            refresh_token=body.refresh_token,
+            user=request.user,
+        )
 
     def handle_exception(self, exception: Exception) -> NoReturn:
         if isinstance(exception, InvalidRefreshTokenError):
@@ -184,6 +187,12 @@ class UserController(Controller):
             raise HttpError(
                 status_code=HTTPStatus.BAD_REQUEST,
                 message="Username already exists",
+            )
+
+        if User.objects.filter(email=request_body.email).exists():
+            raise HttpError(
+                status_code=HTTPStatus.BAD_REQUEST,
+                message="Email already exists",
             )
 
         user = User.objects.create_user(

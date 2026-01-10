@@ -3,7 +3,7 @@ import secrets
 from datetime import timedelta
 from typing import NamedTuple
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractBaseUser
 from django.db import transaction
 from django.http import HttpRequest
 from django.utils import timezone
@@ -39,9 +39,6 @@ class ExpiredRefreshTokenError(RefreshTokenError):
 
 
 class RefreshSessionService:
-    INVALID_REFRESH_TOKEN_ERROR = InvalidRefreshTokenError("Invalid refresh token")
-    EXPIRED_REFRESH_TOKEN_ERROR = ExpiredRefreshTokenError("Refresh session expired or revoked")
-
     def __init__(
         self,
         settings: RefreshSessionServiceSettings,
@@ -53,7 +50,7 @@ class RefreshSessionService:
     def create_refresh_session(
         self,
         request: HttpRequest,
-        user: AbstractUser,
+        user: AbstractBaseUser,
     ) -> RefreshSessionResult:
         refresh_token = self._issue_refresh_token()
         refresh_token_hash = self._hash_refresh_token(refresh_token)
@@ -87,8 +84,15 @@ class RefreshSessionService:
         return RefreshSessionResult(refresh_token=new_refresh_token, session=session)
 
     @transaction.atomic
-    def revoke_refresh_token(self, refresh_token: str) -> None:
+    def revoke_refresh_token(
+        self,
+        refresh_token: str,
+        user: AbstractBaseUser,
+    ) -> None:
         session = self._get_refresh_session(refresh_token)
+        if session.user.pk != user.pk:
+            raise InvalidRefreshTokenError
+
         session.revoked_at = timezone.now()
         session.save(update_fields=["revoked_at"])
 
@@ -107,9 +111,9 @@ class RefreshSessionService:
                 refresh_token_hash=self._hash_refresh_token(refresh_token),
             )
         except self._refresh_session_model.DoesNotExist as e:
-            raise self.INVALID_REFRESH_TOKEN_ERROR from e
+            raise InvalidRefreshTokenError from e
 
         if not session.is_active:
-            raise self.EXPIRED_REFRESH_TOKEN_ERROR
+            raise ExpiredRefreshTokenError
 
         return session

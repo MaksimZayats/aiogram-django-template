@@ -2,8 +2,6 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from core.user.models import User
-
 router = Router()
 
 
@@ -12,19 +10,7 @@ async def handle_start_command(message: Message) -> None:
     if message.from_user is None:
         return
 
-    _, is_new = await User.objects.aget_or_create(
-        pk=message.from_user.id,
-        defaults={
-            "username": message.from_user.username,
-            "first_name": message.from_user.first_name,
-            "last_name": message.from_user.last_name,
-        },
-    )
-
-    if is_new:
-        await message.answer("You have successfully registered in the bot!")
-    else:
-        await message.answer("You are already registered in the bot!")
+    await message.answer("Hello! This is a bot.")
 
 
 @router.message(Command(commands=["id"]))

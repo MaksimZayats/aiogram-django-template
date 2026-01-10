@@ -88,4 +88,5 @@ adapter.adapt(
     http_settings,
     template_settings,
     auth_settings,
+    settings_locals=locals(),
 )
