@@ -4,8 +4,8 @@ from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
 
 from api.configs.logging import LOGGING
-from bot.configs.bot import TELEGRAM_API_TOKEN
-from bot.handlers import router
+from delivery.bot.configs.bot import TELEGRAM_API_TOKEN
+from delivery.bot.handlers import router
 
 logging.config.dictConfig(LOGGING)
 logger = logging.getLogger(__name__)

@@ -8,6 +8,8 @@ from api.user.models import User
 
 
 class TestClientFactory:
+    __test__ = False
+
     def __init__(self, api_factory: Callable[[], NinjaAPI]) -> None:
         self._api_factory = api_factory
 

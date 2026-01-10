@@ -3,8 +3,8 @@ from http import HTTPStatus
 import pytest
 from punq import Container
 
-from api.user.delivery.http.controllers import TokenResponseSchema, UserSchema
 from api.user.models import User
+from delivery.http.user.controllers import TokenResponseSchema, UserSchema
 from tests.integration.conftest import UserFactory
 from tests.integration.factories import TestClientFactory
 
@@ -42,6 +42,21 @@ def test_jwt_token_generation(
     assert user_data.id == user.pk
     assert user_data.username == user.username
     assert user_data.email == user.email
+
+
+@pytest.mark.django_db(transaction=True)
+def test_jwt_token_generation_for_invalid_password(
+    test_client_factory: TestClientFactory,
+    user: User,
+) -> None:
+    test_client = test_client_factory()
+
+    response = test_client.post(
+        "/v1/users/me/token",
+        json={"username": user.username, "password": "invalid-password"},
+    )
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
 @pytest.mark.django_db(transaction=True)

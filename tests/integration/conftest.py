@@ -4,8 +4,8 @@ from functools import partial
 import pytest
 from punq import Container
 
-from api.delivery.http.api import get_ninja_api
 from api.user.models import User
+from delivery.http.api import get_ninja_api
 from ioc.container import get_container
 from tests.integration.factories import TestClientFactory, UserFactory
 

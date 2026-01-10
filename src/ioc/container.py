@@ -8,8 +8,8 @@ from api.infrastructure.django.refresh_sessions.services import (
     RefreshSessionServiceSettings,
 )
 from api.infrastructure.jwt.service import JWTService, JWTServiceSettings
-from api.user.delivery.http.controllers import UserController, UserTokenController
 from api.user.models import RefreshSession
+from delivery.http.user.controllers import UserController, UserTokenController
 
 
 def get_container() -> Container:

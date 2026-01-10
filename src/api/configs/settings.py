@@ -5,10 +5,11 @@ from configurations.values import (
     BooleanValue,
     DatabaseURLValue,
     IntegerValue,
-    ListValue,
     SecretValue,
     Value,
 )
+
+from delivery.http.settings import AuthSettings, HTTPSettings, TemplateSettings
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -35,68 +36,10 @@ class ApplicationSettings:
     )
 
 
-class HTTPDeliverySettings:
-    MIDDLEWARE = (
-        "django.middleware.security.SecurityMiddleware",
-        "django.contrib.sessions.middleware.SessionMiddleware",
-        "django.middleware.common.CommonMiddleware",
-        "django.middleware.csrf.CsrfViewMiddleware",
-        "django.contrib.auth.middleware.AuthenticationMiddleware",
-        "django.contrib.messages.middleware.MessageMiddleware",
-        "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    )
-
-    ROOT_URLCONF = "api.delivery.http.urls"
-    WSGI_APPLICATION = "api.delivery.http.app.wsgi"
-
-
-class TemplateSettings:
-    TEMPLATES = (
-        {
-            "BACKEND": "django.template.backends.django.DjangoTemplates",
-            "DIRS": [],
-            "APP_DIRS": True,
-            "OPTIONS": {
-                "context_processors": [
-                    "django.template.context_processors.debug",
-                    "django.template.context_processors.request",
-                    "django.contrib.auth.context_processors.auth",
-                    "django.contrib.messages.context_processors.messages",
-                ],
-            },
-        },
-    )
-
-
-class AuthSettings:
-    AUTH_USER_MODEL = "user.User"
-    AUTHENTICATION_BACKENDS = ("django.contrib.auth.backends.ModelBackend",)
-    AUTH_PASSWORD_VALIDATORS = (
-        {
-            "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-        },
-        {
-            "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-        },
-        {
-            "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-        },
-        {
-            "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-        },
-    )
-
-
 class SecuritySettings:
     DEBUG = BooleanValue(default=True)
     SECRET_KEY = SecretValue()
-
     JWT_SECRET_KEY = SecretValue(environ_prefix=None)
-    REFRESH_TOKEN_LIFETIME_MINUTES = IntegerValue(default=60 * 24 * 7)  # 7 days
-    ACCESS_TOKEN_LIFETIME_MINUTES = IntegerValue(default=15)
-
-    ALLOWED_HOSTS = ListValue(default=["127.0.0.1", "localhost"])
-    CSRF_TRUSTED_ORIGINS = ListValue(default=["http://localhost"])
 
 
 class StorageSettings:
@@ -118,20 +61,14 @@ class StorageSettings:
     }
 
 
-class AllSettings(
+class Settings(
     DatabaseSettings,
     ApplicationSettings,
-    HTTPDeliverySettings,
-    TemplateSettings,
-    AuthSettings,
     SecuritySettings,
     StorageSettings,
-):
-    pass
-
-
-class Settings(
-    AllSettings,
+    HTTPSettings,
+    TemplateSettings,
+    AuthSettings,
     Configuration,
 ):
     pass
