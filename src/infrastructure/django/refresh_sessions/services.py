@@ -1,7 +1,7 @@
 import hashlib
 import secrets
 from datetime import timedelta
-from typing import NamedTuple, reveal_type
+from typing import NamedTuple
 
 from django.contrib.auth.models import AbstractUser
 from django.db import transaction
