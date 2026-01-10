@@ -1,9 +1,11 @@
 import logging
+from http import HTTPStatus
 from typing import Literal
 
 from django.contrib.sessions.models import Session
 from django.http import HttpRequest
 from ninja import Router
+from ninja.errors import HttpError
 from pydantic import BaseModel
 
 from infrastructure.delivery.controllers import Controller
@@ -12,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class HealthCheckResponseSchema(BaseModel):
-    status: Literal["ok", "error"]
+    status: Literal["ok"]
 
 
 class HealthController(Controller):
@@ -30,8 +32,11 @@ class HealthController(Controller):
     ) -> HealthCheckResponseSchema:
         try:
             Session.objects.first()
-        except Exception:
+        except Exception as e:
             logger.exception("Health check failed: database is not reachable")
-            return HealthCheckResponseSchema(status="error")
+            raise HttpError(
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                message="Service Unavailable",
+            ) from e
 
         return HealthCheckResponseSchema(status="ok")

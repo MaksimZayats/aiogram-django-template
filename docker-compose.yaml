@@ -46,14 +46,14 @@ services:
       - main
 
   db:
-    image: postgres:latest
+    image: postgres:18
     restart: unless-stopped
     env_file:
       - .env
     environment:
       POSTGRES_INITDB_ARGS: --auth=md5
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql
     networks:
       - main
 
@@ -64,7 +64,7 @@ services:
       - db
     environment:
       - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      - POOL_MODE=transaction
+      - POOL_MODE=session
       - MAX_CLIENT_CONN=1000
       - DEFAULT_POOL_SIZE=20
       - MIN_POOL_SIZE=5

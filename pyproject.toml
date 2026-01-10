@@ -5,6 +5,7 @@ description = "Add your description here"
 requires-python = ">=3.14"
 dependencies = [
     "aiogram>=3.24.0",
+    "annotated-types>=0.7.0",
     "boto3>=1.42.24",
     "cachetools>=6.2.4",
     "celery>=5.6.2",
@@ -19,6 +20,7 @@ dependencies = [
     "psycopg[binary]>=3.3.2",
     "punq>=0.7.0",
     "pydantic-settings>=2.12.0",
+    "pydantic[email]>=2.12.5",
     "pyjwt>=2.10.1",
     "python-dotenv>=1.2.1",
 ]
@@ -76,7 +78,7 @@ django_settings_module = "core.configs.settings"
 [tool.pytest.ini_options]
 minversion = "9.0"
 DJANGO_SETTINGS_MODULE = "core.configs.settings"
-addopts = "--exitfirst -vv --cov --cov-report=html --cov-fail-under=80"
+addopts = "--exitfirst -vv --cov=src --cov-report=html --cov-fail-under=80"
 testpaths = [
     "tests",
 ]

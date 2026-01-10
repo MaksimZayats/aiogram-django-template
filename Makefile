@@ -10,9 +10,6 @@ migrate:
 collectstatic:
 	uv run manage.py collectstatic --no-input
 
-createsuperuser:
-	uv run manage.py createsuperuser --email "" --username admin
-
 format:
 	uv run ruff format .
 	uv run ruff check --fix-only .

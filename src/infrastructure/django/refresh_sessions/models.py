@@ -31,9 +31,6 @@ class BaseRefreshSession(models.Model):
 
     class Meta:
         abstract = True
-        indexes = (
-            models.Index(fields=["refresh_token_hash"]),
-        )
 
     def __str__(self) -> str:
         return f"RefreshSession(id={self.id}, user_id={self.user_id})"

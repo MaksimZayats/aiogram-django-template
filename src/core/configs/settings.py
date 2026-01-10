@@ -45,7 +45,7 @@ class ApplicationSettings(BaseSettings):
 class SecuritySettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DJANGO_")
 
-    debug: bool = True
+    debug: bool = False
     secret_key: SecretStr
 
 

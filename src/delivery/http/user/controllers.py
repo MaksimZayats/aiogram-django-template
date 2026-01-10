@@ -1,10 +1,13 @@
 from http import HTTPStatus
-from typing import NoReturn
+from typing import Annotated, NoReturn, cast
 
+from annotated_types import Len
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.http import HttpRequest
 from ninja import Router
 from ninja.errors import HttpError
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 from core.user.models import User
 from infrastructure.delivery.controllers import Controller
@@ -113,7 +116,7 @@ class UserTokenController(Controller):
     ) -> None:
         self._refresh_token_service.revoke_refresh_token(
             refresh_token=body.refresh_token,
-            user=request.user,
+            user=cast(User, request.user),
         )
 
     def handle_exception(self, exception: Exception) -> NoReturn:
@@ -139,11 +142,11 @@ class UserTokenController(Controller):
 
 
 class CreateUserRequestSchema(BaseModel):
-    username: str
-    email: str
-    first_name: str
-    last_name: str
-    password: str
+    email: EmailStr
+    username: Annotated[str, Len(max_length=150)]
+    first_name: Annotated[str, Len(max_length=150)]
+    last_name: Annotated[str, Len(max_length=150)]
+    password: Annotated[str, Len(max_length=128)]
 
 
 class UserSchema(BaseModel):
@@ -183,6 +186,14 @@ class UserController(Controller):
         request: HttpRequest,
         request_body: CreateUserRequestSchema,
     ) -> UserSchema:
+        try:
+            validate_password(request_body.password)
+        except ValidationError as exc:
+            raise HttpError(
+                status_code=HTTPStatus.BAD_REQUEST,
+                message=str(exc.message),
+            ) from exc
+
         if User.objects.filter(username=request_body.username).exists():
             raise HttpError(
                 status_code=HTTPStatus.BAD_REQUEST,
@@ -197,7 +208,7 @@ class UserController(Controller):
 
         user = User.objects.create_user(
             username=request_body.username,
-            email=request_body.email,
+            email=str(request_body.email),
             first_name=request_body.first_name,
             last_name=request_body.last_name,
             password=request_body.password,

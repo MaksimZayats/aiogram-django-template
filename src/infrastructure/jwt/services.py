@@ -35,6 +35,7 @@ class JWTService:
             "sub": str(user_id),
             "exp": iat + self._settings.access_token_expire,
             "iat": iat,
+            "typ": "at+jwt",
             **payload_kwargs,
         }
 
