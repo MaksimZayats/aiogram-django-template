@@ -1,3 +1,4 @@
+import uuid
 from functools import partial
 
 import pytest
@@ -16,7 +17,15 @@ def container() -> Container:
 
 @pytest.fixture(scope="function")
 def test_client_factory(container: Container) -> TestClientFactory:
-    return TestClientFactory(api_factory=partial(get_ninja_api, container=container))
+    # NOTE FOR AI: we are creating new api + test client for each test function
+    # to have a possibility to override some ioc registrations in specific tests
+    return TestClientFactory(
+        api_factory=partial(
+            get_ninja_api,
+            container=container,
+            urls_namespace=str(uuid.uuid4()),
+        ),
+    )
 
 
 @pytest.fixture(scope="function")

@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from typing import NoReturn
 
 from django.http import HttpRequest
 from ninja import Router
@@ -7,6 +8,12 @@ from pydantic import BaseModel
 
 from api.infrastructure.django.auth import JWTAuth
 from api.infrastructure.django.controller import Controller
+from api.infrastructure.django.refresh_sessions.services import (
+    ExpiredRefreshTokenError,
+    InvalidRefreshTokenError,
+    RefreshSessionService,
+    RefreshTokenError,
+)
 from api.infrastructure.jwt.service import JWTService
 from api.user.models import User
 
@@ -29,8 +36,12 @@ class UserTokenController(Controller):
     def __init__(
         self,
         jwt_service: JWTService,
+        refresh_token_service: RefreshSessionService,
+        jwt_auth: JWTAuth,
     ) -> None:
         self._jwt_service = jwt_service
+        self._refresh_token_service = refresh_token_service
+        self._jwt_auth = jwt_auth
 
     def register_routes(self, router: Router) -> None:
         router.add_api_operation(
@@ -47,6 +58,13 @@ class UserTokenController(Controller):
             auth=None,
         )
 
+        router.add_api_operation(
+            path="/v1/users/me/token/revoke",
+            methods=["POST"],
+            view_func=self.revoke_refresh_token,
+            auth=self._jwt_auth,
+        )
+
     def issue_user_token(
         self,
         request: HttpRequest,
@@ -60,19 +78,61 @@ class UserTokenController(Controller):
             )
 
         access_token = self._jwt_service.issue_access_token(user_id=user.pk)
-        refresh_token = self._jwt_service.issue_refresh_token()
+        refresh_session = self._refresh_token_service.create_refresh_session(
+            request=request,
+            user=user,
+        )
 
         return TokenResponseSchema(
             access_token=access_token,
-            refresh_token=refresh_token,
+            refresh_token=refresh_session.refresh_token,
         )
 
     def refresh_user_token(
         self,
         request: HttpRequest,
-        body: IssueTokenRequestSchema,
+        body: RefreshTokenRequestSchema,
     ) -> TokenResponseSchema:
-        pass
+        rotated_session = self._refresh_token_service.rotate_refresh_token(
+            refresh_token=body.refresh_token,
+        )
+
+        access_token = self._jwt_service.issue_access_token(
+            user_id=rotated_session.session.user.pk,
+        )
+
+        return TokenResponseSchema(
+            access_token=access_token,
+            refresh_token=rotated_session.refresh_token,
+        )
+
+    def revoke_refresh_token(
+        self,
+        request: HttpRequest,
+        body: RefreshTokenRequestSchema,
+    ) -> None:
+        self._refresh_token_service.revoke_refresh_token(refresh_token=body.refresh_token)
+
+    def handle_exception(self, exception: Exception) -> NoReturn:
+        if isinstance(exception, InvalidRefreshTokenError):
+            raise HttpError(
+                status_code=HTTPStatus.UNAUTHORIZED,
+                message="Invalid refresh token",
+            ) from exception
+
+        if isinstance(exception, ExpiredRefreshTokenError):
+            raise HttpError(
+                status_code=HTTPStatus.UNAUTHORIZED,
+                message="Refresh token expired or revoked",
+            ) from exception
+
+        if isinstance(exception, RefreshTokenError):
+            raise HttpError(
+                status_code=HTTPStatus.UNAUTHORIZED,
+                message="Refresh token error",
+            ) from exception
+
+        raise exception
 
 
 class UserSchema(BaseModel):

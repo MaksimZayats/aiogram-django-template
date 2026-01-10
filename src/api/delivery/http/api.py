@@ -6,10 +6,17 @@ from api.user.delivery.http.controllers import UserController, UserTokenControll
 from ioc.container import get_container
 
 
-def get_ninja_api(container: Container | None = None) -> NinjaAPI:
+def get_ninja_api(
+    container: Container | None = None,
+    urls_namespace: str | None = None,
+    # NOTE FOR AI: we are having both options to customize api creation for tests
+) -> NinjaAPI:
     container = container or get_container()
 
-    api = NinjaAPI(docs_decorator=staff_member_required)
+    api = NinjaAPI(
+        urls_namespace=urls_namespace,
+        docs_decorator=staff_member_required,
+    )
 
     user_router = Router(tags=["user"])
     api.add_router("/", user_router)

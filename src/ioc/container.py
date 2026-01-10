@@ -2,8 +2,14 @@ from punq import Container, Scope
 
 from api.configs.settings import Settings
 from api.infrastructure.django.auth import JWTAuth
+from api.infrastructure.django.refresh_sessions.models import BaseRefreshSession
+from api.infrastructure.django.refresh_sessions.services import (
+    RefreshSessionService,
+    RefreshSessionServiceSettings,
+)
 from api.infrastructure.jwt.service import JWTService, JWTServiceSettings
 from api.user.delivery.http.controllers import UserController, UserTokenController
+from api.user.models import RefreshSession
 
 
 def get_container() -> Container:
@@ -19,12 +25,27 @@ def get_container() -> Container:
 def _register_services(container: Container) -> None:
     container.register(
         JWTServiceSettings,
-        factory=lambda: JWTServiceSettings(secret_key=Settings.JWT_SECRET_KEY),
+        factory=lambda: JWTServiceSettings(secret_key=Settings.JWT_SECRET_KEY),  # ty: ignore[invalid-argument-type]
         scope=Scope.singleton,
     )
 
     container.register(
         JWTService,
+        scope=Scope.singleton,
+    )
+
+    container.register(
+        RefreshSessionServiceSettings,
+        factory=lambda: RefreshSessionServiceSettings(),
+    )
+
+    container.register(
+        type[BaseRefreshSession],
+        instance=RefreshSession,
+    )
+
+    container.register(
+        RefreshSessionService,
         scope=Scope.singleton,
     )
 

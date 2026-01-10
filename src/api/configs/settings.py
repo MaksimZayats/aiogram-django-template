@@ -90,7 +90,10 @@ class AuthSettings:
 class SecuritySettings:
     DEBUG = BooleanValue(default=True)
     SECRET_KEY = SecretValue()
+
     JWT_SECRET_KEY = SecretValue(environ_prefix=None)
+    REFRESH_TOKEN_LIFETIME_MINUTES = IntegerValue(default=60 * 24 * 7)  # 7 days
+    ACCESS_TOKEN_LIFETIME_MINUTES = IntegerValue(default=15)
 
     ALLOWED_HOSTS = ListValue(default=["127.0.0.1", "localhost"])
     CSRF_TRUSTED_ORIGINS = ListValue(default=["http://localhost"])

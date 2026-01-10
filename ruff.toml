@@ -16,6 +16,8 @@ ignore = [
     "D102",
     "TC001",
     "TC003",
+    "D106",
+    "D105",
 ]
 
 [lint.per-file-ignores]

@@ -1,4 +1,3 @@
-import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -11,7 +10,6 @@ class JWTServiceSettings:
     secret_key: str
     algorithm: str = "HS256"
     access_token_expire: timedelta = timedelta(minutes=15)
-    refresh_token_nbytes: int = 32
 
 
 class JWTService:
@@ -39,9 +37,6 @@ class JWTService:
             key=self._settings.secret_key,
             algorithm=self._settings.algorithm,
         )
-
-    def issue_refresh_token(self) -> str:
-        return secrets.token_urlsafe(nbytes=self._settings.refresh_token_nbytes)
 
     def decode_token(self, token: str) -> dict[str, Any]:
         return jwt.decode(

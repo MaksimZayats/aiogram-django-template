@@ -1,0 +1,112 @@
+import hashlib
+import secrets
+from dataclasses import dataclass
+from datetime import timedelta
+
+from django.contrib.auth.models import AbstractUser
+from django.db import transaction
+from django.http import HttpRequest
+from django.utils import timezone
+
+from api.infrastructure.django.refresh_sessions.models import BaseRefreshSession
+
+
+@dataclass(kw_only=True, frozen=True, slots=True)
+class RefreshSessionServiceSettings:
+    refresh_token_nbytes: int = 32
+    refresh_token_ttl: timedelta = timedelta(days=30)
+
+
+@dataclass(kw_only=True, frozen=True, slots=True)
+class RefreshSessionResult:
+    refresh_token: str
+    session: BaseRefreshSession
+
+
+class RefreshTokenError(Exception):
+    pass
+
+
+class InvalidRefreshTokenError(RefreshTokenError):
+    pass
+
+
+class ExpiredRefreshTokenError(RefreshTokenError):
+    pass
+
+
+class RefreshSessionService:
+    INVALID_REFRESH_TOKEN_ERROR = InvalidRefreshTokenError("Invalid refresh token")
+    EXPIRED_REFRESH_TOKEN_ERROR = ExpiredRefreshTokenError("Refresh session expired or revoked")
+
+    def __init__(
+        self,
+        settings: RefreshSessionServiceSettings,
+        refresh_session_model: type[BaseRefreshSession],
+    ) -> None:
+        self._settings = settings
+        self._refresh_session_model = refresh_session_model
+
+    def create_refresh_session(
+        self,
+        request: HttpRequest,
+        user: AbstractUser,
+    ) -> RefreshSessionResult:
+        refresh_token = self._issue_refresh_token()
+        refresh_token_hash = self._hash_refresh_token(refresh_token)
+
+        session = self._refresh_session_model.objects.create(
+            user=user,
+            refresh_token_hash=refresh_token_hash,
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            ip_address=request.META.get("REMOTE_ADDR"),
+            expires_at=timezone.now() + self._settings.refresh_token_ttl,
+        )
+
+        return RefreshSessionResult(refresh_token=refresh_token, session=session)
+
+    @transaction.atomic
+    def rotate_refresh_token(self, refresh_token: str) -> RefreshSessionResult:
+        session = self._get_refresh_session(refresh_token)
+
+        new_refresh_token = self._issue_refresh_token()
+        session.refresh_token_hash = self._hash_refresh_token(new_refresh_token)
+        session.rotation_counter += 1
+        session.last_used_at = timezone.now()
+        session.save(
+            update_fields=[
+                "refresh_token_hash",
+                "rotation_counter",
+                "last_used_at",
+            ],
+        )
+
+        return RefreshSessionResult(refresh_token=new_refresh_token, session=session)
+
+    @transaction.atomic
+    def revoke_refresh_token(self, refresh_token: str) -> None:
+        session = self._get_refresh_session(refresh_token)
+        session.revoked_at = timezone.now()
+        session.save(update_fields=["revoked_at"])
+
+    def _issue_refresh_token(self) -> str:
+        return secrets.token_urlsafe(nbytes=self._settings.refresh_token_nbytes)
+
+    def _hash_refresh_token(self, refresh_token: str) -> str:
+        return hashlib.sha256(refresh_token.encode()).hexdigest()
+
+    def _get_refresh_session(
+        self,
+        refresh_token: str,
+    ) -> BaseRefreshSession:
+        try:
+            session = self._refresh_session_model.objects.get(
+                refresh_token_hash=self._hash_refresh_token(refresh_token),
+            )
+        except self._refresh_session_model.DoesNotExist as e:
+            raise self.INVALID_REFRESH_TOKEN_ERROR from e
+
+        if not session.is_active:
+            raise self.EXPIRED_REFRESH_TOKEN_ERROR
+
+        return session
