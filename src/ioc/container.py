@@ -2,6 +2,7 @@ from punq import Container, Scope
 
 from api.configs.settings import Settings
 from api.user.models import RefreshSession
+from delivery.http.health.controllers import HealthController
 from delivery.http.user.controllers import UserController, UserTokenController
 from infrastructure.django.auth import JWTAuth
 from infrastructure.django.refresh_sessions.models import BaseRefreshSession
@@ -55,5 +56,6 @@ def _register_auth(container: Container) -> None:
 
 
 def _register_controllers(container: Container) -> None:
+    container.register(HealthController, scope=Scope.singleton)
     container.register(UserController, scope=Scope.singleton)
     container.register(UserTokenController, scope=Scope.singleton)
