@@ -1,7 +1,7 @@
 import hashlib
 import secrets
 from datetime import timedelta
-from typing import NamedTuple
+from typing import NamedTuple, reveal_type
 
 from django.contrib.auth.models import AbstractUser
 from django.db import transaction
@@ -58,7 +58,7 @@ class RefreshSessionService:
         refresh_token = self._issue_refresh_token()
         refresh_token_hash = self._hash_refresh_token(refresh_token)
 
-        session = self._refresh_session_model.objects.create(
+        session = self._refresh_session_model.objects.create(  # type: ignore[attr-defined]
             user=user,
             refresh_token_hash=refresh_token_hash,
             user_agent=request.META.get("HTTP_USER_AGENT", ""),
@@ -103,7 +103,7 @@ class RefreshSessionService:
         refresh_token: str,
     ) -> BaseRefreshSession:
         try:
-            session = self._refresh_session_model.objects.get(
+            session = self._refresh_session_model.objects.get(  # type: ignore[attr-defined]
                 refresh_token_hash=self._hash_refresh_token(refresh_token),
             )
         except self._refresh_session_model.DoesNotExist as e:

@@ -14,7 +14,7 @@ dependencies = [
     "django>6",
     "django-ninja>=1.5.2",
     "django-storages>=1.14.6",
-    "django-stubs>=5.2.8",
+    "django-stubs[compatible-mypy]>=5.2.8",
     "gunicorn>=23.0.0",
     "psycopg[c]>=3.3.2",
     "punq>=0.7.0",
@@ -25,6 +25,8 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "mypy>=1.19.1",
+    "pyrefly>=0.47.0",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
     "pytest-django>=4.11.1",
@@ -40,19 +42,36 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 namespace = true
 
-
 [tool.mypy]
-python_version = "3.12"
-ignore_missing_imports_per_module = true
+python_version = "3.14"
+strict = true
+plugins = ["mypy_django_plugin.main"]
 ignore_missing_imports = true
-warn_return_any = true
-warn_unused_configs = true
-strict = false
-implicit_reexport = true
-exclude = [
-    "venv",
-    "migrations",
+local_partial_types = true
+warn_unreachable = true
+enable_error_code = [
+    "truthy-bool",
+    "truthy-iterable",
+    "redundant-expr",
+    "unused-awaitable",
+    "ignore-without-code",
+    "possibly-undefined",
+    "redundant-self",
+    "unimported-reveal",
+    "deprecated",
+    "exhaustive-match",
 ]
+disable_error_code = [
+    "unused-ignore",
+    "no-any-return",
+]
+
+[[tool.mypy.overrides]]
+module = "api.*.migrations.*"
+disable_error_code = ["no-untyped-def"]
+
+[tool.django-stubs]
+django_settings_module = "api.configs.settings"
 
 [tool.pytest.ini_options]
 minversion = "9.0"

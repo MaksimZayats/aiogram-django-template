@@ -1,9 +1,12 @@
+from typing import cast
+
 from django.contrib.admin.views.decorators import staff_member_required
 from ninja import NinjaAPI, Router
 from punq import Container
 
 from delivery.http.health.controllers import HealthController
 from delivery.http.user.controllers import UserController, UserTokenController
+from infrastructure.delivery.controllers import Controller
 from ioc.container import get_container
 
 
@@ -22,7 +25,7 @@ def get_ninja_api(
     health_router = Router(tags=["health"])
     ninja_api.add_router("/", health_router)
 
-    health_controller = container.resolve(HealthController)
+    health_controller = cast(HealthController, container.resolve(HealthController))
     health_controller.register_routes(registry=health_router)
 
     user_router = Router(tags=["user"])
@@ -32,7 +35,7 @@ def get_ninja_api(
         UserTokenController,
         UserController,
     ):
-        controller = container.resolve(controller_class)
+        controller = cast(Controller, container.resolve(controller_class))
         controller.register_routes(registry=user_router)
 
     return ninja_api

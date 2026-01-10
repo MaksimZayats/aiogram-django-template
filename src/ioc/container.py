@@ -25,7 +25,7 @@ def get_container() -> Container:
 def _register_services(container: Container) -> None:
     container.register(
         JWTServiceSettings,
-        factory=lambda: JWTServiceSettings(),  # type: ignore[missing-argument]
+        factory=lambda: JWTServiceSettings(),  # type: ignore[call-arg, missing-argument]
     )
 
     container.register(

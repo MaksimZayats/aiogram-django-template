@@ -2,4 +2,4 @@
 from api import setup_environment
 
 if __package__ is None:
-    setup_environment()
+    setup_environment()  # type: ignore[unreachable]

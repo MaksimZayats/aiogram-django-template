@@ -71,7 +71,7 @@ class StorageSettings(BaseSettings):
 
 
 application_settings = ApplicationSettings()
-security_settings = SecuritySettings()  # type: ignore[missing-argument]
+security_settings = SecuritySettings()  # type: ignore[call-arg, missing-argument]
 database_settings = DatabaseSettings()
 storage_settings = StorageSettings()
 

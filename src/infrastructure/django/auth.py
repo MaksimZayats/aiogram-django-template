@@ -21,7 +21,7 @@ class JWTAuth(HttpBearer):
 
     def authenticate(self, request: HttpRequest, token: str) -> AbstractBaseUser | None:
         payload = self._get_token_payload(token=token)
-        request.jwt_payload = payload  # ty: ignore[unresolved-attribute]
+        request.jwt_payload = payload  # type: ignore[attr-defined, missing-attribute, unresolved-attribute]
 
         user_id = payload.get("sub")
         if user_id is None:
