@@ -6,16 +6,16 @@ from ninja import Router
 from ninja.errors import HttpError
 from pydantic import BaseModel
 
-from api.infrastructure.django.auth import JWTAuth
-from api.infrastructure.django.controller import Controller
-from api.infrastructure.django.refresh_sessions.services import (
+from api.user.models import User
+from infrastructure.django.auth import JWTAuth
+from infrastructure.django.controller import Controller
+from infrastructure.django.refresh_sessions.services import (
     ExpiredRefreshTokenError,
     InvalidRefreshTokenError,
     RefreshSessionService,
     RefreshTokenError,
 )
-from api.infrastructure.jwt.service import JWTService
-from api.user.models import User
+from infrastructure.jwt.service import JWTService
 
 
 class IssueTokenRequestSchema(BaseModel):
@@ -135,6 +135,14 @@ class UserTokenController(Controller):
         raise exception
 
 
+class CreateUserRequestSchema(BaseModel):
+    username: str
+    email: str
+    first_name: str
+    last_name: str
+    password: str
+
+
 class UserSchema(BaseModel):
     id: int
     username: str
@@ -154,11 +162,39 @@ class UserController(Controller):
 
     def register_routes(self, router: Router) -> None:
         router.add_api_operation(
+            path="/v1/users/",
+            methods=["POST"],
+            view_func=self.create_user,
+            auth=None,
+        )
+
+        router.add_api_operation(
             path="/v1/users/me",
             methods=["GET"],
             view_func=self.get_current_user,
             auth=self._auth,
         )
+
+    def create_user(
+        self,
+        request: HttpRequest,
+        request_body: CreateUserRequestSchema,
+    ) -> UserSchema:
+        if User.objects.filter(username=request_body.username).exists():
+            raise HttpError(
+                status_code=HTTPStatus.BAD_REQUEST,
+                message="Username already exists",
+            )
+
+        user = User.objects.create_user(
+            username=request_body.username,
+            email=request_body.email,
+            first_name=request_body.first_name,
+            last_name=request_body.last_name,
+            password=request_body.password,
+        )
+
+        return UserSchema.model_validate(user, from_attributes=True)
 
     def get_current_user(
         self,

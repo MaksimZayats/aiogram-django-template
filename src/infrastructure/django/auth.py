@@ -7,7 +7,7 @@ from django.http import HttpRequest
 from ninja.errors import HttpError
 from ninja.security import HttpBearer
 
-from api.infrastructure.jwt.service import JWTService
+from infrastructure.jwt.service import JWTService
 
 
 class JWTAuth(HttpBearer):

@@ -1,15 +1,15 @@
 from punq import Container, Scope
 
 from api.configs.settings import Settings
-from api.infrastructure.django.auth import JWTAuth
-from api.infrastructure.django.refresh_sessions.models import BaseRefreshSession
-from api.infrastructure.django.refresh_sessions.services import (
+from api.user.models import RefreshSession
+from delivery.http.user.controllers import UserController, UserTokenController
+from infrastructure.django.auth import JWTAuth
+from infrastructure.django.refresh_sessions.models import BaseRefreshSession
+from infrastructure.django.refresh_sessions.services import (
     RefreshSessionService,
     RefreshSessionServiceSettings,
 )
-from api.infrastructure.jwt.service import JWTService, JWTServiceSettings
-from api.user.models import RefreshSession
-from delivery.http.user.controllers import UserController, UserTokenController
+from infrastructure.jwt.service import JWTService, JWTServiceSettings
 
 
 def get_container() -> Container:

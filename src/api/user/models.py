@@ -1,6 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 
-from api.infrastructure.django.refresh_sessions.models import BaseRefreshSession
+from infrastructure.django.refresh_sessions.models import BaseRefreshSession
 
 
 class User(AbstractUser):

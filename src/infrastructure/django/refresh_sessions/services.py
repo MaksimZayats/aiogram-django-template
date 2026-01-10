@@ -8,7 +8,7 @@ from django.db import transaction
 from django.http import HttpRequest
 from django.utils import timezone
 
-from api.infrastructure.django.refresh_sessions.models import BaseRefreshSession
+from infrastructure.django.refresh_sessions.models import BaseRefreshSession
 
 
 @dataclass(kw_only=True, frozen=True, slots=True)

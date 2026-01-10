@@ -17,6 +17,28 @@ def user(user_factory: UserFactory) -> User:
 
 
 @pytest.mark.django_db(transaction=True)
+def test_create_user(
+    test_client_factory: TestClientFactory,
+) -> None:
+    test_client = test_client_factory()
+
+    response = test_client.post(
+        "/v1/users/",
+        json={
+            "username": "test_new_user",
+            "email": "new_user@test.com",
+            "password": _TEST_PASSWORD,
+            "first_name": "Test",
+            "last_name": "User",
+        },
+    )
+
+    response_data = UserSchema.model_validate(response.json())
+    assert response.status_code == HTTPStatus.OK
+    assert response_data.username == "test_new_user"
+
+
+@pytest.mark.django_db(transaction=True)
 def test_jwt_token_generation(
     test_client_factory: TestClientFactory,
     user: User,
