@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Linting/Formatting
+.ruff_cache/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Database
+db.sqlite3
+*.db
+
+# Logs
+logs/
+*.log
+
+# Documentation
+README.md
+*.md
+
+# Development
+Makefile
+
+# Static files (collected during build)
+staticfiles/
+
+# Docker
+Dockerfile
+docker-compose.yaml
+.dockerignore
+
+# CI/CD
+.github/

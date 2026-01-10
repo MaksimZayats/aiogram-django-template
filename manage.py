@@ -6,13 +6,13 @@ import sys
 
 from django.core.management import execute_from_command_line
 
-from api import __version__
+from api import setup_environment
 
 logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    logger.info("Running API version %s", __version__)
+    setup_environment()
     execute_from_command_line(sys.argv)
 
 
