@@ -22,4 +22,4 @@ lint:
 	uv run ty check .
 
 test:
-	uv run pytest tests/
+	uv run --env-file .env.test pytest tests/
