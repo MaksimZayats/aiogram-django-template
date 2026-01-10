@@ -15,6 +15,7 @@ ignore = [
     "D107",
     "D102",
     "TC001",
+    "TC003",
 ]
 
 [lint.per-file-ignores]
@@ -27,8 +28,9 @@ ignore = [
     "ARG001",  # Unused function argument"
     "RUF012",  # Mutable class attributes
 ]
-"**/api.py" = [
+"**/controllers.py" = [
     "ARG001",  # Unused function argument: `request`
+    "ARG002",  # Unused function argument: `request`
 ]
 "**/settings.py" = [
     "RUF012",  # Unused function argument: `request`
@@ -36,6 +38,7 @@ ignore = [
 "tests/**" = [
     "S101",  # Use of assert detected
     "PT003",
+    "ARG001",
 ]
 
 [lint.flake8-tidy-imports]

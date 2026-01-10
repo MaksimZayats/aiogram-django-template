@@ -1,12 +1,13 @@
 from django.contrib.admin.views.decorators import staff_member_required
 from ninja import NinjaAPI, Router
+from punq import Container
 
 from api.user.delivery.http.controllers import UserController, UserTokenController
 from ioc.container import get_container
 
 
-def get_ninja_api() -> NinjaAPI:
-    container = get_container()
+def get_ninja_api(container: Container | None = None) -> NinjaAPI:
+    container = container or get_container()
 
     api = NinjaAPI(docs_decorator=staff_member_required)
 

@@ -57,8 +57,7 @@ exclude = [
 
 [tool.pytest.ini_options]
 minversion = "9.0"
-DJANGO_CONFIGURATION = "TestSettings"
-DJANGO_SETTINGS_MODULE = "tests.integration.settings"
+DJANGO_SETTINGS_MODULE = "api.configs.settings"
 addopts = "--exitfirst -vv --cov --cov-report=html --cov-fail-under=80"
 testpaths = [
     "tests",
