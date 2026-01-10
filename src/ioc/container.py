@@ -1,6 +1,6 @@
-from api.configs.security import JWT_SECRET_KEY
 from punq import Container, Scope
 
+from api.configs.settings import Settings
 from api.infrastructure.django.auth import JWTAuth
 from api.infrastructure.jwt.service import JWTService, JWTServiceSettings
 from api.user.delivery.http.controllers import UserController, UserTokenController
@@ -19,7 +19,7 @@ def get_container() -> Container:
 def _register_services(container: Container) -> None:
     container.register(
         JWTServiceSettings,
-        factory=lambda: JWTServiceSettings(secret_key=JWT_SECRET_KEY),
+        factory=lambda: JWTServiceSettings(secret_key=Settings.JWT_SECRET_KEY),
         scope=Scope.singleton,
     )
 

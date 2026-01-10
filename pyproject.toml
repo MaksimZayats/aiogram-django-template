@@ -39,7 +39,7 @@ requires = ["uv_build>=0.9.10,<0.10.0"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
-module-name = ["api", "bot", "tasks"]
+namespace = true
 
 
 [tool.mypy]
@@ -57,6 +57,7 @@ exclude = [
 
 [tool.pytest.ini_options]
 minversion = "9.0"
+DJANGO_CONFIGURATION = "TestSettings"
 DJANGO_SETTINGS_MODULE = "tests.integration.settings"
 addopts = "--exitfirst -vv --cov --cov-report=html --cov-fail-under=80"
 testpaths = [

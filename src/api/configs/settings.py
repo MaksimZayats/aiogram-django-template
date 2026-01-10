@@ -31,9 +31,6 @@ class ApplicationSettings:
         "django.contrib.sessions",
         "django.contrib.messages",
         "django.contrib.staticfiles",
-        "corsheaders",
-        "axes",
-        "silk",
         "api.user.apps.UserConfig",
     )
 
@@ -118,7 +115,7 @@ class StorageSettings:
     }
 
 
-class Settings(
+class AllSettings(
     DatabaseSettings,
     ApplicationSettings,
     HTTPDeliverySettings,
@@ -126,6 +123,12 @@ class Settings(
     AuthSettings,
     SecuritySettings,
     StorageSettings,
+):
+    pass
+
+
+class Settings(
+    AllSettings,
     Configuration,
 ):
     pass
