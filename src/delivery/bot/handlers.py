@@ -2,7 +2,7 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from api.user.models import User
+from core.user.models import User
 
 router = Router()
 

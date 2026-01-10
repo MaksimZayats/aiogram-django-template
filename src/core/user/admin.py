@@ -2,7 +2,7 @@ from typing import Any
 
 from django.contrib import admin
 
-from api.user.models import User
+from core.user.models import User
 
 
 @admin.register(User)

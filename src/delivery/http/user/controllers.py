@@ -6,7 +6,7 @@ from ninja import Router
 from ninja.errors import HttpError
 from pydantic import BaseModel
 
-from api.user.models import User
+from core.user.models import User
 from infrastructure.delivery.controllers import Controller
 from infrastructure.django.auth import JWTAuth
 from infrastructure.django.refresh_sessions.services import (

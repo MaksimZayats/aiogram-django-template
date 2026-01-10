@@ -3,7 +3,7 @@ import logging.config
 from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
 
-from api.configs.logging import LOGGING
+from core.configs.logging import LOGGING
 from delivery.bot.configs.bot import TELEGRAM_API_TOKEN
 from delivery.bot.handlers import router
 

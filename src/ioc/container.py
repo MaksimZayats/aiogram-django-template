@@ -1,6 +1,6 @@
 from punq import Container, Scope
 
-from api.user.models import RefreshSession
+from core.user.models import RefreshSession
 from delivery.http.health.controllers import HealthController
 from delivery.http.user.controllers import UserController, UserTokenController
 from infrastructure.django.auth import JWTAuth

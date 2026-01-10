@@ -71,11 +71,11 @@ module = "api.*.migrations.*"
 disable_error_code = ["no-untyped-def"]
 
 [tool.django-stubs]
-django_settings_module = "api.configs.settings"
+django_settings_module = "core.configs.settings"
 
 [tool.pytest.ini_options]
 minversion = "9.0"
-DJANGO_SETTINGS_MODULE = "api.configs.settings"
+DJANGO_SETTINGS_MODULE = "core.configs.settings"
 addopts = "--exitfirst -vv --cov --cov-report=html --cov-fail-under=80"
 testpaths = [
     "tests",

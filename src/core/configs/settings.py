@@ -38,7 +38,7 @@ class ApplicationSettings(BaseSettings):
         "django.contrib.sessions",
         "django.contrib.messages",
         "django.contrib.staticfiles",
-        "api.user.apps.UserConfig",
+        "core.user.apps.UserConfig",
     )
 
 

@@ -4,7 +4,7 @@ from typing import Any
 from ninja import NinjaAPI
 from ninja.testing import TestClient
 
-from api.user.models import User
+from core.user.models import User
 
 
 class TestClientFactory:

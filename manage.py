@@ -6,7 +6,7 @@ import sys
 
 from django.core.management import execute_from_command_line
 
-from api import setup_environment
+from core import setup_environment
 
 logger = logging.getLogger(__name__)
 
