@@ -5,8 +5,7 @@ from punq import Container
 
 from core.user.models import User
 from delivery.http.user.controllers import TokenResponseSchema, UserSchema
-from tests.integration.conftest import UserFactory
-from tests.integration.factories import TestClientFactory
+from tests.integration.factories import TestClientFactory, UserFactory
 
 _TEST_PASSWORD = "test-password"  # noqa: S105
 

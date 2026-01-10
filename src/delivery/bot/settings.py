@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class TelegramBotSettings(BaseSettings):
-    config = SettingsConfigDict(env_prefix="TELEGRAM_BOT_")
+    model_config = SettingsConfigDict(env_prefix="TELEGRAM_BOT_")
 
     token: SecretStr
+    parse_mode: str = "HTML"
