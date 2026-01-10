@@ -13,22 +13,15 @@ dependencies = [
     "colorlog>=6.10.1",
     "dj-database-url>=3.1.0",
     "django>6",
-    "django-axes[ipware]>=8.1.0",
-    "django-cors-headers>=4.9.0",
+    "django-configurations[database]>=2.5.1",
     "django-ninja>=1.5.2",
-    "django-redis>=6.0.0",
-    "django-silk>=5.4.3",
-    "django-split-settings>=1.3.2",
     "django-storages>=1.14.6",
     "django-stubs>=5.2.8",
     "gunicorn>=23.0.0",
     "psycopg[c]>=3.3.2",
     "punq>=0.7.0",
-    "pydantic-settings>=2.12.0",
     "pyjwt>=2.10.1",
     "python-dotenv>=1.2.1",
-    "redis>=7.1.0",
-    "sentry-sdk>=2.49.0",
 ]
 
 [dependency-groups]

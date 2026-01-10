@@ -30,6 +30,9 @@ ignore = [
 "**/api.py" = [
     "ARG001",  # Unused function argument: `request`
 ]
+"**/settings.py" = [
+    "RUF012",  # Unused function argument: `request`
+]
 "tests/**" = [
     "S101",  # Use of assert detected
 ]

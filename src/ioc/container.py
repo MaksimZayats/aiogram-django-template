@@ -1,6 +1,6 @@
+from api.configs.security import JWT_SECRET_KEY
 from punq import Container, Scope
 
-from api.configs.security import JWT_SECRET_KEY
 from api.infrastructure.django.auth import JWTAuth
 from api.infrastructure.jwt.service import JWTService, JWTServiceSettings
 from api.user.delivery.http.controllers import UserController, UserTokenController
