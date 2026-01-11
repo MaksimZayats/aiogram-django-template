@@ -1,0 +1,6 @@
+services:
+  postgres:
+    ports:
+      # Direct PostgreSQL access for debugging (bypasses connection pooler)
+      # Bind to localhost only for security
+      - "127.0.0.1:5433:5432"

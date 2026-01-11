@@ -23,6 +23,9 @@ dependencies = [
     "pydantic[email]>=2.12.5",
     "pyjwt>=2.10.1",
     "python-dotenv>=1.2.1",
+    "questionary>=2.1.1",
+    "rich>=14.2.0",
+    "typer>=0.21.1",
 ]
 
 [dependency-groups]

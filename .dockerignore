@@ -54,8 +54,8 @@ Makefile
 staticfiles/
 
 # Docker
-Dockerfile
-docker-compose.yaml
+docker/Dockerfile
+docker/docker-compose.yaml
 .dockerignore
 
 # CI/CD

@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from delivery.http.settings import AuthSettings, HTTPSettings, TemplateSettings
 from infrastructure.django.pydantic_settings.adapter import PydanticSettingsAdapter
+from infrastructure.settings.types import Environment
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -27,7 +28,7 @@ class DatabaseSettings(BaseSettings):
 
 
 class ApplicationSettings(BaseSettings):
-    environment: str = "local"
+    env: Environment
     language_code: str = "en-us"
     use_tz: bool = True
     time_zone: str = "UTC"
@@ -70,7 +71,7 @@ class StorageSettings(BaseSettings):
         }
 
 
-application_settings = ApplicationSettings()
+application_settings = ApplicationSettings()  # type: ignore[call-arg, missing-argument]
 security_settings = SecuritySettings()  # type: ignore[call-arg, missing-argument]
 database_settings = DatabaseSettings()
 storage_settings = StorageSettings()
