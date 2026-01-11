@@ -1,5 +1,5 @@
 x-common: &common
-  image: myproject:local
+  image: base:local
 
   env_file:
     - ${ENV_FILE:-.env}
@@ -19,7 +19,7 @@ x-common: &common
 
 services:
   base:
-    image: myproject:local
+    image: base:local
     build:
       context: .
       dockerfile: Dockerfile
