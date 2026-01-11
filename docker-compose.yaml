@@ -6,6 +6,7 @@ x-common: &common
 
   environment:
     DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB}
+    AWS_S3_ENDPOINT_URL: http://minio:9000
 
   logging:
     driver: "json-file"
@@ -58,6 +59,7 @@ services:
     command: python manage.py collectstatic --noinput
     depends_on:
       - pgbouncer
+      - minio-create-buckets
 
   postgres:
     image: postgres:18-alpine

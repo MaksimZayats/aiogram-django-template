@@ -63,7 +63,7 @@ jobs:
             --file docker-compose.yaml \
             --file docker-compose.ci.yaml \
             --env-file .env.test \
-            up -d postgres minio
+            up -d postgres pgbouncer minio
           
             docker compose \
               --file docker-compose.yaml \
