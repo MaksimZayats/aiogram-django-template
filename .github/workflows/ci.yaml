@@ -60,7 +60,7 @@ jobs:
           docker compose \
             --file docker-compose.yaml \
             --file docker-compose.ci.yaml \
-            --env-file .env.test \ 
+            --env-file .env.test \
             up -d postgres pgbouncer minio minio-create-buckets migrations collectstatic
         env:
           ENV_FILE: .env.test
