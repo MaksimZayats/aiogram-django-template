@@ -28,7 +28,7 @@ class DatabaseSettings(BaseSettings):
 
 
 class ApplicationSettings(BaseSettings):
-    env: Environment
+    environment: Environment
     language_code: str = "en-us"
     use_tz: bool = True
     time_zone: str = "UTC"

@@ -19,7 +19,7 @@ def get_ninja_api(
 ) -> NinjaAPI:
     container = container or get_container()
 
-    if application_settings.env == Environment.PRODUCTION:
+    if application_settings.environment == Environment.PRODUCTION:
         docs_decorator = staff_member_required
     else:
         docs_decorator = None
@@ -33,7 +33,7 @@ def get_ninja_api(
     ninja_api.add_router("/", health_router)
 
     health_controller = cast(HealthController, container.resolve(HealthController))
-    health_controller.register_routes(registry=health_router)
+    health_controller.register(registry=health_router)
 
     user_router = Router(tags=["user"])
     ninja_api.add_router("/", user_router)
@@ -43,7 +43,7 @@ def get_ninja_api(
         UserController,
     ):
         controller = cast(Controller, container.resolve(controller_class))
-        controller.register_routes(registry=user_router)
+        controller.register(registry=user_router)
 
     return ninja_api
 

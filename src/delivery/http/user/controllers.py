@@ -46,7 +46,7 @@ class UserTokenController(Controller):
         self._refresh_token_service = refresh_token_service
         self._jwt_auth = jwt_auth
 
-    def register_routes(self, registry: Router) -> None:
+    def register(self, registry: Router) -> None:
         registry.add_api_operation(
             path="/v1/users/me/token",
             methods=["POST"],
@@ -166,7 +166,7 @@ class UserController(Controller):
     ) -> None:
         self._auth = auth
 
-    def register_routes(self, registry: Router) -> None:
+    def register(self, registry: Router) -> None:
         registry.add_api_operation(
             path="/v1/users/",
             methods=["POST"],

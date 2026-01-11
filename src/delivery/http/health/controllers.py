@@ -18,7 +18,7 @@ class HealthCheckResponseSchema(BaseModel):
 
 
 class HealthController(Controller):
-    def register_routes(self, registry: Router) -> None:
+    def register(self, registry: Router) -> None:
         registry.add_api_operation(
             path="/v1/health",
             methods=["GET"],

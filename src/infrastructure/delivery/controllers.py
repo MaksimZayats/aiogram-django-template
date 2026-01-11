@@ -13,7 +13,7 @@ class Controller(ABC):
         return self
 
     @abstractmethod
-    def register_routes(self, registry: Any) -> None: ...
+    def register(self, registry: Any) -> None: ...
 
     def handle_exception(self, exception: Exception) -> NoReturn:
         raise exception

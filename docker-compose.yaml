@@ -1,0 +1,132 @@
+x-common: &common
+  image: myproject:local
+
+  env_file:
+    - ${ENV_FILE:-.env}
+
+  environment:
+    DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB}
+
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+  networks:
+    - main
+
+services:
+  base:
+    image: myproject:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+  api:
+    <<: *common
+    ports:
+      - "8009:8000"
+    command:
+      - gunicorn
+      - delivery.http.app:wsgi
+      - --workers=4
+      - --bind=0.0.0.0
+      - --timeout=120
+    depends_on:
+      - pgbouncer
+      - migrations
+      - collectstatic
+    restart: always
+
+  bot:
+    <<: *common
+    command: python -m delivery.bot
+    depends_on:
+      - pgbouncer
+      - migrations
+    restart: always
+
+  migrations:
+    <<: *common
+    command: python manage.py migrate --noinput
+    depends_on:
+      - pgbouncer
+
+  collectstatic:
+    <<: *common
+    command: python manage.py collectstatic --noinput
+    depends_on:
+      - pgbouncer
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    env_file:
+      - ${ENV_FILE:-.env}
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - main
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    restart: unless-stopped
+    env_file:
+      - ${ENV_FILE:-.env}
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      # Connection pooling settings
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 200
+      DEFAULT_POOL_SIZE: 25
+      MIN_POOL_SIZE: 5
+      RESERVE_POOL_SIZE: 5
+      RESERVE_POOL_TIMEOUT: 3
+      # Session cleanup
+      SERVER_RESET_QUERY: DISCARD ALL
+      # Connection management
+      SERVER_LIFETIME: 3600
+      SERVER_IDLE_TIMEOUT: 600
+      # Logging
+      LOG_CONNECTIONS: 0
+      LOG_DISCONNECTIONS: 0
+      LOG_POOLER_ERRORS: 1
+      # Auth
+      AUTH_TYPE: scram-sha-256
+      # Admin access (for monitoring)
+      ADMIN_USERS: ${POSTGRES_USER}
+      STATS_USERS: ${POSTGRES_USER}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - main
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  main:
+    driver: bridge

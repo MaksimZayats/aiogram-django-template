@@ -9,6 +9,9 @@ venv/
 ENV/
 env/
 
+# Agents
+.claude/
+
 # Git
 .git/
 .gitignore
@@ -28,12 +31,13 @@ htmlcov/
 .tox/
 
 # Linting/Formatting
+.pre-commit-config.yaml
 .ruff_cache/
+.mypy_cache/
 
 # Environment
 .env
 .env.*
-!.env.example
 
 # Database
 db.sqlite3
@@ -54,7 +58,7 @@ Makefile
 staticfiles/
 
 # Docker
-docker/Dockerfile
+Dockerfile
 docker/docker-compose.yaml
 .dockerignore
 

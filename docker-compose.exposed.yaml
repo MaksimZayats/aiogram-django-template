@@ -1,0 +1,4 @@
+services:
+  pgbouncer:
+    ports:
+      - "6432:5432"
