@@ -1,4 +1,13 @@
 services:
   pgbouncer:
     ports:
-      - "6432:5432"
+      - "127.0.0.1:6432:5432"
+
+  api:
+    volumes:
+      - ../src:/app/src:ro
+    command:
+      - python
+      - manage.py
+      - runserver
+      - 0.0.0.0:8000

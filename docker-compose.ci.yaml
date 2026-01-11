@@ -1,0 +1,9 @@
+services:
+  pgbouncer:
+    ports:
+      - "6432:5432"
+
+  minio:
+    ports:
+      - "9000:9000"
+      - "9001:9001"

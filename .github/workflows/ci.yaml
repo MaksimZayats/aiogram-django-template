@@ -28,8 +28,57 @@ jobs:
       - name: Run linters
         run: make lint
 
+      - name: Create .env.test
+        run: |
+          cat > .env.test << 'EOF'
+          DJANGO_SECRET_KEY=test-django-secret-key
+          JWT_SECRET_KEY=test-jwt-secret
+          ENVIRONMENT=test
+          DJANGO_DEBUG=true
+          LOG_LEVEL=DEBUG
+          ALLOWED_HOSTS='["127.0.0.1", "localhost"]'
+          CSRF_TRUSTED_ORIGINS='["http://localhost"]'
+          POSTGRES_USER=postgres
+          POSTGRES_DB=postgres
+          POSTGRES_PASSWORD=test-postgres-password
+          DATABASE_URL=postgres://postgres:test-postgres-password@localhost:6432/postgres
+          AWS_S3_ENDPOINT_URL=http://localhost:9000
+          AWS_S3_ACCESS_KEY_ID=test-minio-access-key
+          AWS_S3_SECRET_ACCESS_KEY=test-minio-secret-key
+          EOF
+
+      - name: Build Docker image
+        run: docker compose build base
+
+      - name: Start infrastructure
+        run: |
+          docker compose \
+            --file docker-compose.yaml \
+            --file docker-compose.ci.yaml up -d \
+            postgres pgbouncer minio minio-create-buckets migrations collectstatic
+        env:
+          ENV_FILE: .env.test
+
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for pgbouncer..."
+          timeout 60 bash -c 'until pg_isready -h localhost -p 6432; do sleep 1; done'
+          echo "Waiting for migrations..."
+          docker compose logs -f migrations &
+          timeout 120 bash -c 'while [ "$(docker compose ps migrations --format json | jq -r ".State")" != "exited" ]; do sleep 2; done'
+          docker compose ps migrations --format json | jq -e '.ExitCode == 0'
+          echo "Waiting for collectstatic..."
+          timeout 60 bash -c 'while [ "$(docker compose ps collectstatic --format json | jq -r ".State")" != "exited" ]; do sleep 2; done'
+          docker compose ps collectstatic --format json | jq -e '.ExitCode == 0'
+        env:
+          ENV_FILE: .env.test
+
       - name: Run tests
         run: make test
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs
 
   dependabot-auto-merge:
     name: 'Dependabot auto merge'
