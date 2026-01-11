@@ -38,7 +38,7 @@ jobs:
           POSTGRES_USER=postgres
           POSTGRES_DB=postgres
           POSTGRES_PASSWORD=test-postgres-password
-          DATABASE_URL=postgres://postgres:test-postgres-password@localhost:6432/postgres
+          DATABASE_URL=postgres://postgres:test-postgres-password@localhost:5432/postgres
           AWS_S3_ENDPOINT_URL=http://localhost:9000
           AWS_S3_ACCESS_KEY_ID=test-minio-access-key
           AWS_S3_SECRET_ACCESS_KEY=test-minio-secret-key
@@ -61,7 +61,7 @@ jobs:
             --file docker-compose.yaml \
             --file docker-compose.ci.yaml \
             --env-file .env.test \
-            up -d postgres pgbouncer minio minio-create-buckets migrations collectstatic
+            up -d postgres minio minio-create-buckets migrations collectstatic
         env:
           ENV_FILE: .env.test
 
