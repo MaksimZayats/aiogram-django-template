@@ -1,9 +1,3 @@
-# Infrastructure services: PostgreSQL 18 + PgBouncer
-# Best practices applied from:
-# - PostgreSQL 18 Docker PGDATA changes (mount to /var/lib/postgresql)
-# - Transaction pooling for Django/web apps
-# - Security-hardened PgBouncer configuration
-
 services:
   postgres:
     image: postgres:18-alpine
@@ -14,13 +8,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-      # PostgreSQL 18+ uses version-specific PGDATA
-      PGDATA: /var/lib/postgresql/18/docker
-      # Use scram-sha-256 for password authentication
       POSTGRES_HOST_AUTH_METHOD: scram-sha-256
       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
     volumes:
-      # Mount to /var/lib/postgresql (not /data) for pg_upgrade --link support
       - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
@@ -30,8 +20,6 @@ services:
       start_period: 10s
     networks:
       - main
-    # Security: don't expose port externally, only via pgbouncer
-    # ports are intentionally not exposed
 
   pgbouncer:
     image: edoburu/pgbouncer:latest
@@ -39,7 +27,6 @@ services:
     env_file:
       - ../.env
     environment:
-      # Database connection via URL (more reliable than individual vars)
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       # Connection pooling settings
       POOL_MODE: transaction
@@ -73,7 +60,6 @@ services:
       start_period: 5s
     networks:
       - main
-    # Security hardening
     security_opt:
       - no-new-privileges:true
 
