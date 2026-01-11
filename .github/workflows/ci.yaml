@@ -63,7 +63,13 @@ jobs:
             --file docker-compose.yaml \
             --file docker-compose.ci.yaml \
             --env-file .env.test \
-            up -d --wait postgres minio minio-create-buckets migrations collectstatic
+            up -d postgres minio
+          
+            docker compose \
+              --file docker-compose.yaml \
+              --file docker-compose.ci.yaml \
+              --env-file .env.test \
+              up minio-create-buckets migrations collectstatic
         env:
           ENV_FILE: .env.test
 
