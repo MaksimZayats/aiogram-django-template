@@ -1,17 +1,14 @@
 dev:
-	DJANGO_DEBUG=true uv run manage.py runserver
+	DJANGO_DEBUG=true uv run --env-file .env manage.py runserver
 
 makemigrations:
-	uv run manage.py makemigrations
+	uv run --env-file .env manage.py makemigrations
 
 migrate:
-	uv run manage.py migrate
+	uv run --env-file .env manage.py migrate
 
 collectstatic:
-	uv run manage.py collectstatic --no-input
-
-createsuperuser:
-	uv run manage.py createsuperuser --email "" --username admin
+	uv run --env-file .env manage.py collectstatic --no-input
 
 format:
 	uv run ruff format .
@@ -20,6 +17,8 @@ format:
 lint:
 	uv run ruff check .
 	uv run ty check .
+	uv run pyrefly check src/
+	uv run --env-file .env.test mypy src/ tests/
 
 test:
-	uv run pytest tests/
+	uv run --env-file .env.test pytest tests/
