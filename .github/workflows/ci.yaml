@@ -70,12 +70,12 @@ jobs:
           echo "Waiting for pgbouncer..."
           timeout 60 bash -c 'until pg_isready -h localhost -p 6432; do sleep 1; done'
           echo "Waiting for migrations..."
-          docker compose logs -f migrations &
-          timeout 120 bash -c 'while [ "$(docker compose ps migrations --format json | jq -r ".State")" != "exited" ]; do sleep 2; done'
-          docker compose ps migrations --format json | jq -e '.ExitCode == 0'
+          docker compose --env-file .env.test logs -f migrations &
+          timeout 120 bash -c 'while [ "$(docker compose --env-file .env.test ps migrations --format json | jq -r ".State")" != "exited" ]; do sleep 2; done'
+          docker compose --env-file .env.test ps migrations --format json | jq -e '.ExitCode == 0'
           echo "Waiting for collectstatic..."
-          timeout 60 bash -c 'while [ "$(docker compose ps collectstatic --format json | jq -r ".State")" != "exited" ]; do sleep 2; done'
-          docker compose ps collectstatic --format json | jq -e '.ExitCode == 0'
+          timeout 60 bash -c 'while [ "$(docker compose --env-file .env.test ps collectstatic --format json | jq -r ".State")" != "exited" ]; do sleep 2; done'
+          docker compose --env-file .env.test ps collectstatic --format json | jq -e '.ExitCode == 0'
         env:
           ENV_FILE: .env.test
 
