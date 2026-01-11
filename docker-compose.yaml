@@ -73,7 +73,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -113,7 +113,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432"]
+      test: [ "CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -123,8 +123,53 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    env_file:
+      - ${ENV_FILE:-.env}
+    environment:
+      MINIO_ROOT_USER: ${AWS_S3_ACCESS_KEY_ID}
+      MINIO_ROOT_PASSWORD: ${AWS_S3_SECRET_ACCESS_KEY}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 2s
+      timeout: 10s
+      retries: 5
+    networks:
+      - main
+
+  minio-create-buckets:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file:
+      - ${ENV_FILE:-.env}
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set my-minio http://minio:9000 ${AWS_S3_ACCESS_KEY_ID} ${AWS_S3_SECRET_ACCESS_KEY};
+      /usr/bin/mc mb my-minio/${AWS_S3_PROTECTED_BUCKET_NAME:-protected};
+      mc anonymous set none my-minio/${AWS_S3_PROTECTED_BUCKET_NAME:-protected};
+
+      /usr/bin/mc mb my-minio/${AWS_S3_PUBLIC_BUCKET_NAME:-public};
+      mc anonymous set public my-minio/${AWS_S3_PUBLIC_BUCKET_NAME:-public};
+
+      exit 0;
+      "
+    networks:
+      - main
+
+
 volumes:
   postgres_data:
+    driver: local
+  minio_data:
     driver: local
 
 networks:

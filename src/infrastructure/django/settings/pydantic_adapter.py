@@ -1,7 +1,10 @@
+import logging
 from typing import Any
 
 from pydantic import SecretBytes, SecretStr
 from pydantic_settings import BaseSettings
+
+logger = logging.getLogger(__name__)
 
 
 class PydanticSettingsAdapter:
