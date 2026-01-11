@@ -16,6 +16,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       # PostgreSQL 18+ uses version-specific PGDATA
       PGDATA: /var/lib/postgresql/18/docker
+      # Use scram-sha-256 for password authentication
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
     volumes:
       # Mount to /var/lib/postgresql (not /data) for pg_upgrade --link support
       - postgres_data:/var/lib/postgresql
@@ -36,12 +39,8 @@ services:
     env_file:
       - ../.env
     environment:
-      # Database connection
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_NAME: ${POSTGRES_DB}
+      # Database connection via URL (more reliable than individual vars)
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       # Connection pooling settings
       POOL_MODE: transaction
       MAX_CLIENT_CONN: 200
@@ -50,7 +49,7 @@ services:
       RESERVE_POOL_SIZE: 5
       RESERVE_POOL_TIMEOUT: 3
       # Session cleanup
-      SERVER_RESET_QUERY: "DISCARD ALL"
+      SERVER_RESET_QUERY: DISCARD ALL
       # Connection management
       SERVER_LIFETIME: 3600
       SERVER_IDLE_TIMEOUT: 600
