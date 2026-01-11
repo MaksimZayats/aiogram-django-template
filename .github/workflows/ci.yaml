@@ -47,8 +47,13 @@ jobs:
       - name: Run linters
         run: make lint
 
+      - name: Set up Docker Compose
+        uses: docker/setup-compose-action@v1
+        with:
+          version: latest
+
       - name: Build Docker image
-        run: docker compose build base
+        run: docker compose --env-file .env.test build base
 
       - name: Start infrastructure
         run: |
