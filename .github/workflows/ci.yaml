@@ -3,7 +3,7 @@ name: Checks
 on:
   push:
     branches: [ main ]
-  pull_request: {}
+  pull_request: { }
 
 permissions:
   contents: write
@@ -21,6 +21,8 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
 
       - name: Install the project
         run: uv sync --locked --all-extras --dev
@@ -61,13 +63,9 @@ jobs:
             --file docker-compose.yaml \
             --file docker-compose.ci.yaml \
             --env-file .env.test \
-            up -d postgres minio minio-create-buckets migrations collectstatic
+            up -d --wait postgres minio minio-create-buckets migrations collectstatic
         env:
           ENV_FILE: .env.test
-
-      - name: Wait for services to be ready
-        run: |
-          sleep 5
 
       - name: Run tests
         run: make test
@@ -80,10 +78,10 @@ jobs:
     name: 'Dependabot auto merge'
     needs: [ check-code ]
     runs-on: ubuntu-latest
-    if: ${{ github.actor == 'dependabot[bot]' && github.event_name == 'pull_request'}}  # Detect that the PR author is dependabot
+    if: ${{ github.actor == 'dependabot[bot]' && github.event_name == 'pull_request'}}
     steps:
       - name: Enable auto-merge for Dependabot PRs
-        run: gh pr merge --auto --merge "$PR_URL"  # Use GitHub CLI to merge automatically the PR
+        run: gh pr merge --auto --merge "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
