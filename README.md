@@ -1,140 +1,119 @@
-# Aiogram & Django API Template
-## Based on [Django API Template](https://github.com/MaksimZayats/python-django-template)
+# Modern Python API Template
 
----
+A production-ready template for building Django APIs with async task processing.
 
-## Table of Contents
-- [Feature Highlights](#feature-highlights)
-- [Configuration Guide](#configuration-guide)
-- [Additional Notes](#additional-notes)
-- [Quick Start Guide](#quick-start-guide)
-   - [Setting Up Locally](#setting-up-locally)
-   - [Setting Up with Docker](#setting-up-with-docker)
+Stack: Django 6+ / django-ninja / Celery / PostgreSQL / Redis
 
----
+## Quick Start
 
-## Feature Highlights
+```bash
+# Install uv if you haven't
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-This Django API Template is designed to be robust, scalable, and secure, with features that cater to modern application development needs. Here's an overview of the advanced features and how they benefit your project:
+# Clone and setup
+git clone <repo-url> && cd aiogram-django-template
+uv sync --locked --all-extras --dev
+cp .env.example .env  # edit with your values
 
-- **[Docker & Docker Compose Integration](https://docs.docker.com/compose/)**: Easily set up and scale your application using Docker containers, ensuring consistent environments across development and production.
+# Start services
+docker compose -f docker-compose.yaml -f docker-compose.local.yaml up -d
 
-- **[Celery](https://docs.celeryq.dev/en/stable/django/first-steps-with-django.html) with [RabbitMQ](https://rabbitmq.com/) and [Redis](https://redis.io/)**: Leverage Celery for asynchronous task processing, using RabbitMQ as a message broker and Redis as a backend for storing results.
+# Run migrations and dev server
+make migrate
+make dev
+```
 
-- **[Sentry for Error Tracking](https://sentry.io/)**: Integrate with Sentry for real-time error tracking and monitoring, helping you identify and fix issues rapidly.
+Bot and Celery worker (separate terminals):
 
-- **[Django Rest Framework (DRF)](https://www.django-rest-framework.org/)**: Use Django Rest Framework for building RESTful APIs, with support for authentication, serialization, and more.
-   - **[DRF Spectacular for OpenAPI](https://drf-spectacular.readthedocs.io/)**: Use DRF Spectacular for OpenAPI documentation, with support for customizing the schema and UI.
-   - **[DRF Simple JWT for Authentication](https://django-rest-framework-simplejwt.readthedocs.io/)**: Use DRF Simple JWT for JSON Web Token authentication, with support for customizing token claims and expiration.
+```bash
+uv run python -m delivery.bot
+make celery-dev
+```
 
-- **[Django CORS Headers](https://pypi.org/project/django-cors-headers/)**: Use Django CORS Headers for handling Cross-Origin Resource Sharing (CORS) headers, with support for customizing origins.
+## Core Ideas
 
-- **[Django Silk for Profiling](https://pypi.org/project/django-silk/)**: Utilize Django Silk for profiling and monitoring Django applications, offering insights into performance and optimization.
+### Dependency Injection with punq
 
-- **[Django Axes for Security](https://django-axes.readthedocs.io/)**: Use Django Axes for security, with support for blocking brute force attacks and monitoring login attempts.
+Everything goes through the IoC container. Services declare dependencies in `__init__`, container wires them up:
 
-- **[AWS S3 Integration](https://django-storages.readthedocs.io/en/latest/backends/amazon-S3.html)**: Option to use Amazon S3 for static and media file storage, enhancing scalability and performance.
+```python
+class UserTokenController(Controller):
+    def __init__(self, jwt_service: JWTService, refresh_service: RefreshSessionService):
+        self._jwt = jwt_service
+        self._refresh = refresh_service
+```
 
-- **Scalability Options**: Configure workers and threads to optimize performance under different load conditions.
+Register in `src/ioc/container.py`, resolve anywhere. This makes testing trivial - just swap registrations.
 
-- **Up-to-Date Dependencies**: All dependencies are up-to-date as of the latest release. Thanks to [Dependabot](https://dependabot.com/).
+### Controller Pattern
 
----
+HTTP endpoints and Celery tasks use the same pattern. Extend `Controller`, implement `register()`:
 
-## Configuration Guide
+```python
+class MyController(Controller):
+    def register(self, registry: Router) -> None:
+        registry.add_api_operation("/endpoint", ["POST"], self.my_method)
+```
 
-The `.env` file is a central place to manage environment variables. It's pre-configured to work with Docker Compose out of the box, without any changes required for initial setup. However, for production deployment, certain secrets must be updated for security reasons.
+Controllers auto-wrap methods with exception handling. Override `handle_exception()` for custom error responses.
 
-1. **Secrets**:
-   - **PostgreSQL, RabbitMQ, Django Secrets**: These are critical for the security of your application. Ensure to replace the placeholder values with strong, unique passwords.
+### Testing with IoC Overrides
 
-2. **Ports**:
-   - **API Port and RabbitMQ Dashboard Port**: Set these ports according to your infrastructure needs. They are exposed to the host machine.
+Each test gets a fresh container. Need to mock something? Override before creating the test client:
 
-3. **Performance Tuning**:
-   - **Workers and Threads**: Adjust these values based on your server's capacity and expected load.
+```python
+def test_something(container: Container):
+    container.register(MyService, instance=mock_service)
+    client = TestClientFactory(NinjaAPIFactory(container))()
+    # requests now use mock_service
+```
 
-4. **Application Settings**:
-   - **Host and Environment**: Set these to match your deployment environment.
-   - **Debug and Logging**: Control debug mode and log levels. Set `DJANGO_DEBUG` to `false` in production.
-   - **Localization**: Configure `LANGUAGE_CODE` and `TIME_ZONE` as per your requirements.
+See `tests/integration/` for examples.
 
-5. **CORS and CSRF Settings**:
-   - Configure these settings to enhance the security of your application by specifying trusted origins.
+## Project Structure
 
-6. **Database Configuration**:
-   - **Postgres Connection**: Set up the database connection using the `DATABASE_URL` variable.
+```
+src/
+├── core/           # Business logic, models
+├── delivery/       # HTTP API, Telegram bot
+│   ├── http/       # django-ninja endpoints
+│   └── bot/        # aiogram handlers
+├── infrastructure/ # JWT, auth, base classes
+├── ioc/            # Container setup
+└── tasks/          # Celery tasks
+```
 
----
+## Commands
 
-## Additional Notes
-- **Security**: Always prioritize security, especially when handling environment variables and secrets.
-- **Scalability**: Adjust the Docker and Celery configurations as your application scales.
-- **Monitoring**: Regularly monitor the performance and health of your application using integrated tools like Sentry and Silk.
+| Command           | What it does                      |
+|-------------------|-----------------------------------|
+| `make dev`        | Run Django dev server             |
+| `make celery-dev` | Run Celery worker                 |
+| `make migrate`    | Apply migrations                  |
+| `make format`     | Format code (ruff)                |
+| `make lint`       | Run all linters                   |
+| `make test`       | Run tests (80% coverage required) |
 
-By following this guide and utilizing the advanced features, you'll be able to set up a powerful, efficient, and secure Django API environment. Happy coding!
+## Environment Variables
 
----
+Key variables (see `.env.example` for full list):
 
-## Quick Start Guide
+- `DJANGO_SECRET_KEY` - Django secret
+- `JWT_SECRET_KEY` - JWT signing key
+- `DATABASE_URL` - PostgreSQL connection string
+- `REDIS_URL` - Redis for Celery broker/backend
+- `TELEGRAM_BOT_TOKEN` - Bot token from @BotFather
 
-### Setting Up Locally
+## Docker
 
-#### 1. Repository Initialization
-   - **Clone the Repository**
+For production-like setup:
 
-#### 2. Environment Setup
-   - **Create a Virtual Environment**:
-     ```bash
-     python3.12 -m venv .venv
-     ```
-   - **Activate the Virtual Environment**:
-     ```bash
-     source .venv/bin/activate
-     ```
+```bash
+docker compose up -d
+```
 
-#### 3. Configuration
-   - **Environment Variables**:
-     - Copy the example environment file:
-       ```bash
-       cp .env.example .env
-       ```
-     - _Note: The API can operate without this step, but configuring the environment variables is recommended for full functionality._
+Services: `api` (gunicorn), `celery`, `bot`, `postgres`, `pgbouncer`, `redis`, `minio`
 
-#### 4. Dependency Management
-   - **Install Dependencies**:
-     ```bash
-     pip install -r requirements-dev.txt
-     ```
+## License
 
-#### 5. Database Setup
-   - **Run Migrations**:
-     ```bash
-     make migrate
-     ```
-
-#### 6. Launching the Server
-   - **Start the Local Server**:
-     ```bash
-     make run.server.local
-     ```
-
-#### 7. Launching the bot
-   - **Start the bot**:
-     ```bash
-     make run.bot.local
-     ```
-
-### Setting Up with Docker
-
-#### 1. Repository Initialization
-   - **Clone the Repository**
-
-#### 2. Configuration
-   - Follow the steps in the [Configuration Guide](#configuration-guide) to set up the `.env` file.
-
-#### 3. Docker Compose
-   - **Run Docker Compose**:
-     ```bash
-     docker compose up -d
-     ```
+[MIT](LICENSE.md) © Maksim Zayats
