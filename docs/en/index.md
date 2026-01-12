@@ -24,10 +24,10 @@ Django + aiogram + Celery application with **punq** dependency injection.
 uv sync --locked --all-extras --dev
 
 # Build base Docker image
-docker compose -f docker-compose.yaml -f docker-compose.local.yaml build
+docker compose build base
 
 # Start infrastructure (PostgreSQL, Redis, MinIO)
-docker compose -f docker-compose.yaml -f docker-compose.local.yaml up -d
+docker compose -f docker-compose.yaml -f docker-compose.local.yaml up postgres pgbouncer minio redis -d
 
 # Run database migrations
 make migrate

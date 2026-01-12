@@ -40,6 +40,7 @@ docker compose -f docker-compose.yaml -f docker-compose.local.yaml up -d
 ```
 
 This starts:
+
 - **PostgreSQL** - Primary database
 - **Redis** - Cache and Celery broker
 - **MinIO** - S3-compatible object storage
