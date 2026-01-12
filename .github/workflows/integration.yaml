@@ -8,6 +8,17 @@ on:
 jobs:
   integration-test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: production
+            compose-file: docker-compose.yaml
+          - name: local
+            compose-file: docker-compose.yaml:docker-compose.local.yaml
+    name: integration-test (${{ matrix.name }})
+    env:
+      COMPOSE_FILE: ${{ matrix.compose-file }}
     steps:
       - uses: actions/checkout@v6
 
