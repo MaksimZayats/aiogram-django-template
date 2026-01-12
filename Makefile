@@ -26,6 +26,9 @@ test:
 celery-dev:
 	OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES uv run celery -A tasks.app worker --loglevel=DEBUG
 
+celery-beat-dev:
+	uv run celery -A tasks.app beat --loglevel=DEBUG
+
 .PHONY: docs docs-build
 docs:
 	uv run mkdocs serve --livereload -f docs/mkdocs.yml
