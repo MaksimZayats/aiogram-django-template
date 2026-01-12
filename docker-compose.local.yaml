@@ -1,0 +1,17 @@
+services:
+  api:
+    volumes:
+      - ../src:/app/src:ro
+    command:
+      - python
+      - manage.py
+      - runserver
+      - 0.0.0.0:8000
+
+  pgbouncer:
+    ports:
+      - "127.0.0.1:6432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"

@@ -10,9 +10,6 @@ migrate:
 collectstatic:
 	uv run manage.py collectstatic --no-input
 
-createsuperuser:
-	uv run manage.py createsuperuser --email "" --username admin
-
 format:
 	uv run ruff format .
 	uv run ruff check --fix-only .
@@ -20,6 +17,11 @@ format:
 lint:
 	uv run ruff check .
 	uv run ty check .
+	uv run pyrefly check src/
+	uv run --env-file .env.test mypy src/ tests/
 
 test:
 	uv run pytest tests/
+
+celery-dev:
+	OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES uv run celery -A tasks.app worker --loglevel=DEBUG

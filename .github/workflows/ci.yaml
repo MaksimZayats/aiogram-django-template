@@ -3,7 +3,7 @@ name: Checks
 on:
   push:
     branches: [ main ]
-  pull_request: {}
+  pull_request: { }
 
 permissions:
   contents: write
@@ -21,24 +21,75 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
 
       - name: Install the project
         run: uv sync --locked --all-extras --dev
 
+      - name: Create .env.test
+        run: |
+          cat > .env.test << 'EOF'
+          DJANGO_SECRET_KEY=test-django-secret-key
+          JWT_SECRET_KEY=test-jwt-secret
+          ENVIRONMENT=test
+          DJANGO_DEBUG=true
+          LOG_LEVEL=DEBUG
+          ALLOWED_HOSTS='["127.0.0.1", "localhost"]'
+          CSRF_TRUSTED_ORIGINS='["http://localhost"]'
+          POSTGRES_USER=postgres
+          POSTGRES_DB=postgres
+          POSTGRES_PASSWORD=test-postgres-password
+          DATABASE_URL=postgres://postgres:test-postgres-password@localhost:5432/postgres
+          REDIS_PASSWORD=example-redis-password
+          REDIS_URL="redis://default:${REDIS_PASSWORD}@localhost:6379/0"
+          AWS_S3_ENDPOINT_URL=http://localhost:9000
+          AWS_S3_ACCESS_KEY_ID=test-minio-access-key
+          AWS_S3_SECRET_ACCESS_KEY=test-minio-secret-key
+          EOF
+
       - name: Run linters
         run: make lint
 
+      - name: Set up Docker Compose
+        uses: docker/setup-compose-action@v1
+        with:
+          version: latest
+
+      - name: Build Docker image
+        run: docker compose --env-file .env.test build base
+
+      - name: Start infrastructure
+        run: |
+          docker compose \
+            --file docker-compose.yaml \
+            --file docker-compose.ci.yaml \
+            --env-file .env.test \
+            up -d postgres pgbouncer minio redis
+
+            docker compose \
+              --file docker-compose.yaml \
+              --file docker-compose.ci.yaml \
+              --env-file .env.test \
+              up minio-create-buckets migrations collectstatic
+        env:
+          ENV_FILE: .env.test
+
       - name: Run tests
-        run: make test
+        run: uv run --env-file .env.test pytest --cov=src/ --cov-report=xml tests/
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose --env-file .env.test logs
 
   dependabot-auto-merge:
     name: 'Dependabot auto merge'
     needs: [ check-code ]
     runs-on: ubuntu-latest
-    if: ${{ github.actor == 'dependabot[bot]' && github.event_name == 'pull_request'}}  # Detect that the PR author is dependabot
+    if: ${{ github.actor == 'dependabot[bot]' && github.event_name == 'pull_request'}}
     steps:
       - name: Enable auto-merge for Dependabot PRs
-        run: gh pr merge --auto --merge "$PR_URL"  # Use GitHub CLI to merge automatically the PR
+        run: gh pr merge --auto --merge "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
