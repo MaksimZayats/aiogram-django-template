@@ -1,8 +1,13 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: check-yaml
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: requirements-txt-fixer
+
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.9.24
+    hooks:
+      - id: uv-lock

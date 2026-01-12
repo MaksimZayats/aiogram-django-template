@@ -29,6 +29,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "mypy>=1.19.1",
+    "pre-commit>=4.5.1",
     "pyrefly>=0.47.0",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
