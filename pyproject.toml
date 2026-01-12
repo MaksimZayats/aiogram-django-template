@@ -23,6 +23,7 @@ dependencies = [
     "pydantic[email]>=2.12.5",
     "pyjwt>=2.10.1",
     "python-dotenv>=1.2.1",
+    "redis>=7.1.0",
 ]
 
 [dependency-groups]

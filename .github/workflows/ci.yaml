@@ -41,6 +41,8 @@ jobs:
           POSTGRES_DB=postgres
           POSTGRES_PASSWORD=test-postgres-password
           DATABASE_URL=postgres://postgres:test-postgres-password@localhost:5432/postgres
+          REDIS_PASSWORD=example-redis-password
+          REDIS_URL="redis://default:${REDIS_PASSWORD}@localhost:6379/0"
           AWS_S3_ENDPOINT_URL=http://localhost:9000
           AWS_S3_ACCESS_KEY_ID=test-minio-access-key
           AWS_S3_SECRET_ACCESS_KEY=test-minio-secret-key
@@ -63,8 +65,8 @@ jobs:
             --file docker-compose.yaml \
             --file docker-compose.ci.yaml \
             --env-file .env.test \
-            up -d postgres pgbouncer minio
-          
+            up -d postgres pgbouncer minio redis
+
             docker compose \
               --file docker-compose.yaml \
               --file docker-compose.ci.yaml \

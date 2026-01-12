@@ -1,5 +1,6 @@
 from punq import Container, Scope
 
+from core.configs.settings import RedisSettings
 from core.user.models import RefreshSession
 from delivery.http.health.controllers import HealthController
 from delivery.http.user.controllers import UserController, UserTokenController
@@ -10,6 +11,9 @@ from infrastructure.django.refresh_sessions.services import (
     RefreshSessionServiceSettings,
 )
 from infrastructure.jwt.services import JWTService, JWTServiceSettings
+from tasks.registry import TasksRegistry
+from tasks.settings import CelerySettings
+from tasks.tasks.ping import PingTaskController
 
 
 def get_container() -> Container:
@@ -18,6 +22,7 @@ def get_container() -> Container:
     _register_services(container)
     _register_auth(container)
     _register_controllers(container)
+    _register_celery(container)
 
     return container
 
@@ -36,6 +41,7 @@ def _register_services(container: Container) -> None:
     container.register(
         RefreshSessionServiceSettings,
         factory=lambda: RefreshSessionServiceSettings(),
+        scope=Scope.singleton,
     )
 
     container.register(
@@ -48,6 +54,12 @@ def _register_services(container: Container) -> None:
         scope=Scope.singleton,
     )
 
+    container.register(
+        RedisSettings,
+        factory=lambda: RedisSettings(),  # type: ignore[call-arg, missing-argument]
+        scope=Scope.singleton,
+    )
+
 
 def _register_auth(container: Container) -> None:
     container.register(JWTAuth, scope=Scope.singleton)
@@ -57,3 +69,9 @@ def _register_controllers(container: Container) -> None:
     container.register(HealthController, scope=Scope.singleton)
     container.register(UserController, scope=Scope.singleton)
     container.register(UserTokenController, scope=Scope.singleton)
+
+
+def _register_celery(container: Container) -> None:
+    container.register(CelerySettings, factory=lambda: CelerySettings(), scope=Scope.singleton)
+    container.register(TasksRegistry, scope=Scope.singleton)
+    container.register(PingTaskController, scope=Scope.singleton)

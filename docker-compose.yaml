@@ -5,8 +5,9 @@ x-common: &common
     - ${ENV_FILE:-.env}
 
   environment:
-    DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB}
-    AWS_S3_ENDPOINT_URL: http://minio:9000
+    DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB}"
+    AWS_S3_ENDPOINT_URL: "http://minio:9000"
+    REDIS_URL: "redis://default:${REDIS_PASSWORD}@redis:6379/0"
 
   logging:
     driver: "json-file"
@@ -38,6 +39,19 @@ services:
       - pgbouncer
       - migrations
       - collectstatic
+    restart: always
+
+  celery:
+    <<: *common
+    command:
+      - celery
+      - --app=tasks.app
+      - worker
+      - --loglevel=INFO
+    depends_on:
+      - pgbouncer
+      - migrations
+      - redis
     restart: always
 
   bot:
@@ -125,6 +139,16 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  redis:
+    image: redis:latest
+    restart: unless-stopped
+    env_file:
+      - ${ENV_FILE:-.env}
+    volumes:
+      - redis_data:/data
+    networks:
+      - main
+
   minio:
     image: minio/minio:latest
     ports:
@@ -167,9 +191,10 @@ services:
     networks:
       - main
 
-
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
   minio_data:
     driver: local

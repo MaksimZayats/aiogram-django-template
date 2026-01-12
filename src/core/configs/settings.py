@@ -84,6 +84,10 @@ class StorageSettings(BaseSettings):
         }
 
 
+class RedisSettings(BaseSettings):
+    redis_url: SecretStr
+
+
 application_settings = ApplicationSettings()  # type: ignore[call-arg, missing-argument]
 security_settings = SecuritySettings()  # type: ignore[call-arg, missing-argument]
 database_settings = DatabaseSettings()

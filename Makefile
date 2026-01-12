@@ -1,14 +1,14 @@
 dev:
-	DJANGO_DEBUG=true uv run --env-file .env manage.py runserver
+	DJANGO_DEBUG=true uv run manage.py runserver
 
 makemigrations:
-	uv run --env-file .env manage.py makemigrations
+	uv run manage.py makemigrations
 
 migrate:
-	uv run --env-file .env manage.py migrate
+	uv run manage.py migrate
 
 collectstatic:
-	uv run --env-file .env manage.py collectstatic --no-input
+	uv run manage.py collectstatic --no-input
 
 format:
 	uv run ruff format .
@@ -21,4 +21,7 @@ lint:
 	uv run --env-file .env.test mypy src/ tests/
 
 test:
-	uv run --env-file .env.test pytest tests/
+	uv run pytest tests/
+
+celery-dev:
+	OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES uv run celery -A tasks.app worker --loglevel=DEBUG

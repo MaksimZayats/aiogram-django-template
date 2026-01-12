@@ -1,5 +1,3 @@
-from typing import Any
-
 from django.contrib import admin
 
 from core.user.models import User
@@ -15,20 +13,3 @@ class UserAdmin(admin.ModelAdmin[User]):
         "is_staff",
         "is_superuser",
     )
-
-    def save_model(
-        self,
-        request: Any,
-        obj: User,
-        form: None,
-        change: bool,  # noqa: FBT001
-    ) -> None:
-        """Update user password if it is not raw.
-
-        This is needed to hash password when updating user from admin panel.
-        """
-        has_raw_password = obj.password.startswith("pbkdf2_sha256")  # type: ignore[possibly-missing-attribute]
-        if not has_raw_password:
-            obj.set_password(obj.password)
-
-        super().save_model(request, obj, form, change)
