@@ -23,8 +23,5 @@ lint:
 test:
 	uv run pytest tests/
 
-test-ci:
-	uv run --env-file .env.test pytest --cov=src/ --cov-report=xml tests/
-
 celery-dev:
 	OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES uv run celery -A tasks.app worker --loglevel=DEBUG
