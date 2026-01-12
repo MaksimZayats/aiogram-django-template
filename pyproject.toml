@@ -38,6 +38,10 @@ dev = [
     "ruff>=0.14.10",
     "ty>=0.0.9",
 ]
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-shadcn>=0.9.8",
+]
 
 [build-system]
 requires = ["uv_build>=0.9.10,<0.10.0"]

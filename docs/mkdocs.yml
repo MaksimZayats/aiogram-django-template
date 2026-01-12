@@ -1,0 +1,32 @@
+site_name: "myproject"
+site_url: "https://example.com"
+site_description: "Django + aiogram + Celery application with dependency injection"
+repo_url: "https://github.com/MaksimZayats/aiogram-django-template"
+
+docs_dir: en
+site_dir: ../site
+
+theme:
+  name: shadcn
+  custom_dir: overrides
+  show_title: true
+  show_stargazers: true
+  icon: heroicons:rocket-launch
+  topbar_sections: false
+  pygments_style:
+    light: shadcn-light
+    dark: github-dark
+  show_datetime: true
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - fenced_code
+  - footnotes
+  - pymdownx.blocks.details
+  - pymdownx.tabbed
+  - pymdownx.blocks.tab
+  - shadcn.extensions.iconify
