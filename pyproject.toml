@@ -49,6 +49,7 @@ namespace = true
 [tool.mypy]
 python_version = "3.14"
 strict = true
+mypy_path = "typings"
 plugins = ["mypy_django_plugin.main"]
 ignore_missing_imports = true
 local_partial_types = true
@@ -76,6 +77,12 @@ disable_error_code = ["no-untyped-def"]
 
 [tool.django-stubs]
 django_settings_module = "core.configs.settings"
+
+[tool.ty.environment]
+extra-paths = ["typings"]
+
+[tool.pyrefly]
+search_path = ["typings"]
 
 [tool.pytest.ini_options]
 minversion = "9.0"

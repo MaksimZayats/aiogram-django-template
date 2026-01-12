@@ -77,7 +77,7 @@ container.register(type[BaseRefreshSession], instance=RefreshSession)
 ### Resolving Dependencies
 
 ```python
-controller = cast(Controller, container.resolve(UserController))
+controller = container.resolve(UserController)
 ```
 
 ## Controller Pattern
@@ -169,7 +169,7 @@ def test_create_user(test_client_factory: TestClientFactory) -> None:
 
 ```python
 def test_ping_task(celery_worker_factory: CeleryWorkerFactory, container: Container) -> None:
-    registry = cast(TasksRegistry, container.resolve(TasksRegistry))
+    registry = container.resolve(TasksRegistry)
     with celery_worker_factory():  # Starts worker in context
         result = registry.ping.delay().get(timeout=1)
 ```

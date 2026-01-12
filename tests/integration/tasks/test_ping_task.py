@@ -1,5 +1,3 @@
-from typing import cast
-
 from punq import Container
 
 from tasks.registry import TasksRegistry
@@ -11,7 +9,7 @@ def test_ping_task(
     celery_worker_factory: CeleryWorkerFactory,
     container: Container,
 ) -> None:
-    registry = cast(TasksRegistry, container.resolve(TasksRegistry))
+    registry = container.resolve(TasksRegistry)
     with celery_worker_factory():
         ping_result = registry.ping.delay().get(timeout=1)
 
