@@ -1,12 +1,43 @@
 services:
   api:
     volumes:
-      - ../src:/app/src:ro
+      - ./src:/app/src:ro
     command:
       - python
       - manage.py
       - runserver
       - 0.0.0.0:8000
+
+  celery-worker:
+    volumes:
+      - ./src:/app/src:ro
+    command:
+      - watchmedo
+      - auto-restart
+      - --directory=/app/src
+      - --pattern=*.py
+      - --recursive
+      - --
+      - celery
+      - --app=tasks.app
+      - worker
+      - --loglevel=${LOG_LEVEL:-INFO}
+      - --concurrency=2
+
+  celery-beat:
+    volumes:
+      - ./src:/app/src:ro
+    command:
+      - watchmedo
+      - auto-restart
+      - --directory=/app/src
+      - --pattern=*.py
+      - --recursive
+      - --
+      - celery
+      - --app=tasks.app
+      - beat
+      - --loglevel=${LOG_LEVEL:-INFO}
 
   pgbouncer:
     ports:

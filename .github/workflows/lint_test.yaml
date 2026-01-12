@@ -56,20 +56,19 @@ jobs:
         with:
           version: latest
 
+      - name: Set docker-compose file
+        run: echo "COMPOSE_FILE=docker-compose.yaml:docker-compose.ci.yaml" >> $GITHUB_ENV
+
       - name: Build Docker image
         run: docker compose --env-file .env.test build base
 
       - name: Start infrastructure
         run: |
           docker compose \
-            --file docker-compose.yaml \
-            --file docker-compose.ci.yaml \
             --env-file .env.test \
             up -d postgres pgbouncer minio redis
 
             docker compose \
-              --file docker-compose.yaml \
-              --file docker-compose.ci.yaml \
               --env-file .env.test \
               up minio-create-buckets migrations collectstatic
         env:
