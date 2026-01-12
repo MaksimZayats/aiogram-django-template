@@ -39,9 +39,10 @@ services:
       - pgbouncer
       - migrations
       - collectstatic
+      - celery-worker
     restart: always
 
-  celery:
+  celery-worker:
     <<: *common
     command:
       - celery
