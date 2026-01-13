@@ -2,8 +2,8 @@ import pytest
 from punq import Container, Scope
 
 from core.user.models import User
+from delivery.tasks.factories import CeleryAppFactory
 from ioc.container import get_container
-from tasks.factories import CeleryAppFactory
 from tests.integration.factories import (
     CeleryWorkerFactory,
     TestClientFactory,

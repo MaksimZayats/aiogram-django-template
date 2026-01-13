@@ -1,9 +1,9 @@
 from celery import Celery
 
 from core.configs.django import application_settings
-from tasks.registry import TaskName, TasksRegistry
-from tasks.settings import CelerySettings
-from tasks.tasks.ping import PingTaskController
+from delivery.tasks.registry import TaskName, TasksRegistry
+from delivery.tasks.settings import CelerySettings
+from delivery.tasks.tasks.ping import PingTaskController
 
 
 class CeleryAppFactory:

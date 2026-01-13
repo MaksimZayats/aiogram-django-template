@@ -19,7 +19,7 @@ services:
       - --recursive
       - --
       - celery
-      - --app=tasks.app
+      - --app=delivery.tasks.app
       - worker
       - --loglevel=${LOGGING_LEVEL:-INFO}
       - --concurrency=2
@@ -35,7 +35,7 @@ services:
       - --recursive
       - --
       - celery
-      - --app=tasks.app
+      - --app=delivery.tasks.app
       - beat
       - --loglevel=${LOGGING_LEVEL:-INFO}
 

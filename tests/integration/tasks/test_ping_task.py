@@ -1,7 +1,7 @@
 from punq import Container
 
-from tasks.registry import TasksRegistry
-from tasks.tasks.ping import PingResult
+from delivery.tasks.registry import TasksRegistry
+from delivery.tasks.tasks.ping import PingResult
 from tests.integration.factories import CeleryWorkerFactory
 
 

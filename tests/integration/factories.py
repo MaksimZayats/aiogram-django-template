@@ -9,7 +9,7 @@ from ninja.testing import TestClient
 
 from core.user.models import User
 from delivery.http.factories import NinjaAPIFactory
-from tasks.factories import CeleryAppFactory
+from delivery.tasks.factories import CeleryAppFactory
 
 
 class TestNinjaAPIFactory(NinjaAPIFactory):

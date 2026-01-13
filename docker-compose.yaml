@@ -46,7 +46,7 @@ services:
     <<: *common
     command:
       - celery
-      - --app=tasks.app
+      - --app=delivery.tasks.app
       - worker
       - --loglevel=${LOGGING_LEVEL:-INFO}
       - --concurrency=4
@@ -60,7 +60,7 @@ services:
     <<: *common
     command:
       - celery
-      - --app=tasks.app
+      - --app=delivery.tasks.app
       - beat
       - --loglevel=${LOGGING_LEVEL:-INFO}
     depends_on:

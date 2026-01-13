@@ -2,11 +2,15 @@ from celery import Celery
 from ninja import NinjaAPI
 from punq import Container, Scope
 
-from core.configs.core import RedisSettings, ApplicationSettings
+from core.configs.core import ApplicationSettings, RedisSettings
 from core.user.models import RefreshSession
 from delivery.http.factories import NinjaAPIFactory
 from delivery.http.health.controllers import HealthController
 from delivery.http.user.controllers import UserController, UserTokenController
+from delivery.tasks.factories import CeleryAppFactory, TasksRegistryFactory
+from delivery.tasks.registry import TasksRegistry
+from delivery.tasks.settings import CelerySettings
+from delivery.tasks.tasks.ping import PingTaskController
 from infrastructure.django.auth import JWTAuth
 from infrastructure.django.refresh_sessions.models import BaseRefreshSession
 from infrastructure.django.refresh_sessions.services import (
@@ -14,10 +18,6 @@ from infrastructure.django.refresh_sessions.services import (
     RefreshSessionServiceSettings,
 )
 from infrastructure.jwt.services import JWTService, JWTServiceSettings
-from tasks.factories import CeleryAppFactory, TasksRegistryFactory
-from tasks.registry import TasksRegistry
-from tasks.settings import CelerySettings
-from tasks.tasks.ping import PingTaskController
 
 
 def get_container() -> Container:
@@ -67,7 +67,11 @@ def _register_services(container: Container) -> None:
 
 def _register_http(container: Container) -> None:
     container.register(JWTAuth, scope=Scope.singleton)
-    container.register(ApplicationSettings, factory=lambda: ApplicationSettings(), scope=Scope.singleton)
+    container.register(
+        ApplicationSettings,
+        factory=lambda: ApplicationSettings(),
+        scope=Scope.singleton,
+    )
     container.register(NinjaAPIFactory, scope=Scope.singleton)
     container.register(
         NinjaAPI,

@@ -20,7 +20,6 @@ from infrastructure.django.refresh_sessions.services import (
     RefreshTokenError,
 )
 from infrastructure.jwt.services import JWTService
-from tasks.registry import TasksRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -45,15 +44,12 @@ class UserTokenController(Controller):
         jwt_service: JWTService,
         refresh_token_service: RefreshSessionService,
         jwt_auth: JWTAuth,
-        tasks: TasksRegistry,
     ) -> None:
         self._jwt_service = jwt_service
         self._refresh_token_service = refresh_token_service
         self._jwt_auth = jwt_auth
-        self._tasks_registry = tasks
 
     def register(self, registry: Router) -> None:
-        print(f"{self.__class__.__name__} registered!")
         registry.add_api_operation(
             path="/v1/users/me/token",
             methods=["POST"],
@@ -80,9 +76,6 @@ class UserTokenController(Controller):
         request: HttpRequest,
         body: IssueTokenRequestSchema,
     ) -> TokenResponseSchema:
-        r = self._tasks_registry.ping.delay().get(timeout=10)
-        logger.info("Ping task result: %s", r)
-
         user = User.objects.filter(username=body.username).first()
         if user is None or not user.check_password(body.password):
             raise HttpError(

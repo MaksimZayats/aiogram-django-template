@@ -4,8 +4,8 @@ from celery import Celery
 from celery.signals import beat_init, worker_init
 
 from core.configs.infrastructure import configure_infrastructure
+from delivery.tasks.registry import TasksRegistry
 from ioc.container import get_container
-from tasks.registry import TasksRegistry
 
 
 @worker_init.connect()
