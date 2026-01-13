@@ -162,6 +162,16 @@ result = registry.ping()
 print(result)  # {"result": "pong"}
 ```
 
+!!! warning "Avoid Synchronous Calls in Web Requests"
+    Calling tasks synchronously in HTTP handlers causes problems:
+
+    - **Blocks the web worker** — The request hangs until the task completes
+    - **Request timeouts** — Long-running tasks will exceed HTTP timeout limits
+    - **Database deadlocks** — Tasks requiring the same database connection may deadlock
+    - **Poor scalability** — Blocked workers can't serve other requests
+
+    Use `.delay()` or `.apply_async()` instead, and return a task ID for status polling.
+
 ## IoC Registration
 
 The registry is created by `TasksRegistryFactory`:

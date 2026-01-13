@@ -16,6 +16,7 @@ Create a new file `src/delivery/http/item/controllers.py`:
 ```python
 from http import HTTPStatus
 from typing import NoReturn
+from uuid import uuid7
 
 from django.http import HttpRequest
 from ninja import Router
@@ -27,7 +28,7 @@ from infrastructure.django.auth import JWTAuth
 
 
 class ItemSchema(BaseModel):
-    id: int
+    id: str
     name: str
     description: str
 
@@ -38,10 +39,7 @@ class CreateItemSchema(BaseModel):
 
 
 # In-memory storage for demo purposes
-_items: list[ItemSchema] = [
-    ItemSchema(id=1, name="Item 1", description="First item"),
-    ItemSchema(id=2, name="Item 2", description="Second item"),
-]
+_items: list[ItemSchema] = []
 
 
 class ItemController(Controller):
@@ -72,7 +70,7 @@ class ItemController(Controller):
         body: CreateItemSchema,
     ) -> ItemSchema:
         new_item = ItemSchema(
-            id=len(_items) + 1,
+            id=str(uuid7()),
             name=body.name,
             description=body.description,
         )

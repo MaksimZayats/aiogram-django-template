@@ -119,6 +119,9 @@ Key features:
 - Configures broker and backend from settings
 - Sets up beat schedule
 
+!!! note "Testing with Cached Instances"
+    The cached instance doesn't require manual cleanup in tests. Each test receives a fresh IoC container (function-scoped fixture), which creates a new factory instance with its own cache. See [Testing Architecture](../testing/overview.md) for details.
+
 ### Bot Factory
 
 Creates the Telegram bot:

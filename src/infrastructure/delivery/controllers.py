@@ -25,7 +25,7 @@ def _wrap_methods(controller: Controller) -> None:
         if (
             callable(attr)
             and not attr_name.startswith("_")
-            and attr_name not in ("register_routes", "handle_exception")
+            and attr_name not in ("register", "handle_exception")
         ):
             setattr(
                 controller,
