@@ -40,7 +40,7 @@ Telegram API
 
     How the bot and dispatcher are created and configured.
 
-    [:octicons-arrow-right-24: Learn More](factories.md)
+    [→ Learn More](factories.md)
 
 -   **Handlers**
 
@@ -48,7 +48,7 @@ Telegram API
 
     Command handlers and message processing.
 
-    [:octicons-arrow-right-24: Learn More](handlers.md)
+    [→ Learn More](handlers.md)
 
 </div>
 

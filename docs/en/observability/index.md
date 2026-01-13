@@ -35,7 +35,7 @@ Observability helps you understand what's happening inside your application:
 
     Console logging with colors and log levels.
 
-    [:octicons-arrow-right-24: Learn More](logging.md)
+    [→ Learn More](logging.md)
 
 -   **Logfire (OpenTelemetry)**
 
@@ -43,7 +43,7 @@ Observability helps you understand what's happening inside your application:
 
     Distributed tracing with Pydantic's Logfire platform.
 
-    [:octicons-arrow-right-24: Learn More](logfire.md)
+    [→ Learn More](logfire.md)
 
 -   **Instrumented Libraries**
 
@@ -51,7 +51,7 @@ Observability helps you understand what's happening inside your application:
 
     Auto-instrumented libraries for tracing.
 
-    [:octicons-arrow-right-24: Learn More](instrumented-libraries.md)
+    [→ Learn More](instrumented-libraries.md)
 
 -   **Sensitive Data Scrubbing**
 
@@ -59,7 +59,7 @@ Observability helps you understand what's happening inside your application:
 
     Protecting secrets in traces and logs.
 
-    [:octicons-arrow-right-24: Learn More](scrubbing.md)
+    [→ Learn More](scrubbing.md)
 
 </div>
 

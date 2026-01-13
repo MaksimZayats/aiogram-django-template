@@ -12,7 +12,7 @@ Quick lookup tables and reference documentation.
 
     Complete reference of all environment variables.
 
-    [:octicons-arrow-right-24: Environment Variables](environment-variables.md)
+    [→ Environment Variables](environment-variables.md)
 
 -   **Makefile Commands**
 
@@ -20,7 +20,7 @@ Quick lookup tables and reference documentation.
 
     Available make commands for development.
 
-    [:octicons-arrow-right-24: Makefile](makefile.md)
+    [→ Makefile](makefile.md)
 
 -   **Docker Services**
 
@@ -28,7 +28,7 @@ Quick lookup tables and reference documentation.
 
     Docker Compose service configuration details.
 
-    [:octicons-arrow-right-24: Docker Services](docker-services.md)
+    [→ Docker Services](docker-services.md)
 
 -   **External Links**
 
@@ -36,6 +36,6 @@ Quick lookup tables and reference documentation.
 
     Links to external documentation and resources.
 
-    [:octicons-arrow-right-24: External Links](external-links.md)
+    [→ External Links](external-links.md)
 
 </div>

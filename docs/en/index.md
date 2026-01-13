@@ -1,4 +1,4 @@
-# Django + aiogram + Celery Template
+# Modern API Template
 
 A production-ready template for building modern Python applications with **Django**, **aiogram**, and **Celery** — featuring dependency injection, type-safe configuration, and comprehensive observability.
 
@@ -23,7 +23,7 @@ Building production applications requires more than just framework boilerplate. 
 
     Set up your development environment in 5 minutes
 
-    [:octicons-arrow-right-24: Quick Start](getting-started/quick-start.md)
+    [→ Quick Start](getting-started/quick-start.md)
 
 -   **Tutorials**
 
@@ -31,7 +31,7 @@ Building production applications requires more than just framework boilerplate. 
 
     Step-by-step guides for common tasks
 
-    [:octicons-arrow-right-24: Your First API Endpoint](tutorials/first-api-endpoint.md)
+    [→ Your First API Endpoint](tutorials/first-api-endpoint.md)
 
 -   **Core Concepts**
 
@@ -39,7 +39,7 @@ Building production applications requires more than just framework boilerplate. 
 
     Understand the architectural patterns
 
-    [:octicons-arrow-right-24: IoC Container](concepts/ioc-container.md)
+    [→ IoC Container](concepts/ioc-container.md)
 
 -   **Deployment**
 
@@ -47,7 +47,7 @@ Building production applications requires more than just framework boilerplate. 
 
     Deploy to production with Docker Compose
 
-    [:octicons-arrow-right-24: Docker Compose](deployment/docker-compose.md)
+    [→ Docker Compose](deployment/docker-compose.md)
 
 </div>
 

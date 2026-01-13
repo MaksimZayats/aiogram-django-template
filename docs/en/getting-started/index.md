@@ -1,6 +1,6 @@
 # Getting Started
 
-Welcome to the Django + aiogram + Celery template! This section will help you get up and running quickly.
+Welcome to the Modern Django template! This section will help you get up and running quickly.
 
 ## Prerequisites
 
@@ -20,7 +20,7 @@ Before you begin, ensure you have the following installed:
 
     Get the application running in 5 minutes with minimal setup.
 
-    [:octicons-arrow-right-24: Quick Start](quick-start.md)
+    [→ Quick Start](quick-start.md)
 
 -   **Development Environment**
 
@@ -28,7 +28,7 @@ Before you begin, ensure you have the following installed:
 
     Complete setup for local development including IDE configuration.
 
-    [:octicons-arrow-right-24: Development Environment](development-environment.md)
+    [→ Development Environment](development-environment.md)
 
 -   **Project Structure**
 
@@ -36,7 +36,7 @@ Before you begin, ensure you have the following installed:
 
     Understand the directory layout and module organization.
 
-    [:octicons-arrow-right-24: Project Structure](project-structure.md)
+    [→ Project Structure](project-structure.md)
 
 </div>
 
