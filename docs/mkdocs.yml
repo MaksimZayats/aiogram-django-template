@@ -1,0 +1,126 @@
+site_name: Django + aiogram + Celery Template
+site_url: https://template.zayats.dev
+site_description: Production-ready Django + aiogram + Celery application with dependency injection
+repo_url: https://github.com/MaksimZayats/modern-django-template
+repo_name: MaksimZayats/modern-django-template
+
+docs_dir: en
+site_dir: ../site
+
+theme:
+  name: material
+  features:
+    - navigation.indexes
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - tables
+  - toc:
+      permalink: true
+  - attr_list
+  - md_in_html
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/MaksimZayats
+      name: GitHub
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/in/maksimzayats/
+      name: LinkedIn
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - getting-started/index.md
+    - Quick Start (5 minutes): getting-started/quick-start.md
+    - Development Environment: getting-started/development-environment.md
+    - Project Structure: getting-started/project-structure.md
+  - Tutorials:
+    - tutorials/index.md
+    - Your First API Endpoint: tutorials/first-api-endpoint.md
+    - Your First Bot Command: tutorials/first-bot-command.md
+    - Your First Celery Task: tutorials/first-celery-task.md
+  - Core Concepts:
+    - concepts/index.md
+    - IoC Container (punq): concepts/ioc-container.md
+    - Controller Pattern: concepts/controller-pattern.md
+    - Pydantic Settings: concepts/pydantic-settings.md
+    - Factory Pattern: concepts/factory-pattern.md
+  - Configuration:
+    - configuration/index.md
+    - Environment Variables: configuration/environment-variables.md
+    - Django Settings Adapter: configuration/django-adapter.md
+    - Production Configuration: configuration/production.md
+  - HTTP API:
+    - http/index.md
+    - Controllers: http/controllers.md
+    - JWT Authentication: http/jwt-authentication.md
+    - Refresh Tokens: http/refresh-tokens.md
+    - Error Handling: http/error-handling.md
+  - Telegram Bot:
+    - bot/index.md
+    - Bot & Dispatcher Factories: bot/factories.md
+    - Handlers: bot/handlers.md
+  - Celery Tasks:
+    - celery/index.md
+    - Task Controllers: celery/task-controllers.md
+    - Task Registry: celery/task-registry.md
+    - Beat Scheduler: celery/beat-scheduler.md
+  - Testing:
+    - testing/index.md
+    - Test Factories: testing/test-factories.md
+    - HTTP API Tests: testing/http-tests.md
+    - Celery Task Tests: testing/celery-tests.md
+    - Mocking IoC Dependencies: testing/mocking-ioc.md
+  - Observability:
+    - observability/index.md
+    - Logging: observability/logging.md
+    - Logfire (OpenTelemetry): observability/logfire.md
+    - Instrumented Libraries: observability/instrumented-libraries.md
+    - Sensitive Data Scrubbing: observability/scrubbing.md
+  - Deployment:
+    - deployment/index.md
+    - Docker Compose: deployment/docker-compose.md
+    - Production Checklist: deployment/production-checklist.md
+    - CI/CD: deployment/ci-cd.md
+  - Reference:
+    - reference/index.md
+    - Environment Variables: reference/environment-variables.md
+    - Makefile Commands: reference/makefile.md
+    - Docker Services: reference/docker-services.md
+    - External Links: reference/external-links.md
+  - Contributing: contributing.md

@@ -1,0 +1,53 @@
+services:
+  api:
+    volumes:
+      - ./src:/app/src:ro
+    command:
+      - python
+      - manage.py
+      - runserver
+      - 0.0.0.0:8000
+
+  celery-worker:
+    volumes:
+      - ./src:/app/src:ro
+    command:
+      - watchmedo
+      - auto-restart
+      - --directory=/app/src
+      - --pattern=*.py
+      - --recursive
+      - --
+      - celery
+      - --app=delivery.tasks.app
+      - worker
+      - --loglevel=${LOGGING_LEVEL:-INFO}
+      - --concurrency=2
+
+  celery-beat:
+    volumes:
+      - ./src:/app/src:ro
+    command:
+      - watchmedo
+      - auto-restart
+      - --directory=/app/src
+      - --pattern=*.py
+      - --recursive
+      - --
+      - celery
+      - --app=delivery.tasks.app
+      - beat
+      - --loglevel=${LOGGING_LEVEL:-INFO}
+
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  minio:
+    ports:
+      - "9000:9000"
+      - "9001:9001"

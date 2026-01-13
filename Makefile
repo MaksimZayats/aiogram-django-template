@@ -1,61 +1,40 @@
-run.bot:
-	python -m bot
-
-run.server.local:
-	sh ./run-local.sh
-
-run.server.prod:
-	python -m gunicorn api.web.wsgi:application \
-		--bind 0.0.0.0:80 \
-		--workers ${WORKERS} \
-		--threads ${THREADS} \
-		--timeout 480
-
-run.bot.local:
-	python -m bot
-
-run.bot.prod:
-	python -m bot
-
-run.celery.local:
-	OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES celery -A tasks.app worker --loglevel=DEBUG
-
-run.celery.prod:
-	celery -A tasks.app worker --loglevel=INFO
+dev:
+	DJANGO_DEBUG=true uv run manage.py runserver
 
 makemigrations:
-	python manage.py makemigrations
+	uv run manage.py makemigrations
 
 migrate:
-	python manage.py migrate
+	uv run manage.py migrate
 
 collectstatic:
-	python manage.py collectstatic --no-input
+	uv run manage.py collectstatic --no-input
 
-createsuperuser:
-	python manage.py createsuperuser --email "" --username admin
-
-# Tests, linters & formatters
-fmt:
-	make -k ruff-fmt black
+format:
+	uv run ruff format .
+	uv run ruff check --fix-only .
 
 lint:
-	make -k ruff black-check mypy
-
-black:
-	python -m black .
-
-black-check:
-	python -m black --check .
-
-ruff:
-	python -m ruff check .
-
-ruff-fmt:
-	python -m ruff --fix-only --unsafe-fixes .
+	uv run ruff check .
+	uv run ty check .
+	uv run pyrefly check src/
+	uv run mypy src/ tests/
 
 test:
-	python -m pytest
+	uv run pytest tests/
 
-mypy:
-	python -m mypy .
+celery-dev:
+	OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES uv run celery -A delivery.tasks.app worker --loglevel=DEBUG
+
+celery-beat-dev:
+	uv run celery -A delivery.tasks.app beat --loglevel=DEBUG
+
+bot-dev:
+	uv run python -m delivery.bot
+
+.PHONY: docs docs-build
+docs:
+	uv run mkdocs serve --livereload -f docs/mkdocs.yml
+
+docs-build:
+	uv run mkdocs build -f docs/mkdocs.yml

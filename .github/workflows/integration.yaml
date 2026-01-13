@@ -1,0 +1,54 @@
+name: Integration Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request: { }
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: production
+            compose-file: docker-compose.yaml
+          - name: local
+            compose-file: docker-compose.yaml:docker-compose.local.yaml
+    name: integration-test (${{ matrix.name }})
+    env:
+      COMPOSE_FILE: ${{ matrix.compose-file }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Compose
+        uses: docker/setup-compose-action@v1
+        with:
+          version: latest
+
+      - name: Copy environment file
+        run: cp .env.example .env
+
+      - name: Build Docker base image
+        run: docker compose build base
+
+      - name: Start API
+        run: docker compose up api -d
+
+      - name: Wait for API to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:8009/api/v1/health; then
+              echo "Health check passed!"
+              exit 0
+            fi
+            echo "Waiting for API... (attempt $i/30)"
+            sleep 2
+          done
+          echo "Health check failed after 30 attempts"
+          exit 1
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs

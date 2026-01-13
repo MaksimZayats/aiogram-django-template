@@ -1,39 +1,13 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: check-yaml
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: requirements-txt-fixer
 
-  - repo: local
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.9.24
     hooks:
-      - id: black
-        name: black
-        entry: black --check
-        language: system
-        require_serial: true
-        types_or: [python, pyi]
-        exclude: ^migrations/
-
-      - id: ruff
-        name: ruff
-        entry: ruff check --force-exclude migrations
-        language: system
-        require_serial: true
-        types_or: [python, pyi]
-
-      - id: mypy
-        name: mypy
-        entry: mypy
-        language: system
-        require_serial: true
-        types_or: [ python, pyi ]
-
-      - id: pytest
-        name: pytest
-        entry: pytest
-        language: system
-        pass_filenames: false
-        always_run: true
+      - id: uv-lock
