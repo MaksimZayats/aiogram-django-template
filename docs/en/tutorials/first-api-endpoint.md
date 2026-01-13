@@ -87,17 +87,7 @@ Key points:
 - Implement `register()` to define routes
 - Use Pydantic models for request/response schemas
 
-## Step 2: Create the Module Init
-
-Create `src/delivery/http/item/__init__.py`:
-
-```python
-from delivery.http.item.controllers import ItemController
-
-__all__ = ["ItemController"]
-```
-
-## Step 3: Register in IoC Container
+## Step 2: Register in IoC Container
 
 Edit `src/ioc/container.py`:
 
@@ -111,7 +101,7 @@ def _register_controllers(container: Container) -> None:
     container.register(ItemController, scope=Scope.singleton)  # Add this
 ```
 
-## Step 4: Register Routes in Factory
+## Step 3: Register Routes in Factory
 
 Edit `src/delivery/http/factories.py`:
 
@@ -148,7 +138,7 @@ class NinjaAPIFactory:
         return ninja_api
 ```
 
-## Step 5: Test It
+## Step 4: Test It
 
 ### Start the Server
 

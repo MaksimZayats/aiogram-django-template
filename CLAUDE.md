@@ -8,8 +8,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Install dependencies
 uv sync --locked --all-extras --dev
 
+# Configure environment (includes COMPOSE_FILE for local development, see .env.example)
+cp .env.example .env
+
 # Start infrastructure (PostgreSQL, Redis, MinIO)
-docker compose -f docker-compose.yaml -f docker-compose.local.yaml up -d
+docker compose up -d postgres redis minio
+
+# Create MinIO buckets, run migrations, and collect static files
+docker compose up minio-create-buckets migrations collectstatic
 
 # Run development server
 make dev
@@ -17,7 +23,7 @@ make dev
 # Run Celery worker
 make celery-dev
 
-# Database migrations
+# Manual database migrations (alternative to docker compose)
 make makemigrations
 make migrate
 

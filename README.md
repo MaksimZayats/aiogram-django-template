@@ -22,14 +22,14 @@ cd modern-django-template
 # Install dependencies
 uv sync --locked --all-extras --dev
 
-# Configure environment
+# Configure environment (includes COMPOSE_FILE for local development)
 cp .env.example .env
 
-# Start infrastructure
-docker compose -f docker-compose.yaml -f docker-compose.local.yaml up -d
+# Start infrastructure (PostgreSQL, Redis, MinIO)
+docker compose up -d postgres redis minio
 
-# Run migrations
-make migrate
+# Create MinIO buckets, run migrations, and collect static files
+docker compose up minio-create-buckets migrations collectstatic
 
 # Start development server
 make dev

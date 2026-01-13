@@ -270,13 +270,25 @@ services:
 
 ## Using Local Configuration
 
-```bash
-# Set in .env
-COMPOSE_FILE=docker-compose.yaml:docker-compose.local.yaml
+The `.env.example` includes `COMPOSE_FILE` to automatically configure Docker Compose for local development:
 
-# Or explicitly
-docker compose -f docker-compose.yaml -f docker-compose.local.yaml up -d
+```bash
+# .env.example
+COMPOSE_FILE=docker-compose.yaml:docker-compose.local.yaml
 ```
+
+After copying `.env.example` to `.env`, you can use `docker compose` without specifying files:
+
+```bash
+# Start PostgreSQL, Redis, and MinIO
+docker compose up -d postgres redis minio
+
+# Create MinIO buckets, run migrations, and collect static files
+docker compose up minio-create-buckets migrations collectstatic
+```
+
+!!! note "Manual Migrations"
+    You can also run migrations manually using `make makemigrations` and `make migrate`.
 
 ## Scaling
 

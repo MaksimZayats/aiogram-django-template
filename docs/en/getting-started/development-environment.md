@@ -32,11 +32,17 @@ uv lock
 
 ## Infrastructure Services
 
-The application requires PostgreSQL, Redis, and MinIO. Use Docker Compose for local development:
+The application requires PostgreSQL, Redis, and MinIO. Use Docker Compose for local development.
+
+!!! tip "COMPOSE_FILE"
+    The `.env.example` includes `COMPOSE_FILE=docker-compose.yaml:docker-compose.local.yaml` which automatically configures Docker Compose for local development. Copy it to `.env` before running commands.
 
 ```bash
-# Start all services
-docker compose -f docker-compose.yaml -f docker-compose.local.yaml up -d
+# Start PostgreSQL, Redis, and MinIO
+docker compose up -d postgres redis minio
+
+# Create MinIO buckets, run migrations, and collect static files
+docker compose up minio-create-buckets migrations collectstatic
 
 # View logs
 docker compose logs -f postgres redis minio

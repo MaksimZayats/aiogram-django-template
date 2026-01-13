@@ -17,12 +17,18 @@ cd modern-django-template
 # Install dependencies
 uv sync --locked --all-extras --dev
 
-# Start infrastructure
-docker compose -f docker-compose.yaml -f docker-compose.local.yaml up -d
+# Configure environment (includes COMPOSE_FILE for local development)
+cp .env.example .env
 
-# Run migrations
-make migrate
+# Start infrastructure (PostgreSQL, Redis, MinIO)
+docker compose up -d postgres redis minio
+
+# Create MinIO buckets, run migrations, and collect static files
+docker compose up minio-create-buckets migrations collectstatic
 ```
+
+!!! note "Manual Migrations"
+    You can also run migrations manually using `make makemigrations` and `make migrate`.
 
 ### 3. Create a Branch
 

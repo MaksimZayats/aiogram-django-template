@@ -42,8 +42,11 @@ REDIS_URL="redis://default:example-redis-password@localhost:6379/0"
 Start PostgreSQL, Redis, and MinIO:
 
 ```bash
-docker compose -f docker-compose.yaml -f docker-compose.local.yaml up -d
+docker compose up -d postgres redis minio
 ```
+
+!!! tip "COMPOSE_FILE"
+    The `.env.example` includes `COMPOSE_FILE=docker-compose.yaml:docker-compose.local.yaml` which automatically configures Docker Compose for local development. See [`.env.example`](https://github.com/MaksimZayats/modern-django-template/blob/main/.env.example) for reference.
 
 Verify services are running:
 
@@ -51,11 +54,16 @@ Verify services are running:
 docker compose ps
 ```
 
-## 5. Run Migrations
+## 5. Initialize Application
+
+Create MinIO buckets, run migrations, and collect static files:
 
 ```bash
-make migrate
+docker compose up minio-create-buckets migrations collectstatic
 ```
+
+!!! note "Manual Migrations"
+    You can also run migrations manually using `make makemigrations` and `make migrate`.
 
 ## 6. Start the Development Server
 
