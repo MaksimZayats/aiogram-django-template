@@ -18,7 +18,7 @@ lint:
 	uv run ruff check .
 	uv run ty check .
 	uv run pyrefly check src/
-	uv run --env-file .env.test mypy src/ tests/
+	uv run mypy src/ tests/
 
 test:
 	uv run pytest tests/
