@@ -8,7 +8,7 @@ from delivery.http.settings import AuthSettings, HTTPSettings, TemplateSettings
 from infrastructure.django.settings.pydantic_adapter import PydanticSettingsAdapter
 from infrastructure.logging.configuration import LoggingConfig
 
-application_settings = ApplicationSettings()  # type: ignore[call-arg, missing-argument]
+application_settings = ApplicationSettings()
 security_settings = SecuritySettings()  # type: ignore[call-arg, missing-argument]
 database_settings = DatabaseSettings()
 storage_settings = StorageSettings()
