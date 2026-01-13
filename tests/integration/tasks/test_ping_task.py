@@ -1,16 +1,15 @@
-from punq import Container
+from celery.worker import WorkController
 
 from delivery.tasks.registry import TasksRegistry
 from delivery.tasks.tasks.ping import PingResult
-from tests.integration.factories import CeleryWorkerFactory
+from tests.integration.factories import TestCeleryWorkerFactory
 
 
 def test_ping_task(
-    celery_worker_factory: CeleryWorkerFactory,
-    container: Container,
+    celery_worker_factory: TestCeleryWorkerFactory,
+    tasks_registry: TasksRegistry,
 ) -> None:
-    registry = container.resolve(TasksRegistry)
     with celery_worker_factory():
-        ping_result = registry.ping.delay().get(timeout=1)
+        ping_result = tasks_registry.ping.delay().get(timeout=1)
 
     assert ping_result == PingResult(result="pong")

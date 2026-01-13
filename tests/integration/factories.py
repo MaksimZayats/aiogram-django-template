@@ -32,7 +32,9 @@ class TestClientFactory:
         return TestClient(self._api_factory(), **kwargs)
 
 
-class UserFactory:
+class TestUserFactory:
+    __test__ = False
+
     def __init__(self, user_model: type[User]) -> None:
         self._user_model = user_model
 
@@ -49,7 +51,7 @@ class UserFactory:
         )
 
 
-class CeleryWorkerFactory:
+class TestCeleryWorkerFactory:
     def __init__(self, celery_app_factory: CeleryAppFactory) -> None:
         self._celery_app_factory = celery_app_factory
 

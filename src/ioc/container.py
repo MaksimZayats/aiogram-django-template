@@ -1,5 +1,9 @@
+from aiogram import Bot, Dispatcher
 from celery import Celery
 from ninja import NinjaAPI
+
+from delivery.bot.factories import BotFactory, DispatcherFactory
+from delivery.bot.settings import TelegramBotSettings
 from punq import Container, Scope
 
 from core.configs.core import ApplicationSettings, RedisSettings
@@ -27,6 +31,7 @@ def get_container() -> Container:
     _register_http(container)
     _register_controllers(container)
     _register_celery(container)
+    _register_bot(container)
 
     return container
 
@@ -104,3 +109,19 @@ def _register_celery(container: Container) -> None:
     )
 
     container.register(PingTaskController, scope=Scope.singleton)
+
+
+def _register_bot(container: Container) -> None:
+    container.register(TelegramBotSettings, lambda: TelegramBotSettings(), scope=Scope.singleton)
+    container.register(BotFactory, scope=Scope.singleton)
+    container.register(
+        Bot,
+        factory=lambda: container.resolve(BotFactory)(),
+        scope=Scope.singleton,
+    )
+    container.register(DispatcherFactory, scope=Scope.singleton)
+    container.register(
+        Dispatcher,
+        factory=lambda: container.resolve(DispatcherFactory)(),
+        scope=Scope.singleton,
+    )

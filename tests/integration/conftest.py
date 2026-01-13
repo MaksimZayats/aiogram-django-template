@@ -1,60 +1,67 @@
+
 import pytest
+from ninja.testing import TestClient
 from punq import Container, Scope
 
 from core.user.models import User
 from delivery.tasks.factories import CeleryAppFactory
+from delivery.tasks.registry import TasksRegistry
 from ioc.container import get_container
 from tests.integration.factories import (
-    CeleryWorkerFactory,
+    TestCeleryWorkerFactory,
     TestClientFactory,
     TestNinjaAPIFactory,
-    UserFactory,
+    TestUserFactory,
 )
 
 
 @pytest.fixture(scope="function")
-def container() -> Container:
-    return get_container()
+def container(django_user_model: type[User]) -> Container:
+    container = get_container()
+    container.register(TestNinjaAPIFactory, scope=Scope.singleton)
+    container.register(TestClientFactory, scope=Scope.singleton)
+    container.register(TestCeleryWorkerFactory, scope=Scope.singleton)
+    container.register(type[User], instance=django_user_model, scope=Scope.singleton)
+    container.register(TestUserFactory, scope=Scope.singleton)
+
+    return container
 
 
 # region Factories
 
-
 @pytest.fixture(scope="function")
-def api_factory(
-    container: Container,
-) -> TestNinjaAPIFactory:
-    container.register(TestNinjaAPIFactory, scope=Scope.singleton)
-    return container.resolve(TestNinjaAPIFactory)
-
-
-@pytest.fixture(scope="function")
-def test_client_factory(api_factory: TestNinjaAPIFactory) -> TestClientFactory:
+def test_client_factory(container: Container) -> TestClientFactory:
     # NOTE FOR AI: we are creating new api + test client for each test function
     # to have a possibility to override some ioc registrations in specific tests
-    return TestClientFactory(api_factory=api_factory)
+    return container.resolve(TestClientFactory)
+
+
+@pytest.fixture(scope="function")
+def test_client(test_client_factory: TestClientFactory) -> TestClient:
+    return test_client_factory()
 
 
 @pytest.fixture(scope="function")
 def user_factory(
     transactional_db: None,
-    django_user_model: type[User],
-) -> UserFactory:
-    return UserFactory(user_model=django_user_model)
+    container: Container,
+) -> TestUserFactory:
+    return container.resolve(TestUserFactory)
 
 
 @pytest.fixture(scope="function")
-def celery_app_factory(
-    container: Container,
-) -> CeleryAppFactory:
+def celery_app_factory(container: Container) -> CeleryAppFactory:
     return container.resolve(CeleryAppFactory)
 
 
 @pytest.fixture(scope="function")
-def celery_worker_factory(
-    celery_app_factory: CeleryAppFactory,
-) -> CeleryWorkerFactory:
-    return CeleryWorkerFactory(celery_app_factory=celery_app_factory)
+def celery_worker_factory(container: Container) -> TestCeleryWorkerFactory:
+    return container.resolve(TestCeleryWorkerFactory)
+
+
+@pytest.fixture(scope="function")
+def tasks_registry(container: Container) -> TasksRegistry:
+    return container.resolve(TasksRegistry)
 
 
 # endregion Factories
