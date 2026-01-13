@@ -34,7 +34,7 @@ jobs:
           JWT_SECRET_KEY=test-jwt-secret
           ENVIRONMENT=test
           DJANGO_DEBUG=true
-          LOG_LEVEL=DEBUG
+          LOGGING_LEVEL=DEBUG
           ALLOWED_HOSTS='["127.0.0.1", "localhost"]'
           CSRF_TRUSTED_ORIGINS='["http://localhost"]'
           POSTGRES_USER=postgres

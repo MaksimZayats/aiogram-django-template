@@ -8,16 +8,12 @@ class TaskNotFoundError(Exception):
 
 
 class BaseTasksRegistry:
-    def __init__(self) -> None:
-        self._registry: dict[str, Task[..., Any]] = {}
+    def __init__(self, app: Celery) -> None:
+        self._celery_app = app
 
     def _get_task_by_name(self, name: str) -> Task[..., Any]:
         try:
-            return self._registry[name]
+            return self._celery_app.tasks[name]
         except KeyError as e:
             msg = f"Task with name '{name}' not found in registry."
             raise TaskNotFoundError(msg) from e
-
-    def update_from_app(self, app: Celery) -> None:
-        for name, task in app.tasks.items():
-            self._registry[name] = task

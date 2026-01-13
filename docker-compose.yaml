@@ -48,7 +48,7 @@ services:
       - celery
       - --app=tasks.app
       - worker
-      - --loglevel=${LOG_LEVEL:-INFO}
+      - --loglevel=${LOGGING_LEVEL:-INFO}
       - --concurrency=4
     depends_on:
       - pgbouncer
@@ -62,7 +62,7 @@ services:
       - celery
       - --app=tasks.app
       - beat
-      - --loglevel=${LOG_LEVEL:-INFO}
+      - --loglevel=${LOGGING_LEVEL:-INFO}
     depends_on:
       - pgbouncer
       - migrations

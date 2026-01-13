@@ -5,8 +5,6 @@ import dj_database_url
 from pydantic import Field, SecretStr, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from delivery.http.settings import AuthSettings, HTTPSettings, TemplateSettings
-from infrastructure.django.settings.pydantic_adapter import PydanticSettingsAdapter
 from infrastructure.settings.types import Environment
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
@@ -28,7 +26,8 @@ class DatabaseSettings(BaseSettings):
 
 
 class ApplicationSettings(BaseSettings):
-    environment: Environment
+    environment: Environment = Environment.PRODUCTION
+    version: str = "0.1.0"
     language_code: str = "en-us"
     use_tz: bool = True
     time_zone: str = "UTC"
@@ -86,25 +85,3 @@ class StorageSettings(BaseSettings):
 
 class RedisSettings(BaseSettings):
     redis_url: SecretStr
-
-
-application_settings = ApplicationSettings()  # type: ignore[call-arg, missing-argument]
-security_settings = SecuritySettings()  # type: ignore[call-arg, missing-argument]
-database_settings = DatabaseSettings()
-storage_settings = StorageSettings()
-
-http_settings = HTTPSettings()
-auth_settings = AuthSettings()
-template_settings = TemplateSettings()
-
-adapter = PydanticSettingsAdapter()
-adapter.adapt(
-    database_settings,
-    application_settings,
-    security_settings,
-    storage_settings,
-    http_settings,
-    template_settings,
-    auth_settings,
-    settings_locals=locals(),
-)

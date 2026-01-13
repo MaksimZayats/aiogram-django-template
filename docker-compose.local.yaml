@@ -21,7 +21,7 @@ services:
       - celery
       - --app=tasks.app
       - worker
-      - --loglevel=${LOG_LEVEL:-INFO}
+      - --loglevel=${LOGGING_LEVEL:-INFO}
       - --concurrency=2
 
   celery-beat:
@@ -37,7 +37,7 @@ services:
       - celery
       - --app=tasks.app
       - beat
-      - --loglevel=${LOG_LEVEL:-INFO}
+      - --loglevel=${LOGGING_LEVEL:-INFO}
 
   pgbouncer:
     ports:

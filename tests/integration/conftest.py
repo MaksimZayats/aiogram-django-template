@@ -1,13 +1,13 @@
 import pytest
-from punq import Container
+from punq import Container, Scope
 
 from core.user.models import User
 from ioc.container import get_container
+from tasks.factories import CeleryAppFactory
 from tests.integration.factories import (
-    CeleryAppFactory,
     CeleryWorkerFactory,
-    NinjaAPIFactory,
     TestClientFactory,
+    TestNinjaAPIFactory,
     UserFactory,
 )
 
@@ -23,12 +23,13 @@ def container() -> Container:
 @pytest.fixture(scope="function")
 def api_factory(
     container: Container,
-) -> NinjaAPIFactory:
-    return NinjaAPIFactory(container=container)
+) -> TestNinjaAPIFactory:
+    container.register(TestNinjaAPIFactory, scope=Scope.singleton)
+    return container.resolve(TestNinjaAPIFactory)
 
 
 @pytest.fixture(scope="function")
-def test_client_factory(api_factory: NinjaAPIFactory) -> TestClientFactory:
+def test_client_factory(api_factory: TestNinjaAPIFactory) -> TestClientFactory:
     # NOTE FOR AI: we are creating new api + test client for each test function
     # to have a possibility to override some ioc registrations in specific tests
     return TestClientFactory(api_factory=api_factory)
@@ -46,7 +47,7 @@ def user_factory(
 def celery_app_factory(
     container: Container,
 ) -> CeleryAppFactory:
-    return CeleryAppFactory(container=container)
+    return container.resolve(CeleryAppFactory)
 
 
 @pytest.fixture(scope="function")
