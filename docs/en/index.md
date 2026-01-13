@@ -1,47 +1,98 @@
----
-title: Home
-summary: Django + aiogram + Celery application template
-order: 1
-sidebar_title: Home
----
+# Django + aiogram + Celery Template
 
-# myproject
+A production-ready template for building modern Python applications with **Django**, **aiogram**, and **Celery** — featuring dependency injection, type-safe configuration, and comprehensive observability.
 
-Django + aiogram + Celery application with **punq** dependency injection.
+## Why This Template?
 
-## Features
+Building production applications requires more than just framework boilerplate. This template provides:
 
-- **Django 6+** - Modern web framework
-- **aiogram 3** - Async Telegram Bot API framework
-- **Celery** - Distributed task queue
-- **punq** - Lightweight dependency injection container
-- **Django-Ninja** - Fast, async-ready REST API
+- **Clean Architecture** — Separation of concerns with IoC container (punq) for dependency injection
+- **Type Safety** — Pydantic settings with environment variable validation
+- **Multiple Interfaces** — HTTP API (Django-Ninja), Telegram bot (aiogram), background tasks (Celery)
+- **Production Ready** — Docker Compose deployment, connection pooling (PgBouncer), object storage (MinIO)
+- **Observable** — Logfire/OpenTelemetry integration with automatic instrumentation
+- **Testable** — Test factories with per-test IoC container isolation
 
-## Quick Start
+## Quick Links
 
-```bash
-# Install dependencies
-uv sync --locked --all-extras --dev
+<div class="grid cards" markdown>
 
-# Build base Docker image
-docker compose build base
+-   **Getting Started**
 
-# Start infrastructure (PostgreSQL, Redis, MinIO)
-docker compose -f docker-compose.yaml -f docker-compose.local.yaml up postgres pgbouncer minio redis -d
+    ---
 
-# Run database migrations
-make migrate
+    Set up your development environment in 5 minutes
 
-# Start development server
-make dev
+    [:octicons-arrow-right-24: Quick Start](getting-started/quick-start.md)
+
+-   **Tutorials**
+
+    ---
+
+    Step-by-step guides for common tasks
+
+    [:octicons-arrow-right-24: Your First API Endpoint](tutorials/first-api-endpoint.md)
+
+-   **Core Concepts**
+
+    ---
+
+    Understand the architectural patterns
+
+    [:octicons-arrow-right-24: IoC Container](concepts/ioc-container.md)
+
+-   **Deployment**
+
+    ---
+
+    Deploy to production with Docker Compose
+
+    [:octicons-arrow-right-24: Docker Compose](deployment/docker-compose.md)
+
+</div>
+
+## Features at a Glance
+
+| Feature | Technology | Description |
+|---------|------------|-------------|
+| HTTP API | Django-Ninja | Fast, type-safe REST API with automatic OpenAPI docs |
+| Telegram Bot | aiogram | Async bot framework with handlers and commands |
+| Background Tasks | Celery | Distributed task queue with beat scheduler |
+| Dependency Injection | punq | Lightweight IoC container with automatic resolution |
+| Configuration | Pydantic Settings | Type-safe config with environment variable support |
+| Database | PostgreSQL + PgBouncer | Connection pooling for high concurrency |
+| Object Storage | MinIO (S3-compatible) | Static files and media storage |
+| Observability | Logfire | OpenTelemetry-based tracing and logging |
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Entry Points                           │
+├─────────────────┬─────────────────┬────────────────────────┤
+│   HTTP API      │  Telegram Bot   │    Celery Worker       │
+│  (Django-Ninja) │   (aiogram)     │                        │
+└────────┬────────┴────────┬────────┴───────────┬────────────┘
+         │                 │                    │
+         └─────────────────┼────────────────────┘
+                           │
+                    ┌──────▼──────┐
+                    │     IoC     │
+                    │  Container  │
+                    └──────┬──────┘
+                           │
+         ┌─────────────────┼─────────────────┐
+         │                 │                 │
+    ┌────▼────┐      ┌────▼────┐      ┌────▼────┐
+    │ Services│      │ Settings│      │ Infra   │
+    │ (core/) │      │(Pydantic)│     │(logging)│
+    └─────────┘      └─────────┘      └─────────┘
 ```
 
-## Module Structure
+All entry points share the same IoC container, ensuring consistent dependency resolution across HTTP, bot, and background task contexts.
 
-| Module | Description |
-|--------|-------------|
-| `core/` | Business logic and domain models |
-| `delivery/` | External interfaces (HTTP API, Telegram bot, CLI) |
-| `infrastructure/` | Cross-cutting concerns (JWT, auth, settings) |
-| `ioc/` | Dependency injection container configuration |
-| `tasks/` | Celery task definitions |
+## Getting Help
+
+- **Documentation** — You're reading it!
+- **Issues** — [GitHub Issues](https://github.com/MaksimZayats/modern-django-template/issues)
+- **Discussions** — [GitHub Discussions](https://github.com/MaksimZayats/modern-django-template/discussions)

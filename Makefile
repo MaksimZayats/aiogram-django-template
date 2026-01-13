@@ -29,6 +29,9 @@ celery-dev:
 celery-beat-dev:
 	uv run celery -A delivery.tasks.app beat --loglevel=DEBUG
 
+bot-dev:
+	uv run python -m delivery.bot
+
 .PHONY: docs docs-build
 docs:
 	uv run mkdocs serve --livereload -f docs/mkdocs.yml

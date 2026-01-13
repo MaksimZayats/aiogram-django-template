@@ -1,119 +1,73 @@
-# Modern Python API Template
+# Django + aiogram + Celery Template
 
-A production-ready template for building Django APIs with async task processing.
+Production-ready template for building modern Python applications with **Django**, **aiogram**, and **Celery** — featuring dependency injection, type-safe configuration, and comprehensive observability.
 
-Stack: Django 6+ / django-ninja / Celery / PostgreSQL / Redis
+## Features
+
+- **HTTP API** — Django-Ninja with automatic OpenAPI documentation
+- **Telegram Bot** — aiogram with async handlers and commands
+- **Background Tasks** — Celery with beat scheduler
+- **Dependency Injection** — punq IoC container
+- **Type-Safe Config** — Pydantic Settings with validation
+- **Observability** — Logfire (OpenTelemetry) integration
+- **Production Ready** — Docker Compose with PgBouncer, Redis, MinIO
 
 ## Quick Start
 
 ```bash
-# Install uv if you haven't
-curl -LsSf https://astral.sh/uv/install.sh | sh
+# Clone the repository
+git clone https://github.com/MaksimZayats/modern-django-template.git
+cd modern-django-template
 
-# Clone and setup
-git clone <repo-url> && cd modern-django-template
+# Install dependencies
 uv sync --locked --all-extras --dev
-cp .env.example .env  # edit with your values
 
-# Start services
-docker compose -f docker-compose.yaml -f docker-compose.local.yaml up -d
+# Configure environment (includes COMPOSE_FILE for local development)
+cp .env.example .env
 
-# Run migrations and dev server
-make migrate
+# Start infrastructure (PostgreSQL, Redis, MinIO)
+docker compose up -d postgres redis minio
+
+# Create MinIO buckets, run migrations, and collect static files
+docker compose up minio-create-buckets migrations collectstatic
+
+# Start development server
 make dev
 ```
 
-Bot and Celery worker (separate terminals):
+The API is available at `http://localhost:8000` with interactive docs at `/docs`.
 
-```bash
-uv run python -m delivery.bot
-make celery-dev
-```
+## Documentation
 
-## Core Ideas
+Full documentation is available at [template.zayats.dev](https://template.zayats.dev).
 
-### Dependency Injection with punq
-
-Everything goes through the IoC container. Services declare dependencies in `__init__`, container wires them up:
-
-```python
-class UserTokenController(Controller):
-    def __init__(self, jwt_service: JWTService, refresh_service: RefreshSessionService):
-        self._jwt = jwt_service
-        self._refresh = refresh_service
-```
-
-Register in `src/ioc/container.py`, resolve anywhere. This makes testing trivial - just swap registrations.
-
-### Controller Pattern
-
-HTTP endpoints and Celery tasks use the same pattern. Extend `Controller`, implement `register()`:
-
-```python
-class MyController(Controller):
-    def register(self, registry: Router) -> None:
-        registry.add_api_operation("/endpoint", ["POST"], self.my_method)
-```
-
-Controllers auto-wrap methods with exception handling. Override `handle_exception()` for custom error responses.
-
-### Testing with IoC Overrides
-
-Each test gets a fresh container. Need to mock something? Override before creating the test client:
-
-```python
-def test_something(container: Container):
-    container.register(MyService, instance=mock_service)
-    client = TestClientFactory(NinjaAPIFactory(container))()
-    # requests now use mock_service
-```
-
-See `tests/integration/` for examples.
+- [Getting Started](https://template.zayats.dev/getting-started/)
+- [Tutorials](https://template.zayats.dev/tutorials/)
+- [Core Concepts](https://template.zayats.dev/concepts/)
+- [Configuration](https://template.zayats.dev/configuration/)
+- [Deployment](https://template.zayats.dev/deployment/)
 
 ## Project Structure
 
 ```
 src/
-├── core/           # Business logic, models
-├── delivery/       # HTTP API, Telegram bot
-│   ├── http/       # django-ninja endpoints
-│   └── bot/        # aiogram handlers
-├── infrastructure/ # JWT, auth, base classes
-├── ioc/            # Container setup
-└── tasks/          # Celery tasks
+├── core/           # Business logic and settings
+├── delivery/       # HTTP API, Telegram bot, Celery tasks
+├── infrastructure/ # Cross-cutting concerns (JWT, logging, etc.)
+└── ioc/            # Dependency injection container
 ```
 
 ## Commands
 
-| Command           | What it does                      |
-|-------------------|-----------------------------------|
-| `make dev`        | Run Django dev server             |
-| `make celery-dev` | Run Celery worker                 |
-| `make migrate`    | Apply migrations                  |
-| `make format`     | Format code (ruff)                |
-| `make lint`       | Run all linters                   |
-| `make test`       | Run tests (80% coverage required) |
-
-## Environment Variables
-
-Key variables (see `.env.example` for full list):
-
-- `DJANGO_SECRET_KEY` - Django secret
-- `JWT_SECRET_KEY` - JWT signing key
-- `DATABASE_URL` - PostgreSQL connection string
-- `REDIS_URL` - Redis for Celery broker/backend
-- `TELEGRAM_BOT_TOKEN` - Bot token from @BotFather
-
-## Docker
-
-For production-like setup:
-
 ```bash
-docker compose up -d
+make dev           # Start development server
+make celery-dev    # Start Celery worker
+make bot-dev       # Start Telegram bot
+make format        # Format code
+make lint          # Run linters
+make test          # Run tests
 ```
-
-Services: `api` (gunicorn), `celery`, `bot`, `postgres`, `pgbouncer`, `redis`, `minio`
 
 ## License
 
-[MIT](LICENSE.md) © Maksim Zayats
+MIT
