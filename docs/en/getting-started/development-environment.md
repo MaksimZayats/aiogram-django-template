@@ -114,9 +114,17 @@ make lint
 Runs multiple linters:
 
 - **ruff** — Fast Python linter
-- **ty** — Type inference checker
-- **pyrefly** — Additional static analysis
-- **mypy** — Type checking
+- **ty** — Type checker
+- **pyrefly** — Type checker
+- **mypy** — Type checker
+
+**Why three type checkers?** Each tool has different strengths:
+
+- **ty** — Extremely fast, catches common type errors quickly during development
+- **pyrefly** — Meta's type checker with unique inference capabilities for complex patterns
+- **mypy** — The ecosystem standard with the most mature plugin support (e.g., Django stubs)
+
+Running all three ensures comprehensive coverage. Since ty and pyrefly are very fast, the performance overhead is minimal.
 
 ### Testing
 

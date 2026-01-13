@@ -6,7 +6,7 @@ Welcome to the Django + aiogram + Celery template! This section will help you ge
 
 Before you begin, ensure you have the following installed:
 
-- **Python 3.12+** — The template uses modern Python features
+- **Python 3.14+** — The template uses modern Python features
 - **uv** — Fast Python package manager ([install uv](https://docs.astral.sh/uv/getting-started/installation/))
 - **Docker & Docker Compose** — For running infrastructure services
 

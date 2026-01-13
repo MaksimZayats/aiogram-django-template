@@ -43,13 +43,13 @@ This is a Django + aiogram + Celery application using **punq** for dependency in
 - **`delivery/`** - External interfaces (HTTP API, Telegram bot, CLI). Handles communication with the outside world.
 - **`infrastructure/`** - Cross-cutting concerns (JWT, auth, settings adapters, controller base classes).
 - **`ioc/`** - Dependency injection container configuration.
-- **`tasks/`** - Celery task definitions using controller pattern.
+- **`delivery/tasks/`** - Celery task definitions using controller pattern.
 
 ### Entry Points
 
 1. **HTTP API**: `manage.py` → `delivery/http/api.py` (Django-Ninja)
 2. **Telegram Bot**: `delivery/bot/__main__.py` (aiogram polling)
-3. **Celery Worker**: `tasks/app.py`
+3. **Celery Worker**: `delivery/tasks/app.py`
 
 All entry points share the same IoC container for consistent dependency resolution.
 
