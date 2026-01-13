@@ -5,6 +5,7 @@ from punq import Container, Scope
 
 from core.configs.core import ApplicationSettings, RedisSettings
 from core.user.models import RefreshSession
+from delivery.bot.controllers.commands import CommandsController
 from delivery.bot.factories import BotFactory, DispatcherFactory
 from delivery.bot.settings import TelegramBotSettings
 from delivery.http.factories import NinjaAPIFactory
@@ -112,6 +113,7 @@ def _register_celery(container: Container) -> None:
 
 def _register_bot(container: Container) -> None:
     container.register(TelegramBotSettings, lambda: TelegramBotSettings(), scope=Scope.singleton)  # type: ignore[call-arg, missing-argument]
+    container.register(CommandsController, scope=Scope.singleton)
     container.register(BotFactory, scope=Scope.singleton)
     container.register(
         Bot,
