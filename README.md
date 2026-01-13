@@ -1,0 +1,73 @@
+# Django + aiogram + Celery Template
+
+Production-ready template for building modern Python applications with **Django**, **aiogram**, and **Celery** — featuring dependency injection, type-safe configuration, and comprehensive observability.
+
+## Features
+
+- **HTTP API** — Django-Ninja with automatic OpenAPI documentation
+- **Telegram Bot** — aiogram with async handlers and commands
+- **Background Tasks** — Celery with beat scheduler
+- **Dependency Injection** — punq IoC container
+- **Type-Safe Config** — Pydantic Settings with validation
+- **Observability** — Logfire (OpenTelemetry) integration
+- **Production Ready** — Docker Compose with PgBouncer, Redis, MinIO
+
+## Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/MaksimZayats/modern-django-template.git
+cd modern-django-template
+
+# Install dependencies
+uv sync --locked --all-extras --dev
+
+# Configure environment
+cp .env.example .env
+
+# Start infrastructure
+docker compose -f docker-compose.yaml -f docker-compose.local.yaml up -d
+
+# Run migrations
+make migrate
+
+# Start development server
+make dev
+```
+
+The API is available at `http://localhost:8000` with interactive docs at `/docs`.
+
+## Documentation
+
+Full documentation is available at [template.zayats.dev](https://template.zayats.dev).
+
+- [Getting Started](https://template.zayats.dev/getting-started/)
+- [Tutorials](https://template.zayats.dev/tutorials/)
+- [Core Concepts](https://template.zayats.dev/concepts/)
+- [Configuration](https://template.zayats.dev/configuration/)
+- [Deployment](https://template.zayats.dev/deployment/)
+
+## Project Structure
+
+```
+src/
+├── core/           # Business logic and settings
+├── delivery/       # HTTP API, Telegram bot, Celery tasks
+├── infrastructure/ # Cross-cutting concerns (JWT, logging, etc.)
+└── ioc/            # Dependency injection container
+```
+
+## Commands
+
+```bash
+make dev           # Start development server
+make celery-dev    # Start Celery worker
+make bot-dev       # Start Telegram bot
+make format        # Format code
+make lint          # Run linters
+make test          # Run tests
+```
+
+## License
+
+MIT
