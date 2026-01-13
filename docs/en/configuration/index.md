@@ -29,7 +29,7 @@ Application Components
 
     All configuration via environment variables with sensible defaults.
 
-    [:octicons-arrow-right-24: Environment Variables](environment-variables.md)
+    [→ Environment Variables](environment-variables.md)
 
 -   **Django Settings Adapter**
 
@@ -37,7 +37,7 @@ Application Components
 
     How Pydantic settings are adapted to Django's format.
 
-    [:octicons-arrow-right-24: Django Adapter](django-adapter.md)
+    [→ Django Adapter](django-adapter.md)
 
 -   **Production Configuration**
 
@@ -45,7 +45,7 @@ Application Components
 
     Security settings and best practices for production.
 
-    [:octicons-arrow-right-24: Production](production.md)
+    [→ Production](production.md)
 
 </div>
 

@@ -127,9 +127,9 @@ def get_container() -> Container:
 
 ```
 manage.py runserver
-    └── delivery/http/app.py (WSGI)
+    └── delivery/http/app.py (configure_infrastructure + WSGI)
         └── delivery/http/api.py
-            └── ioc/container.py
+            └── ioc/container.py (get_container + resolve NinjaAPI)
 ```
 
 ### Telegram Bot

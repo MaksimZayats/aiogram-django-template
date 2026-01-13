@@ -12,7 +12,7 @@ Step-by-step guides for adding features to your application.
 
     Create a new HTTP controller with authentication and register it with the IoC container.
 
-    [:octicons-arrow-right-24: Start Tutorial](first-api-endpoint.md)
+    [→ Start Tutorial](first-api-endpoint.md)
 
 -   **Your First Bot Command**
 
@@ -20,7 +20,7 @@ Step-by-step guides for adding features to your application.
 
     Add a new Telegram bot command with message handling.
 
-    [:octicons-arrow-right-24: Start Tutorial](first-bot-command.md)
+    [→ Start Tutorial](first-bot-command.md)
 
 -   **Your First Celery Task**
 
@@ -28,7 +28,7 @@ Step-by-step guides for adding features to your application.
 
     Create a background task with the controller pattern and add it to the beat schedule.
 
-    [:octicons-arrow-right-24: Start Tutorial](first-celery-task.md)
+    [→ Start Tutorial](first-celery-task.md)
 
 </div>
 

@@ -4,28 +4,28 @@ Complete reference of all environment variables.
 
 ## Core Django
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `DJANGO_SECRET_KEY` | `SecretStr` | **Required** | Django secret key for cryptographic signing |
-| `DJANGO_DEBUG` | `bool` | `false` | Enable debug mode (never in production) |
-| `ENVIRONMENT` | `str` | `production` | Environment: `local`, `staging`, `production` |
+| Variable | Type | Default | Required | Description |
+|----------|------|---------|----------|-------------|
+| `DJANGO_SECRET_KEY` | `SecretStr` | — | Yes | Django secret key for cryptographic signing |
+| `DJANGO_DEBUG` | `bool` | `false` | No | Enable debug mode (never in production) |
+| `ENVIRONMENT` | `str` | `production` | No | Environment: `local`, `staging`, `production` |
 
 ## HTTP Settings
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `ALLOWED_HOSTS` | `list[str]` | `["localhost", "127.0.0.1"]` | Allowed host headers |
-| `CSRF_TRUSTED_ORIGINS` | `list[str]` | `["http://localhost"]` | Trusted origins for CSRF |
+| Variable | Type | Default | Required | Description |
+|----------|------|---------|----------|-------------|
+| `ALLOWED_HOSTS` | `list[str]` | `["localhost", "127.0.0.1"]` | No | Allowed host headers |
+| `CSRF_TRUSTED_ORIGINS` | `list[str]` | `["http://localhost"]` | No | Trusted origins for CSRF |
 
 !!! note "List Format"
     Lists are JSON arrays: `ALLOWED_HOSTS='["example.com", "api.example.com"]'`
 
 ## Database
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `DATABASE_URL` | `str` | `sqlite:///db.sqlite3` | Database connection URL |
-| `CONN_MAX_AGE` | `int` | `600` | Database connection max age (seconds) |
+| Variable | Type | Default | Required | Description |
+|----------|------|---------|----------|-------------|
+| `DATABASE_URL` | `str` | `sqlite:///db.sqlite3` | No | Database connection URL |
+| `CONN_MAX_AGE` | `int` | `600` | No | Database connection max age (seconds) |
 
 ### Database URL Format
 
@@ -42,25 +42,25 @@ Components:
 
 ## JWT Authentication
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `JWT_SECRET_KEY` | `SecretStr` | **Required** | JWT signing key |
-| `JWT_ALGORITHM` | `str` | `HS256` | JWT algorithm |
-| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | `int` | `15` | Access token TTL |
+| Variable | Type | Default | Required | Description |
+|----------|------|---------|----------|-------------|
+| `JWT_SECRET_KEY` | `SecretStr` | — | Yes | JWT signing key |
+| `JWT_ALGORITHM` | `str` | `HS256` | No | JWT algorithm |
+| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | `int` | `15` | No | Access token TTL (minutes) |
 
 ## Refresh Tokens
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `REFRESH_TOKEN_NBYTES` | `int` | `32` | Refresh token entropy |
-| `REFRESH_TOKEN_TTL_DAYS` | `int` | `30` | Refresh token TTL |
-| `IP_HEADER` | `str` | `X-Forwarded-For` | Header for client IP |
+| Variable | Type | Default | Required | Description |
+|----------|------|---------|----------|-------------|
+| `REFRESH_TOKEN_NBYTES` | `int` | `32` | No | Refresh token entropy (bytes) |
+| `REFRESH_TOKEN_TTL_DAYS` | `int` | `30` | No | Refresh token TTL (days) |
+| `IP_HEADER` | `str` | `X-Forwarded-For` | No | Header for client IP |
 
 ## Redis
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `REDIS_URL` | `SecretStr` | **Required for Celery** | Redis connection URL |
+| Variable | Type | Default | Required | Description |
+|----------|------|---------|----------|-------------|
+| `REDIS_URL` | `SecretStr` | — | For Celery | Redis connection URL |
 
 ### Redis URL Format
 
@@ -70,47 +70,47 @@ redis://username:password@host:port/database
 
 ## Telegram Bot
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `TELEGRAM_BOT_TOKEN` | `SecretStr` | **Required for bot** | Bot token from BotFather |
-| `TELEGRAM_BOT_PARSE_MODE` | `str` | `HTML` | Default message parse mode |
+| Variable | Type | Default | Required | Description |
+|----------|------|---------|----------|-------------|
+| `TELEGRAM_BOT_TOKEN` | `SecretStr` | — | For Bot | Bot token from BotFather |
+| `TELEGRAM_BOT_PARSE_MODE` | `str` | `HTML` | No | Default message parse mode |
 
 ## S3/MinIO Storage
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `AWS_S3_ENDPOINT_URL` | `str` | **Required** | S3/MinIO endpoint URL |
-| `AWS_S3_ACCESS_KEY_ID` | `str` | **Required** | Access key ID |
-| `AWS_S3_SECRET_ACCESS_KEY` | `SecretStr` | **Required** | Secret access key |
-| `AWS_S3_PROTECTED_BUCKET_NAME` | `str` | `protected` | Protected bucket name |
-| `AWS_S3_PUBLIC_BUCKET_NAME` | `str` | `public` | Public bucket name |
+| Variable | Type | Default | Required | Description |
+|----------|------|---------|----------|-------------|
+| `AWS_S3_ENDPOINT_URL` | `str` | — | Yes | S3/MinIO endpoint URL |
+| `AWS_S3_ACCESS_KEY_ID` | `str` | — | Yes | Access key ID |
+| `AWS_S3_SECRET_ACCESS_KEY` | `SecretStr` | — | Yes | Secret access key |
+| `AWS_S3_PROTECTED_BUCKET_NAME` | `str` | `protected` | No | Protected bucket name |
+| `AWS_S3_PUBLIC_BUCKET_NAME` | `str` | `public` | No | Public bucket name |
 
 ## Observability
 
 ### Logging
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `LOGGING_LEVEL` | `str` | `INFO` | Log level: DEBUG, INFO, WARNING, ERROR |
+| Variable | Type | Default | Required | Description |
+|----------|------|---------|----------|-------------|
+| `LOGGING_LEVEL` | `str` | `INFO` | No | Log level: DEBUG, INFO, WARNING, ERROR |
 
 ### Logfire (OpenTelemetry)
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `LOGFIRE_ENABLED` | `bool` | `false` | Enable Logfire telemetry |
-| `LOGFIRE_TOKEN` | `SecretStr` | None | Logfire API token |
+| Variable | Type | Default | Required | Description |
+|----------|------|---------|----------|-------------|
+| `LOGFIRE_ENABLED` | `bool` | `false` | No | Enable Logfire telemetry |
+| `LOGFIRE_TOKEN` | `SecretStr` | — | If enabled | Logfire API token |
 
 ## Docker Compose Variables
 
 These are used by `docker-compose.yaml`:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `COMPOSE_FILE` | `docker-compose.yaml` | Compose files to use |
-| `POSTGRES_USER` | — | PostgreSQL username |
-| `POSTGRES_PASSWORD` | — | PostgreSQL password |
-| `POSTGRES_DB` | — | PostgreSQL database name |
-| `REDIS_PASSWORD` | — | Redis password |
+| Variable | Type | Default | Required | Description |
+|----------|------|---------|----------|-------------|
+| `COMPOSE_FILE` | `str` | `docker-compose.yaml` | No | Compose files to use |
+| `POSTGRES_USER` | `str` | — | For Docker | PostgreSQL username |
+| `POSTGRES_PASSWORD` | `str` | — | For Docker | PostgreSQL password |
+| `POSTGRES_DB` | `str` | — | For Docker | PostgreSQL database name |
+| `REDIS_PASSWORD` | `str` | — | For Docker | Redis password |
 
 ## Example .env File
 

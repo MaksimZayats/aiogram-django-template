@@ -44,6 +44,16 @@ class CleanupResult(TypedDict):
     errors: list[str]
 ```
 
+**Why `TypedDict` for Celery results?**
+
+| Type | Use Case |
+|------|----------|
+| `TypedDict` | Celery tasks — results are serialized as JSON dicts, `TypedDict` maps directly |
+| `BaseModel` | HTTP responses — provides validation, serialization, and OpenAPI schema generation |
+| `dataclass` | Internal domain objects — when you need methods or instance behavior |
+
+`TypedDict` is ideal for Celery because task results are stored and retrieved as plain dictionaries. No deserialization step is needed.
+
 ### 2. Register Method
 
 Register the task with Celery:
@@ -220,17 +230,28 @@ class EmailTaskController(Controller):
 
 ## Exception Handling
 
-Override `handle_exception` for task-specific error handling:
+Override `handle_exception` for task-specific error handling. Note that `handle_exception` must always raise an exception (return type is `NoReturn`):
 
 ```python
 class EmailTaskController(Controller):
     def handle_exception(self, exception: Exception) -> NoReturn:
         if isinstance(exception, SMTPError):
-            # Log and continue (don't fail the task)
             logger.error("SMTP error: %s", exception)
-            return  # type: ignore
+            raise TaskFailure(f"Email delivery failed: {exception}") from exception
 
         raise exception
+```
+
+If you need to swallow exceptions without failing the task, handle them in the task method itself:
+
+```python
+def send_email(self, task: Task, to: str, subject: str, body: str) -> EmailResult:
+    try:
+        send_mail(subject=subject, message=body, from_email=None, recipient_list=[to])
+        return EmailResult(sent=True, message_id=task.request.id)
+    except SMTPError as e:
+        logger.error("SMTP error: %s", e)
+        return EmailResult(sent=False, message_id=None)
 ```
 
 !!! warning "Task Exceptions"

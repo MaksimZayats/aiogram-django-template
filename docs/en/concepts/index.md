@@ -14,7 +14,7 @@ This template uses several design patterns to achieve clean, testable, and maint
 
     Dependency injection for decoupled, testable components.
 
-    [:octicons-arrow-right-24: Learn More](ioc-container.md)
+    [→ Learn More](ioc-container.md)
 
 -   **Controller Pattern**
 
@@ -22,7 +22,7 @@ This template uses several design patterns to achieve clean, testable, and maint
 
     Consistent interface for HTTP, bot, and task handlers.
 
-    [:octicons-arrow-right-24: Learn More](controller-pattern.md)
+    [→ Learn More](controller-pattern.md)
 
 -   **Pydantic Settings**
 
@@ -30,7 +30,7 @@ This template uses several design patterns to achieve clean, testable, and maint
 
     Type-safe configuration with environment variable support.
 
-    [:octicons-arrow-right-24: Learn More](pydantic-settings.md)
+    [→ Learn More](pydantic-settings.md)
 
 -   **Factory Pattern**
 
@@ -38,7 +38,7 @@ This template uses several design patterns to achieve clean, testable, and maint
 
     Flexible object creation with IoC integration.
 
-    [:octicons-arrow-right-24: Learn More](factory-pattern.md)
+    [→ Learn More](factory-pattern.md)
 
 </div>
 

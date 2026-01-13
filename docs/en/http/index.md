@@ -40,7 +40,7 @@ HTTP Request
 
     HTTP controller pattern with route registration and exception handling.
 
-    [:octicons-arrow-right-24: Learn More](controllers.md)
+    [→ Learn More](controllers.md)
 
 -   **JWT Authentication**
 
@@ -48,7 +48,7 @@ HTTP Request
 
     Token-based authentication with Bearer scheme.
 
-    [:octicons-arrow-right-24: Learn More](jwt-authentication.md)
+    [→ Learn More](jwt-authentication.md)
 
 -   **Refresh Tokens**
 
@@ -56,7 +56,7 @@ HTTP Request
 
     Secure token refresh flow with rotation.
 
-    [:octicons-arrow-right-24: Learn More](refresh-tokens.md)
+    [→ Learn More](refresh-tokens.md)
 
 -   **Error Handling**
 
@@ -64,7 +64,7 @@ HTTP Request
 
     Custom exception handling and HTTP error responses.
 
-    [:octicons-arrow-right-24: Learn More](error-handling.md)
+    [→ Learn More](error-handling.md)
 
 </div>
 

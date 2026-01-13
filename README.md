@@ -1,15 +1,15 @@
-# Django + aiogram + Celery Template
+# Modern API Template
 
-Production-ready template for building modern Python applications with **Django**, **aiogram**, and **Celery** — featuring dependency injection, type-safe configuration, and comprehensive observability.
+Production-ready template for building modern Python applications with **Django** and **Celery** — featuring dependency injection, type-safe configuration, and comprehensive observability.
 
 ## Features
 
 - **HTTP API** — Django-Ninja with automatic OpenAPI documentation
-- **Telegram Bot** — aiogram with async handlers and commands
 - **Background Tasks** — Celery with beat scheduler
 - **Dependency Injection** — punq IoC container
 - **Type-Safe Config** — Pydantic Settings with validation
 - **Observability** — Logfire (OpenTelemetry) integration
+- **Telegram Bot** — aiogram with async handlers and commands
 - **Production Ready** — Docker Compose with PgBouncer, Redis, MinIO
 
 ## Quick Start

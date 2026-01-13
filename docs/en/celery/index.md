@@ -31,7 +31,7 @@ Background task processing with Celery and the controller pattern.
 
     Using the controller pattern for Celery tasks.
 
-    [:octicons-arrow-right-24: Learn More](task-controllers.md)
+    [→ Learn More](task-controllers.md)
 
 -   **Task Registry**
 
@@ -39,7 +39,7 @@ Background task processing with Celery and the controller pattern.
 
     Type-safe task access and invocation.
 
-    [:octicons-arrow-right-24: Learn More](task-registry.md)
+    [→ Learn More](task-registry.md)
 
 -   **Beat Scheduler**
 
@@ -47,7 +47,7 @@ Background task processing with Celery and the controller pattern.
 
     Scheduled and periodic tasks.
 
-    [:octicons-arrow-right-24: Learn More](beat-scheduler.md)
+    [→ Learn More](beat-scheduler.md)
 
 </div>
 

@@ -57,9 +57,11 @@ make lint
 This runs:
 
 - `ruff check` — Python linter
-- `ty check` — Type inference
-- `pyrefly check` — Additional analysis
+- `ty check` — Type checking
+- `pyrefly check` — Type checking
 - `mypy` — Type checking
+
+We use multiple type checkers because each might catch different issues. See [Development Environment](getting-started/development-environment.md#linting) for details.
 
 ### Testing
 

@@ -43,7 +43,7 @@ The template includes Docker Compose configuration for production deployment.
 
     Container orchestration and service configuration.
 
-    [:octicons-arrow-right-24: Learn More](docker-compose.md)
+    [→ Learn More](docker-compose.md)
 
 -   **Production Checklist**
 
@@ -51,7 +51,7 @@ The template includes Docker Compose configuration for production deployment.
 
     Complete checklist for production deployment.
 
-    [:octicons-arrow-right-24: Learn More](production-checklist.md)
+    [→ Learn More](production-checklist.md)
 
 -   **CI/CD**
 
@@ -59,7 +59,7 @@ The template includes Docker Compose configuration for production deployment.
 
     Continuous integration and deployment.
 
-    [:octicons-arrow-right-24: Learn More](ci-cd.md)
+    [→ Learn More](ci-cd.md)
 
 </div>
 

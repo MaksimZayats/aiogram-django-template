@@ -31,7 +31,7 @@ The testing architecture provides:
 
     Creating test clients with IoC container isolation.
 
-    [:octicons-arrow-right-24: Learn More](test-factories.md)
+    [→ Learn More](test-factories.md)
 
 -   **HTTP API Tests**
 
@@ -39,7 +39,7 @@ The testing architecture provides:
 
     Testing REST endpoints with test client.
 
-    [:octicons-arrow-right-24: Learn More](http-tests.md)
+    [→ Learn More](http-tests.md)
 
 -   **Celery Task Tests**
 
@@ -47,7 +47,7 @@ The testing architecture provides:
 
     Testing background tasks with in-process worker.
 
-    [:octicons-arrow-right-24: Learn More](celery-tests.md)
+    [→ Learn More](celery-tests.md)
 
 -   **Mocking IoC Dependencies**
 
@@ -55,7 +55,7 @@ The testing architecture provides:
 
     Overriding dependencies for test isolation.
 
-    [:octicons-arrow-right-24: Learn More](mocking-ioc.md)
+    [→ Learn More](mocking-ioc.md)
 
 </div>
 
