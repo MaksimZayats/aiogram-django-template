@@ -1,0 +1,70 @@
+name: Dependabot Auto Merge
+
+on:
+  workflow_run:
+    workflows:
+      - "Lint and Test"
+      - "Integration Test"
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  dependabot-auto-merge:
+    name: 'Auto-merge Dependabot PRs'
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]'
+    steps:
+      - name: Get PR number
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          PR_NUMBER=$(gh api "/repos/${REPO}/commits/${HEAD_SHA}/pulls" --jq '.[0].number')
+          echo "number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - name: Check all required workflows passed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          # Get all check runs for this PR
+          CHECKS=$(gh pr checks "$PR_NUMBER" --repo "$REPO" 2>/dev/null || true)
+
+          # Check if Lint and Test passed
+          if ! echo "$CHECKS" | grep -q "check-code.*pass"; then
+            echo "Lint and Test has not passed yet"
+            exit 0
+          fi
+
+          # Check if Integration Tests passed (both matrix jobs)
+          if ! echo "$CHECKS" | grep -q "integration-test (production).*pass"; then
+            echo "Integration Test (production) has not passed yet"
+            exit 0
+          fi
+
+          if ! echo "$CHECKS" | grep -q "integration-test (local).*pass"; then
+            echo "Integration Test (local) has not passed yet"
+            exit 0
+          fi
+
+          echo "All required checks passed!"
+          echo "ALL_PASSED=true" >> "$GITHUB_ENV"
+
+      - name: Merge PR
+        if: env.ALL_PASSED == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: gh pr merge "$PR_NUMBER" --repo "$REPO" --merge

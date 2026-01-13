@@ -1,8 +1,8 @@
 site_name: myproject
-site_url: https://example.com
+site_url: https://template.zayats.dev
 site_description: Django + aiogram + Celery application with dependency injection
-repo_url: https://github.com/MaksimZayats/aiogram-django-template
-repo_name: MaksimZayats/aiogram-django-template
+repo_url: https://github.com/MaksimZayats/modern-django-template
+repo_name: MaksimZayats/modern-django-template
 
 docs_dir: en
 site_dir: ../site

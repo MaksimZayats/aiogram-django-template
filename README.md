@@ -11,7 +11,7 @@ Stack: Django 6+ / django-ninja / Celery / PostgreSQL / Redis
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Clone and setup
-git clone <repo-url> && cd aiogram-django-template
+git clone <repo-url> && cd modern-django-template
 uv sync --locked --all-extras --dev
 cp .env.example .env  # edit with your values
 
