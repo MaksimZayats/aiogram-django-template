@@ -1,5 +1,3 @@
-from celery.worker import WorkController
-
 from delivery.tasks.registry import TasksRegistry
 from delivery.tasks.tasks.ping import PingResult
 from tests.integration.factories import TestCeleryWorkerFactory

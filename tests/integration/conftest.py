@@ -1,4 +1,3 @@
-
 import pytest
 from ninja.testing import TestClient
 from punq import Container, Scope
@@ -28,6 +27,7 @@ def container(django_user_model: type[User]) -> Container:
 
 
 # region Factories
+
 
 @pytest.fixture(scope="function")
 def test_client_factory(container: Container) -> TestClientFactory:

@@ -1,13 +1,12 @@
 from aiogram import Bot, Dispatcher
 from celery import Celery
 from ninja import NinjaAPI
-
-from delivery.bot.factories import BotFactory, DispatcherFactory
-from delivery.bot.settings import TelegramBotSettings
 from punq import Container, Scope
 
 from core.configs.core import ApplicationSettings, RedisSettings
 from core.user.models import RefreshSession
+from delivery.bot.factories import BotFactory, DispatcherFactory
+from delivery.bot.settings import TelegramBotSettings
 from delivery.http.factories import NinjaAPIFactory
 from delivery.http.health.controllers import HealthController
 from delivery.http.user.controllers import UserController, UserTokenController
@@ -112,7 +111,7 @@ def _register_celery(container: Container) -> None:
 
 
 def _register_bot(container: Container) -> None:
-    container.register(TelegramBotSettings, lambda: TelegramBotSettings(), scope=Scope.singleton)
+    container.register(TelegramBotSettings, lambda: TelegramBotSettings(), scope=Scope.singleton)  # type: ignore[call-arg, missing-argument]
     container.register(BotFactory, scope=Scope.singleton)
     container.register(
         Bot,

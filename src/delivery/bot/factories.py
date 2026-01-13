@@ -32,7 +32,7 @@ class DispatcherFactory:
     def __call__(self) -> Dispatcher:
         dispatcher = Dispatcher()
         dispatcher.include_router(router)
-        dispatcher.startup()(self._set_bot_commands())
+        dispatcher.startup()(self._set_bot_commands)
 
         return dispatcher
 
