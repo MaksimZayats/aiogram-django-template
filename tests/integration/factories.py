@@ -52,6 +52,8 @@ class TestUserFactory:
 
 
 class TestCeleryWorkerFactory:
+    __test__ = False
+
     def __init__(self, celery_app_factory: CeleryAppFactory) -> None:
         self._celery_app_factory = celery_app_factory
 
