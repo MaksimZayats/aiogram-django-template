@@ -94,7 +94,7 @@ services:
     image: postgres:18-alpine
     restart: unless-stopped
     env_file:
-      - ${ENV_FILE:-.env}
+      - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -116,7 +116,7 @@ services:
     image: edoburu/pgbouncer:latest
     restart: unless-stopped
     env_file:
-      - ${ENV_FILE:-.env}
+      - .env
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       # Connection pooling settings
@@ -158,7 +158,7 @@ services:
     image: redis:latest
     restart: unless-stopped
     env_file:
-      - ${ENV_FILE:-.env}
+      - .env
     volumes:
       - redis_data:/data
     networks:
@@ -170,7 +170,7 @@ services:
       - "9000:9000"
       - "9001:9001"
     env_file:
-      - ${ENV_FILE:-.env}
+      - .env
     environment:
       MINIO_ROOT_USER: ${AWS_S3_ACCESS_KEY_ID}
       MINIO_ROOT_PASSWORD: ${AWS_S3_SECRET_ACCESS_KEY}
@@ -191,7 +191,7 @@ services:
       minio:
         condition: service_healthy
     env_file:
-      - ${ENV_FILE:-.env}
+      - .env
     entrypoint: >
       /bin/sh -c "
       /usr/bin/mc alias set my-minio http://minio:9000 ${AWS_S3_ACCESS_KEY_ID} ${AWS_S3_SECRET_ACCESS_KEY};

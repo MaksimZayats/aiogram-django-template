@@ -27,9 +27,9 @@ jobs:
       - name: Install the project
         run: uv sync --locked --all-extras --dev
 
-      - name: Create .env.test
+      - name: Create .env
         run: |
-          cat > .env.test << 'EOF'
+          cat > .env << 'EOF'
           DJANGO_SECRET_KEY=test-django-secret-key
           JWT_SECRET_KEY=test-jwt-secret
           ENVIRONMENT=test
@@ -60,21 +60,16 @@ jobs:
         run: echo "COMPOSE_FILE=docker-compose.yaml:docker-compose.test.yaml" >> $GITHUB_ENV
 
       - name: Build Docker image
-        run: docker compose --env-file .env.test build base
+        run: docker compose build base
 
       - name: Start infrastructure
         run: |
-          docker compose \
-            --env-file .env.test \
-            up -d postgres pgbouncer minio redis
-
-            docker compose \
-              --env-file .env.test \
-              up minio-create-buckets migrations collectstatic
+          docker compose up -d postgres pgbouncer minio redis
+          docker compose up minio-create-buckets migrations collectstatic
 
       - name: Run tests
-        run: uv run --env-file .env.test pytest --cov=src/ --cov-report=xml tests/
+        run: uv run pytest --cov=src/ --cov-report=xml tests/
 
       - name: Show logs on failure
         if: failure()
-        run: docker compose --env-file .env.test logs
+        run: docker compose logs
