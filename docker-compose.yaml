@@ -2,7 +2,7 @@ x-common: &common
   image: base:local
 
   env_file:
-    - ${ENV_FILE:-.env}
+    - .env
 
   environment:
     DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB}"

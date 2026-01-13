@@ -39,10 +39,15 @@ services:
       - beat
       - --loglevel=${LOGGING_LEVEL:-INFO}
 
-  pgbouncer:
+  postgres:
     ports:
-      - "127.0.0.1:6432:5432"
+      - "5432:5432"
 
   redis:
     ports:
       - "6379:6379"
+
+  minio:
+    ports:
+      - "9000:9000"
+      - "9001:9001"

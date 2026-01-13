@@ -10,6 +10,7 @@ from infrastructure.settings.types import Environment
 class LogfireSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="LOGFIRE_")
 
+    enabled: bool = False
     token: SecretStr | None = None
 
 
@@ -19,7 +20,7 @@ def configure_logfire(
     version: str,
 ) -> None:
     settings = LogfireSettings()
-    if settings.token is None:
+    if not settings.enabled or settings.token is None:
         return
 
     logfire.configure(
