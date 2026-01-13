@@ -11,7 +11,7 @@ class LoggingConfig(BaseSettings):
     level: str = "INFO"
 
     @computed_field()
-    def logging_settings(self) -> dict[str, Any]:
+    def settings(self) -> dict[str, Any]:
         return {
             "version": 1,
             "disable_existing_loggers": False,
@@ -46,4 +46,4 @@ class LoggingConfig(BaseSettings):
 
 def configure_logging() -> None:
     config = LoggingConfig()
-    logging.config.dictConfig(config.logging_settings)  # type: ignore[arg-type, bad-argument-type]
+    logging.config.dictConfig(config.settings)  # type: ignore[arg-type, bad-argument-type]

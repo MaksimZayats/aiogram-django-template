@@ -4,7 +4,7 @@ from core.configs.core import (
     SecuritySettings,
     StorageSettings,
 )
-from delivery.http.settings import AuthSettings, HTTPSettings, TemplateSettings
+from delivery.http.settings import AuthSettings, HTTPSettings, TemplateSettings, CORSSettings
 from infrastructure.django.settings.pydantic_adapter import PydanticSettingsAdapter
 from infrastructure.logging.configuration import LoggingConfig
 
@@ -15,6 +15,7 @@ storage_settings = StorageSettings()
 
 logging_settings = LoggingConfig()
 http_settings = HTTPSettings()
+cors_settings = CORSSettings()
 auth_settings = AuthSettings()
 template_settings = TemplateSettings()
 
@@ -26,6 +27,7 @@ adapter.adapt(
     storage_settings,
     logging_settings,
     http_settings,
+    cors_settings,
     template_settings,
     auth_settings,
     settings_locals=locals(),

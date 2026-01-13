@@ -1,7 +1,7 @@
 from typing import Any
 
 from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class HTTPSettings(BaseSettings):
@@ -12,6 +12,7 @@ class HTTPSettings(BaseSettings):
     wsgi_application: str = "delivery.http.app.wsgi"
 
     middleware: tuple[str, ...] = (
+        "corsheaders.middleware.CorsMiddleware",
         "django.middleware.security.SecurityMiddleware",
         "django.contrib.sessions.middleware.SessionMiddleware",
         "django.middleware.common.CommonMiddleware",
@@ -20,6 +21,13 @@ class HTTPSettings(BaseSettings):
         "django.contrib.messages.middleware.MessageMiddleware",
         "django.middleware.clickjacking.XFrameOptionsMiddleware",
     )
+
+
+class CORSSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="CORS_")
+
+    allow_credentials: bool = True
+    allowed_origins: list[str] = Field(default_factory=lambda: ["http://localhost"])
 
 
 class TemplateSettings(BaseSettings):

@@ -25,10 +25,12 @@ Telegram API
        │
        ▼
 ┌─────────────┐
-│  Handlers   │
-│ (Commands)  │
+│ Controllers │
+│(AsyncController)
 └─────────────┘
 ```
+
+The bot uses the **AsyncController** pattern, the async variant of the [Controller pattern](../concepts/controller-pattern.md) used throughout the application. Controllers are classes that extend `AsyncController` and register their handlers with an aiogram `Router`.
 
 ## Topics
 

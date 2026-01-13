@@ -1,6 +1,6 @@
 # Bot & Dispatcher Factories
 
-How the bot and dispatcher are created and configured.
+How the bot and dispatcher are created and configured with dependency injection.
 
 ## Bot Factory
 
@@ -52,25 +52,35 @@ class TelegramBotSettings(BaseSettings):
 
 ## Dispatcher Factory
 
-The `DispatcherFactory` creates the dispatcher with routers and commands:
+The `DispatcherFactory` creates the dispatcher and registers controllers:
 
 ```python
 # src/delivery/bot/factories.py
 
-from aiogram import Dispatcher
+from aiogram import Bot, Dispatcher, Router
 from aiogram.types import BotCommand
 
-from delivery.bot.handlers import router
+from delivery.bot.controllers.commands import CommandsController
 
 
 class DispatcherFactory:
-    def __init__(self, bot: Bot) -> None:
+    def __init__(
+        self,
+        bot: Bot,
+        commands_controller: CommandsController,
+    ) -> None:
         self._bot = bot
+        self._commands_controller = commands_controller
 
     def __call__(self) -> Dispatcher:
         dispatcher = Dispatcher()
+
+        router = Router(name="commands")
         dispatcher.include_router(router)
+        self._commands_controller.register(router)
+
         dispatcher.startup()(self._set_bot_commands)
+
         return dispatcher
 
     async def _set_bot_commands(self) -> None:
@@ -82,13 +92,14 @@ class DispatcherFactory:
 
 ### Key Components
 
-1. **Router Registration** — `dispatcher.include_router(router)` adds all handlers
-2. **Startup Hook** — `dispatcher.startup()` runs `_set_bot_commands` on start
-3. **Bot Commands** — Sets the command menu shown in Telegram
+1. **Controller Injection** — Controllers are injected via `__init__` and registered with routers
+2. **Router Registration** — Each controller gets its own router via `register(router)`
+3. **Startup Hook** — `dispatcher.startup()` runs `_set_bot_commands` on start
+4. **Bot Commands** — Sets the command menu shown in Telegram
 
 ## IoC Registration
 
-Factories are registered in the container:
+Factories and controllers are registered in the container:
 
 ```python
 # src/ioc/container.py
@@ -100,6 +111,10 @@ def _register_bot(container: Container) -> None:
         scope=Scope.singleton,
     )
 
+    # Register controllers
+    container.register(CommandsController, scope=Scope.singleton)
+
+    # Register factories
     container.register(BotFactory, scope=Scope.singleton)
     container.register(
         Bot,
@@ -115,17 +130,90 @@ def _register_bot(container: Container) -> None:
     )
 ```
 
-## Adding Bot Commands
+## Adding New Controllers
 
-To add a new command to the menu, update `_set_bot_commands`:
+To add a new controller to the bot:
+
+### 1. Create the Controller
+
+```python
+# src/delivery/bot/controllers/admin.py
+
+from aiogram import Router
+from aiogram.filters import Command
+from aiogram.types import Message
+
+from infrastructure.delivery.controllers import AsyncController
+
+
+class AdminController(AsyncController):
+    def register(self, registry: Router) -> None:
+        registry.message.register(
+            self.handle_stats,
+            Command(commands=["stats"]),
+        )
+
+    async def handle_stats(self, message: Message) -> None:
+        await message.answer("Admin stats here...")
+```
+
+### 2. Register in IoC Container
+
+```python
+# src/ioc/container.py
+
+from delivery.bot.controllers.admin import AdminController
+
+def _register_bot(container: Container) -> None:
+    # ... existing registrations ...
+    container.register(AdminController, scope=Scope.singleton)
+```
+
+### 3. Inject into DispatcherFactory
+
+```python
+# src/delivery/bot/factories.py
+
+from delivery.bot.controllers.admin import AdminController
+
+
+class DispatcherFactory:
+    def __init__(
+        self,
+        bot: Bot,
+        commands_controller: CommandsController,
+        admin_controller: AdminController,  # Add new controller
+    ) -> None:
+        self._bot = bot
+        self._commands_controller = commands_controller
+        self._admin_controller = admin_controller
+
+    def __call__(self) -> Dispatcher:
+        dispatcher = Dispatcher()
+
+        # Register commands router
+        commands_router = Router(name="commands")
+        dispatcher.include_router(commands_router)
+        self._commands_controller.register(commands_router)
+
+        # Register admin router
+        admin_router = Router(name="admin")
+        dispatcher.include_router(admin_router)
+        self._admin_controller.register(admin_router)
+
+        dispatcher.startup()(self._set_bot_commands)
+
+        return dispatcher
+```
+
+### 4. Update Bot Commands
 
 ```python
 async def _set_bot_commands(self) -> None:
     await self._bot.set_my_commands([
         BotCommand(command="/start", description="Re-start the bot"),
         BotCommand(command="/id", description="Get the user and chat ids"),
-        BotCommand(command="/help", description="Show help message"),  # New
-        BotCommand(command="/settings", description="Bot settings"),   # New
+        BotCommand(command="/stats", description="Show statistics"),  # New
     ])
 ```
 
@@ -162,26 +250,10 @@ def __call__(self) -> Dispatcher:
     dispatcher.message.middleware(LoggingMiddleware())
     dispatcher.callback_query.middleware(ThrottlingMiddleware())
 
+    # Register controllers
+    router = Router(name="commands")
     dispatcher.include_router(router)
-    return dispatcher
-```
-
-## Multiple Routers
-
-Organize handlers with multiple routers:
-
-```python
-from delivery.bot.handlers.commands import commands_router
-from delivery.bot.handlers.callbacks import callbacks_router
-from delivery.bot.handlers.admin import admin_router
-
-
-def __call__(self) -> Dispatcher:
-    dispatcher = Dispatcher()
-
-    dispatcher.include_router(commands_router)
-    dispatcher.include_router(callbacks_router)
-    dispatcher.include_router(admin_router)
+    self._commands_controller.register(router)
 
     return dispatcher
 ```
@@ -191,7 +263,7 @@ def __call__(self) -> Dispatcher:
 For production, you might use webhooks instead of polling:
 
 ```python
-# In main.py
+# In __main__.py
 from aiohttp import web
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler
 
@@ -222,6 +294,7 @@ def main() -> None:
 
 ## Related Topics
 
-- [Handlers](handlers.md) — Command handlers
+- [Handlers](handlers.md) — Controller-based handlers
+- [Controller Pattern](../concepts/controller-pattern.md) — Pattern explanation
 - [Your First Bot Command](../tutorials/first-bot-command.md) — Tutorial
 - [Factory Pattern](../concepts/factory-pattern.md) — Pattern explanation

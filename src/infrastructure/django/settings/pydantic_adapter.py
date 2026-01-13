@@ -23,12 +23,17 @@ class PydanticSettingsAdapter:
         settings: BaseSettings,
         settings_locals: dict[str, Any],
     ) -> None:
+        # print(f"{settings.model_config = }")
         for key, value in settings.model_dump().items():
-            resolved_key = self._resolve_key(key)
+            resolved_key = self._resolve_key(key=key, settings=settings)
             resolved_value = self._resolve_value(value)
+            print(f"{resolved_key = }")
             settings_locals[resolved_key] = resolved_value
 
-    def _resolve_key(self, key: str) -> str:
+    def _resolve_key(self, key: str, settings: BaseSettings) -> str:
+        prefix = settings.model_config.get("env_prefix", "").rstrip("_")
+        key = f"{prefix}_{key}" if prefix else key
+
         return key.upper()
 
     def _resolve_value(self, value: Any) -> Any:

@@ -69,7 +69,7 @@ The colorlog formatter adds colors to log levels:
 
 ```python
 @computed_field()
-def logging_settings(self) -> dict[str, Any]:
+def settings(self) -> dict[str, Any]:
     return {
         "version": 1,
         "disable_existing_loggers": False,
