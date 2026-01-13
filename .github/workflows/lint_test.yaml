@@ -27,14 +27,14 @@ jobs:
       - name: Install the project
         run: uv sync --locked --all-extras --dev
 
-      - name: Create .env.test
+      - name: Create .env
         run: |
-          cat > .env.test << 'EOF'
+          cat > .env << 'EOF'
           DJANGO_SECRET_KEY=test-django-secret-key
           JWT_SECRET_KEY=test-jwt-secret
           ENVIRONMENT=test
           DJANGO_DEBUG=true
-          LOG_LEVEL=DEBUG
+          LOGGING_LEVEL=DEBUG
           ALLOWED_HOSTS='["127.0.0.1", "localhost"]'
           CSRF_TRUSTED_ORIGINS='["http://localhost"]'
           POSTGRES_USER=postgres
@@ -57,38 +57,19 @@ jobs:
           version: latest
 
       - name: Set docker-compose file
-        run: echo "COMPOSE_FILE=docker-compose.yaml:docker-compose.ci.yaml" >> $GITHUB_ENV
+        run: echo "COMPOSE_FILE=docker-compose.yaml:docker-compose.test.yaml" >> $GITHUB_ENV
 
       - name: Build Docker image
-        run: docker compose --env-file .env.test build base
+        run: docker compose build base
 
       - name: Start infrastructure
         run: |
-          docker compose \
-            --env-file .env.test \
-            up -d postgres pgbouncer minio redis
-
-            docker compose \
-              --env-file .env.test \
-              up minio-create-buckets migrations collectstatic
-        env:
-          ENV_FILE: .env.test
+          docker compose up -d postgres pgbouncer minio redis
+          docker compose up minio-create-buckets migrations collectstatic
 
       - name: Run tests
-        run: uv run --env-file .env.test pytest --cov=src/ --cov-report=xml tests/
+        run: uv run pytest --cov=src/ --cov-report=xml tests/
 
       - name: Show logs on failure
         if: failure()
-        run: docker compose --env-file .env.test logs
-
-  dependabot-auto-merge:
-    name: 'Dependabot auto merge'
-    needs: [ check-code ]
-    runs-on: ubuntu-latest
-    if: ${{ github.actor == 'dependabot[bot]' && github.event_name == 'pull_request'}}
-    steps:
-      - name: Enable auto-merge for Dependabot PRs
-        run: gh pr merge --auto --merge "$PR_URL"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: docker compose logs

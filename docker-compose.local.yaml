@@ -19,9 +19,9 @@ services:
       - --recursive
       - --
       - celery
-      - --app=tasks.app
+      - --app=delivery.tasks.app
       - worker
-      - --loglevel=${LOG_LEVEL:-INFO}
+      - --loglevel=${LOGGING_LEVEL:-INFO}
       - --concurrency=2
 
   celery-beat:
@@ -35,14 +35,19 @@ services:
       - --recursive
       - --
       - celery
-      - --app=tasks.app
+      - --app=delivery.tasks.app
       - beat
-      - --loglevel=${LOG_LEVEL:-INFO}
+      - --loglevel=${LOGGING_LEVEL:-INFO}
 
-  pgbouncer:
+  postgres:
     ports:
-      - "127.0.0.1:6432:5432"
+      - "5432:5432"
 
   redis:
     ports:
       - "6379:6379"
+
+  minio:
+    ports:
+      - "9000:9000"
+      - "9001:9001"

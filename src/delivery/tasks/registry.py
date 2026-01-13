@@ -6,7 +6,7 @@ from celery import Task
 from infrastructure.celery.registry import BaseTasksRegistry
 
 if TYPE_CHECKING:
-    from tasks.tasks.ping import PingResult
+    from delivery.tasks.tasks.ping import PingResult
 
 
 class TaskName(StrEnum):

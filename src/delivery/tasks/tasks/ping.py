@@ -2,8 +2,8 @@ from typing import Literal, TypedDict
 
 from celery import Celery
 
+from delivery.tasks.registry import TaskName
 from infrastructure.delivery.controllers import Controller
-from tasks.registry import TaskName
 
 
 class PingResult(TypedDict):

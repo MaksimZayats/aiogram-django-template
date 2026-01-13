@@ -1,26 +1,25 @@
 from http import HTTPStatus
 
 import pytest
+from ninja.testing import TestClient
 from punq import Container
 
 from core.user.models import User
 from delivery.http.user.controllers import TokenResponseSchema, UserSchema
-from tests.integration.factories import TestClientFactory, UserFactory
+from tests.integration.factories import TestUserFactory
 
 _TEST_PASSWORD = "test-password"  # noqa: S105
 
 
 @pytest.fixture(scope="function")
-def user(user_factory: UserFactory) -> User:
+def user(user_factory: TestUserFactory) -> User:
     return user_factory(username="test", password=_TEST_PASSWORD)
 
 
 @pytest.mark.django_db(transaction=True)
 def test_create_user(
-    test_client_factory: TestClientFactory,
+    test_client: TestClient,
 ) -> None:
-    test_client = test_client_factory()
-
     response = test_client.post(
         "/v1/users/",
         json={
@@ -39,11 +38,9 @@ def test_create_user(
 
 @pytest.mark.django_db(transaction=True)
 def test_jwt_token_generation(
-    test_client_factory: TestClientFactory,
+    test_client: TestClient,
     user: User,
 ) -> None:
-    test_client = test_client_factory()
-
     response = test_client.post(
         "/v1/users/me/token",
         json={"username": user.username, "password": _TEST_PASSWORD},
@@ -67,11 +64,9 @@ def test_jwt_token_generation(
 
 @pytest.mark.django_db(transaction=True)
 def test_jwt_token_generation_for_invalid_password(
-    test_client_factory: TestClientFactory,
+    test_client: TestClient,
     user: User,
 ) -> None:
-    test_client = test_client_factory()
-
     response = test_client.post(
         "/v1/users/me/token",
         json={"username": user.username, "password": "invalid-password"},
@@ -82,11 +77,10 @@ def test_jwt_token_generation_for_invalid_password(
 
 @pytest.mark.django_db(transaction=True)
 def test_jwt_token_refresh_revoke_flow(
-    test_client_factory: TestClientFactory,
+    test_client: TestClient,
     user: User,
     container: Container,
 ) -> None:
-    test_client = test_client_factory()
     response = test_client.post(
         "/v1/users/me/token",
         json={"username": user.username, "password": _TEST_PASSWORD},

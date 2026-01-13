@@ -1,14 +1,15 @@
-from core import setup_environment
-from delivery.bot.bot import get_bot
-from delivery.bot.dispatcher import get_dispatcher
+from aiogram import Bot, Dispatcher
+
+from core.configs.infrastructure import configure_infrastructure
+from ioc.container import get_container
 
 
 def main() -> None:
-    setup_environment()
+    configure_infrastructure(service_name="bot")
+    container = get_container()
 
-    bot = get_bot()
-    dispatcher = get_dispatcher(bot=bot)
-
+    bot = container.resolve(Bot)
+    dispatcher = container.resolve(Dispatcher)
     dispatcher.run_polling(bot)
 
 

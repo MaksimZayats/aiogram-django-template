@@ -17,6 +17,8 @@ dependencies = [
     "django-storages[s3]>=1.14.6",
     "django-stubs[compatible-mypy]>=5.2.8",
     "gunicorn>=23.0.0",
+    "httpx>=0.28.1",
+    "logfire[django, celery, requests, psycopg, httpx, redis]>=4.18.0",
     "psycopg[binary]>=3.3.2",
     "punq>=0.7.0",
     "pydantic-settings>=2.12.0",
@@ -81,7 +83,7 @@ module = "api.*.migrations.*"
 disable_error_code = ["no-untyped-def"]
 
 [tool.django-stubs]
-django_settings_module = "core.configs.settings"
+django_settings_module = "core.configs.django"
 
 [tool.ty.environment]
 extra-paths = ["typings"]
@@ -91,8 +93,6 @@ search_path = ["typings"]
 
 [tool.pytest.ini_options]
 minversion = "9.0"
-DJANGO_SETTINGS_MODULE = "core.configs.settings"
+DJANGO_SETTINGS_MODULE = "core.configs.django"
 addopts = "--exitfirst -vv --cov=src --cov-report=html --cov-fail-under=80"
-testpaths = [
-    "tests",
-]
+testpaths = ["tests"]

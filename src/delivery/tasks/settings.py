@@ -1,7 +1,7 @@
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from core.configs.settings import RedisSettings
+from core.configs.core import RedisSettings
 
 
 class CelerySettings(BaseSettings):

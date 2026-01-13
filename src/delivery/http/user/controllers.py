@@ -1,3 +1,4 @@
+import logging
 from http import HTTPStatus
 from typing import Annotated, NoReturn, cast
 
@@ -19,6 +20,8 @@ from infrastructure.django.refresh_sessions.services import (
     RefreshTokenError,
 )
 from infrastructure.jwt.services import JWTService
+
+logger = logging.getLogger(__name__)
 
 
 class IssueTokenRequestSchema(BaseModel):

@@ -18,8 +18,8 @@ sidebar_title: Getting Started
 Clone the repository and install dependencies:
 
 ```bash
-git clone https://github.com/MaksimZayats/aiogram-django-template.git
-cd aiogram-django-template
+git clone https://github.com/MaksimZayats/modern-django-template.git
+cd modern-django-template
 
 # Install all dependencies
 uv sync --locked --all-extras --dev
