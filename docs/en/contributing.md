@@ -87,6 +87,16 @@ make lint
 make test
 ```
 
+### 2.1. Pre-commit Hooks
+
+We use [prek](https://prek.j178.dev/) for pre-commit hooks — a faster Rust-based alternative to the standard `pre-commit` tool. Set up hooks to automatically run checks before each commit:
+
+```bash
+prek install
+```
+
+Prek uses built-in Rust hooks that require no external dependencies. See [Development Environment](getting-started/development-environment.md#pre-commit-hooks-prek) for details.
+
 ### 3. Commit Your Changes
 
 Write clear commit messages:

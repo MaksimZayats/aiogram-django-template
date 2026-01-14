@@ -134,6 +134,44 @@ make test
 
 Runs pytest with 80% coverage requirement.
 
+### Pre-commit Hooks (prek)
+
+This project uses [prek](https://prek.j178.dev/) instead of the standard `pre-commit` tool. Prek is a Rust-based reimplementation that offers significant advantages:
+
+- **10x faster execution** — Native Rust implementation eliminates Python interpreter overhead
+- **Zero external dependencies** — Built-in hooks require no environment setup or network access
+- **Drop-in compatibility** — Uses the same `.pre-commit-config.yaml` format
+
+Install prek and set up hooks:
+
+```bash
+# Install prek (included in dev dependencies)
+uv sync --locked --all-extras --dev
+
+# Install git hooks
+prek install
+
+# Run hooks manually on all files
+prek run --all-files
+```
+
+#### Built-in Hooks
+
+The project uses `repo: builtin` for maximum performance. These hooks run entirely in Rust without spawning external processes:
+
+```yaml
+repos:
+  - repo: builtin
+    hooks:
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: end-of-file-fixer
+      - id: check-added-large-files
+```
+
+See the [prek documentation](https://prek.j178.dev/builtin) for all available built-in hooks.
+
 ## IDE Configuration
 
 ### VS Code
