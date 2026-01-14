@@ -9,9 +9,6 @@ This project uses [uv](https://docs.astral.sh/uv/) for dependency management. In
 ```bash
 # macOS/Linux
 curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Or with pip
-pip install uv
 ```
 
 ### Common Commands
