@@ -1,8 +1,12 @@
+from django.contrib.admin import AdminSite
+from django.contrib.admin.sites import site as default_site
 from django.contrib.admin.views.decorators import staff_member_required
 from ninja import NinjaAPI, Router
 
 from core.configs.core import ApplicationSettings
+from core.user.models import User
 from delivery.http.health.controllers import HealthController
+from delivery.http.user.admin import UserAdmin
 from delivery.http.user.controllers import UserController, UserTokenController
 from infrastructure.settings.types import Environment
 
@@ -44,3 +48,10 @@ class NinjaAPIFactory:
         self._user_token_controller.register(registry=user_router)
 
         return ninja_api
+
+
+class AdminSiteFactory:
+    def __call__(self) -> AdminSite:
+        default_site.register(User, admin_class=UserAdmin)
+
+        return default_site
