@@ -3,15 +3,13 @@ from http import HTTPStatus
 from typing import Annotated, Any
 
 from annotated_types import Len
-from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
 from django.http import HttpRequest
 from ninja import Router
 from ninja.errors import HttpError
 from ninja.throttling import AnonRateThrottle, AuthRateThrottle
 from pydantic import BaseModel, EmailStr
 
-from core.user.models import User
+from core.user.services import UserService
 from infrastructure.delivery.controllers import Controller
 from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuth
 from infrastructure.django.refresh_sessions.services import (
@@ -42,13 +40,15 @@ class TokenResponseSchema(BaseModel):
 class UserTokenController(Controller):
     def __init__(
         self,
+        jwt_auth: JWTAuth,
         jwt_service: JWTService,
         refresh_token_service: RefreshSessionService,
-        jwt_auth: JWTAuth,
+        user_service: UserService,
     ) -> None:
+        self._jwt_auth = jwt_auth
         self._jwt_service = jwt_service
         self._refresh_token_service = refresh_token_service
-        self._jwt_auth = jwt_auth
+        self._user_service = user_service
 
     def register(self, registry: Router) -> None:
         registry.add_api_operation(
@@ -80,8 +80,12 @@ class UserTokenController(Controller):
         request: HttpRequest,
         body: IssueTokenRequestSchema,
     ) -> TokenResponseSchema:
-        user = User.objects.filter(username=body.username).first()
-        if user is None or not user.check_password(body.password):
+        user = self._user_service.get_user_by_username_and_password(
+            username=body.username,
+            password=body.password,
+        )
+
+        if user is None:
             raise HttpError(
                 status_code=HTTPStatus.UNAUTHORIZED,
                 message="Invalid username or password",
@@ -169,9 +173,11 @@ class UserSchema(BaseModel):
 class UserController(Controller):
     def __init__(
         self,
-        auth: JWTAuth,
+        jwt_auth: JWTAuth,
+        user_service: UserService,
     ) -> None:
-        self._auth = auth
+        self._jwt_auth = jwt_auth
+        self._user_service = user_service
 
     def register(self, registry: Router) -> None:
         registry.add_api_operation(
@@ -186,7 +192,7 @@ class UserController(Controller):
             path="/v1/users/me",
             methods=["GET"],
             view_func=self.get_current_user,
-            auth=self._auth,
+            auth=self._jwt_auth,
             throttle=AuthRateThrottle(rate="30/min"),
         )
 
@@ -195,27 +201,32 @@ class UserController(Controller):
         request: HttpRequest,
         request_body: CreateUserRequestSchema,
     ) -> UserSchema:
-        try:
-            validate_password(request_body.password)
-        except ValidationError as exc:
-            raise HttpError(
-                status_code=HTTPStatus.BAD_REQUEST,
-                message=str(exc.message),
-            ) from exc
+        is_valid_password = self._user_service.is_valid_password(
+            password=request_body.password,
+            username=request_body.username,
+            email=str(request_body.email),
+            first_name=request_body.first_name,
+            last_name=request_body.last_name,
+        )
 
-        if User.objects.filter(username=request_body.username).exists():
+        if not is_valid_password:
             raise HttpError(
                 status_code=HTTPStatus.BAD_REQUEST,
-                message="Username already exists",
+                message="Password does not meet the strength requirements",
             )
 
-        if User.objects.filter(email=request_body.email).exists():
+        existing_user = self._user_service.get_user_by_username_or_email(
+            username=request_body.username,
+            email=str(request_body.email),
+        )
+
+        if existing_user is not None:
             raise HttpError(
-                status_code=HTTPStatus.BAD_REQUEST,
-                message="Email already exists",
+                status_code=HTTPStatus.CONFLICT,
+                message="A user with the given username or email already exists",
             )
 
-        user = User.objects.create_user(
+        user = self._user_service.create_user(
             username=request_body.username,
             email=str(request_body.email),
             first_name=request_body.first_name,

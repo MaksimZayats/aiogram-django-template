@@ -3,6 +3,7 @@ from punq import Container, Scope
 from core.configs.core import ApplicationSettings, RedisSettings
 from core.health.services import HealthService
 from core.user.models import RefreshSession
+from core.user.services import UserService
 from infrastructure.django.refresh_sessions.models import BaseRefreshSession
 
 
@@ -35,3 +36,4 @@ def _register_models(container: Container) -> None:
 
 def _register_services(container: Container) -> None:
     container.register(HealthService, scope=Scope.singleton)
+    container.register(UserService, scope=Scope.singleton)
