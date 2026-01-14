@@ -44,8 +44,6 @@ def container(django_user_model: type[User]) -> Container:
 
 @pytest.fixture(scope="function")
 def test_client_factory(container: Container) -> TestClientFactory:
-    # NOTE FOR AI: we are creating new api + test client for each test function
-    # to have a possibility to override some ioc registrations in specific tests
     return container.resolve(TestClientFactory)
 
 
