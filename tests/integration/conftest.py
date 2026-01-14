@@ -1,6 +1,10 @@
+from uuid import uuid7
+
 import pytest
+from django.core.cache.backends.locmem import LocMemCache
 from ninja.testing import TestClient
 from punq import Container, Scope
+from pytest_django.fixtures import SettingsWrapper
 
 from core.user.models import User
 from delivery.tasks.factories import CeleryAppFactory
@@ -12,6 +16,16 @@ from tests.integration.factories import (
     TestNinjaAPIFactory,
     TestUserFactory,
 )
+
+
+@pytest.fixture(scope="function", autouse=True)
+def _configure_settings(settings: SettingsWrapper) -> None:
+    settings.CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": f"test-cache-{uuid7()}",
+        },
+    }
 
 
 @pytest.fixture(scope="function")

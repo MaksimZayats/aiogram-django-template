@@ -107,6 +107,7 @@ nav:
     - HTTP API Tests: testing/http-tests.md
     - Celery Task Tests: testing/celery-tests.md
     - Mocking IoC Dependencies: testing/mocking-ioc.md
+    - Django Settings Overrides: testing/django-settings.md
   - Observability:
     - observability/index.md
     - Logging: observability/logging.md
