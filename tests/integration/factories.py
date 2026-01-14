@@ -10,6 +10,7 @@ from ninja.testing import TestClient
 from core.user.models import User
 from delivery.http.factories import NinjaAPIFactory
 from delivery.tasks.factories import CeleryAppFactory
+from infrastructure.jwt.services import JWTService
 
 
 class TestNinjaAPIFactory(NinjaAPIFactory):
@@ -25,11 +26,31 @@ class TestNinjaAPIFactory(NinjaAPIFactory):
 class TestClientFactory:
     __test__ = False
 
-    def __init__(self, api_factory: TestNinjaAPIFactory) -> None:
+    def __init__(
+        self,
+        api_factory: TestNinjaAPIFactory,
+        jwt_service: JWTService,
+    ) -> None:
         self._api_factory = api_factory
+        self._jwt_service = jwt_service
 
-    def __call__(self, **kwargs: Any) -> TestClient:
-        return TestClient(self._api_factory(), **kwargs)
+    def __call__(
+        self,
+        auth_for_user: User | None = None,
+        headers: dict[str, str] | None = None,
+        **kwargs: Any,
+    ) -> TestClient:
+        headers = headers or {}
+
+        if auth_for_user is not None:
+            token = self._jwt_service.issue_access_token(user_id=auth_for_user.pk)
+            headers["Authorization"] = f"Bearer {token}"
+
+        return TestClient(
+            self._api_factory(),
+            headers=headers,
+            **kwargs,
+        )
 
 
 class TestUserFactory:

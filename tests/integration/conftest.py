@@ -1,7 +1,6 @@
 from uuid import uuid7
 
 import pytest
-from ninja.testing import TestClient
 from punq import Container, Scope
 from pytest_django.fixtures import SettingsWrapper
 
@@ -45,11 +44,6 @@ def container(django_user_model: type[User]) -> Container:
 @pytest.fixture(scope="function")
 def test_client_factory(container: Container) -> TestClientFactory:
     return container.resolve(TestClientFactory)
-
-
-@pytest.fixture(scope="function")
-def test_client(test_client_factory: TestClientFactory) -> TestClient:
-    return test_client_factory()
 
 
 @pytest.fixture(scope="function")
