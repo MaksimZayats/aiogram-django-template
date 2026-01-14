@@ -210,7 +210,7 @@ deploy:
       run: docker compose -p blue up -d
 
     - name: Health check
-      run: curl -f http://localhost:8009/v1/health
+      run: curl -f http://localhost:8009/api/v1/health
 
     - name: Switch traffic
       run: ./switch-traffic.sh blue

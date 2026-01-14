@@ -82,26 +82,26 @@ HTTP Request
 
 After starting the server, visit:
 
-- **Interactive Docs** — `http://localhost:8000/docs`
-- **OpenAPI Schema** — `http://localhost:8000/openapi.json`
+- **Interactive Docs** — `http://localhost:8000/api/docs`
+- **OpenAPI Schema** — `http://localhost:8000/api/openapi.json`
 
 ### Available Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/v1/health` | Health check |
-| `POST` | `/v1/users/` | Create user |
-| `GET` | `/v1/users/me` | Get current user (auth required) |
-| `POST` | `/v1/users/me/token` | Issue tokens |
-| `POST` | `/v1/users/me/token/refresh` | Refresh tokens |
-| `POST` | `/v1/users/me/token/revoke` | Revoke refresh token (auth required) |
+| `GET` | `/api/v1/health` | Health check |
+| `POST` | `/api/v1/users/` | Create user |
+| `GET` | `/api/v1/users/me` | Get current user (auth required) |
+| `POST` | `/api/v1/users/me/token` | Issue tokens |
+| `POST` | `/api/v1/users/me/token/refresh` | Refresh tokens |
+| `POST` | `/api/v1/users/me/token/revoke` | Revoke refresh token (auth required) |
 
 ## Example: Making Requests
 
 ### Create a User
 
 ```bash
-curl -X POST http://localhost:8000/v1/users/ \
+curl -X POST http://localhost:8000/api/v1/users/ \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
@@ -115,7 +115,7 @@ curl -X POST http://localhost:8000/v1/users/ \
 ### Get Access Token
 
 ```bash
-curl -X POST http://localhost:8000/v1/users/me/token \
+curl -X POST http://localhost:8000/api/v1/users/me/token \
   -H "Content-Type: application/json" \
   -d '{
     "username": "testuser",
@@ -135,7 +135,7 @@ Response:
 ### Access Protected Endpoint
 
 ```bash
-curl http://localhost:8000/v1/users/me \
+curl http://localhost:8000/api/v1/users/me \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
 

@@ -165,7 +165,7 @@ docker compose run --rm api python manage.py check --deploy
 docker compose ps
 
 # 2. Check health endpoint
-curl -f https://your-domain.com/v1/health
+curl -f https://your-domain.com/api/v1/health
 
 # 3. Check logs for errors
 docker compose logs --tail=100 api | grep -i error
@@ -174,7 +174,7 @@ docker compose logs --tail=100 api | grep -i error
 docker compose exec api python manage.py dbshell -c "SELECT 1"
 
 # 5. Test a protected endpoint
-curl -X POST https://your-domain.com/v1/users/me/token \
+curl -X POST https://your-domain.com/api/v1/users/me/token \
   -H "Content-Type: application/json" \
   -d '{"username": "test", "password": "test"}'
 ```

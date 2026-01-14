@@ -147,7 +147,7 @@ make dev
 ### List Items (Public)
 
 ```bash
-curl http://localhost:8000/v1/items/
+curl http://localhost:8000/api/v1/items/
 ```
 
 Response:
@@ -165,12 +165,12 @@ First, get a token:
 
 ```bash
 # Create a user (if needed)
-curl -X POST http://localhost:8000/v1/users/ \
+curl -X POST http://localhost:8000/api/v1/users/ \
   -H "Content-Type: application/json" \
   -d '{"email": "test@example.com", "username": "testuser", "first_name": "Test", "last_name": "User", "password": "SecurePass123!"}'
 
 # Get access token
-curl -X POST http://localhost:8000/v1/users/me/token \
+curl -X POST http://localhost:8000/api/v1/users/me/token \
   -H "Content-Type: application/json" \
   -d '{"username": "testuser", "password": "SecurePass123!"}'
 ```
@@ -178,7 +178,7 @@ curl -X POST http://localhost:8000/v1/users/me/token \
 Then create an item:
 
 ```bash
-curl -X POST http://localhost:8000/v1/items/ \
+curl -X POST http://localhost:8000/api/v1/items/ \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{"name": "New Item", "description": "Created via API"}'
@@ -186,7 +186,7 @@ curl -X POST http://localhost:8000/v1/items/ \
 
 ### View API Docs
 
-Open `http://localhost:8000/docs` to see your new endpoint in the interactive documentation.
+Open `http://localhost:8000/api/docs` to see your new endpoint in the interactive documentation.
 
 ## Adding Error Handling
 

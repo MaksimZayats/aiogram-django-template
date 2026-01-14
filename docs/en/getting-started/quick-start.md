@@ -78,7 +78,7 @@ The API is now available at `http://localhost:8000`.
 ### Check the Health Endpoint
 
 ```bash
-curl http://localhost:8000/v1/health
+curl http://localhost:8000/api/v1/health
 ```
 
 Expected response:
@@ -89,7 +89,7 @@ Expected response:
 
 ### Browse the API Documentation
 
-Open `http://localhost:8000/docs` in your browser to see the interactive OpenAPI documentation.
+Open `http://localhost:8000/api/docs` in your browser to see the interactive OpenAPI documentation.
 
 ## Optional: Start Celery Worker
 

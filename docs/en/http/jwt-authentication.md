@@ -284,7 +284,7 @@ Access tokens contain:
 ### Getting Tokens
 
 ```bash
-curl -X POST http://localhost:8000/v1/users/me/token \
+curl -X POST http://localhost:8000/api/v1/users/me/token \
   -H "Content-Type: application/json" \
   -d '{"username": "user", "password": "pass"}'
 ```
@@ -292,7 +292,7 @@ curl -X POST http://localhost:8000/v1/users/me/token \
 ### Using Access Token
 
 ```bash
-curl http://localhost:8000/v1/users/me \
+curl http://localhost:8000/api/v1/users/me \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiI..."
 ```
 

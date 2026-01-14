@@ -142,7 +142,7 @@ class BaseRefreshSession(models.Model):
 ### Issue Tokens
 
 ```bash
-POST /v1/users/me/token
+POST /api/v1/users/me/token
 Content-Type: application/json
 
 {
@@ -163,7 +163,7 @@ Response:
 ### Refresh Tokens
 
 ```bash
-POST /v1/users/me/token/refresh
+POST /api/v1/users/me/token/refresh
 Content-Type: application/json
 
 {
@@ -186,7 +186,7 @@ Response:
 ### Revoke Token
 
 ```bash
-POST /v1/users/me/token/revoke
+POST /api/v1/users/me/token/revoke
 Authorization: Bearer eyJhbGciOiJIUzI1NiI...
 Content-Type: application/json
 
@@ -307,7 +307,7 @@ async function fetchWithRefresh(url, options) {
 
   if (response.status === 401) {
     // Try to refresh
-    const refreshResponse = await fetch('/v1/users/me/token/refresh', {
+    const refreshResponse = await fetch('/api/v1/users/me/token/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

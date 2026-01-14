@@ -93,7 +93,7 @@ docker compose exec api python manage.py migrate
 ### 4. Verify
 
 ```bash
-curl http://localhost:8009/v1/health
+curl http://localhost:8009/api/v1/health
 ```
 
 ## Services
