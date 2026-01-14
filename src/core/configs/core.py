@@ -85,3 +85,23 @@ class StorageSettings(BaseSettings):
 
 class RedisSettings(BaseSettings):
     redis_url: SecretStr
+
+
+class CacheSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="CACHE_")
+
+    default_timeout: int = 300
+    redis_settings: RedisSettings = Field(default_factory=RedisSettings)  # type: ignore[arg-type]
+
+    @computed_field()
+    def caches(self) -> dict[str, Any]:
+        return {
+            "default": {
+                "BACKEND": "django_redis.cache.RedisCache",
+                "LOCATION": self.redis_settings.redis_url.get_secret_value(),
+                "OPTIONS": {
+                    "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                },
+                "TIMEOUT": self.default_timeout,
+            },
+        }

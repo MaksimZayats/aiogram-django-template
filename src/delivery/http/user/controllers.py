@@ -1,6 +1,6 @@
 import logging
 from http import HTTPStatus
-from typing import Annotated, NoReturn, cast
+from typing import Annotated, Any
 
 from annotated_types import Len
 from django.contrib.auth.password_validation import validate_password
@@ -8,11 +8,12 @@ from django.core.exceptions import ValidationError
 from django.http import HttpRequest
 from ninja import Router
 from ninja.errors import HttpError
+from ninja.throttling import AnonRateThrottle, AuthRateThrottle
 from pydantic import BaseModel, EmailStr
 
 from core.user.models import User
 from infrastructure.delivery.controllers import Controller
-from infrastructure.django.auth import JWTAuth
+from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuth
 from infrastructure.django.refresh_sessions.services import (
     ExpiredRefreshTokenError,
     InvalidRefreshTokenError,
@@ -55,6 +56,7 @@ class UserTokenController(Controller):
             methods=["POST"],
             view_func=self.issue_user_token,
             auth=None,
+            throttle=AnonRateThrottle(rate="5/min"),
         )
 
         registry.add_api_operation(
@@ -62,6 +64,7 @@ class UserTokenController(Controller):
             methods=["POST"],
             view_func=self.refresh_user_token,
             auth=None,
+            throttle=AnonRateThrottle(rate="5/min"),
         )
 
         registry.add_api_operation(
@@ -69,6 +72,7 @@ class UserTokenController(Controller):
             methods=["POST"],
             view_func=self.revoke_refresh_token,
             auth=self._jwt_auth,
+            throttle=AuthRateThrottle(rate="5/min"),
         )
 
     def issue_user_token(
@@ -114,15 +118,15 @@ class UserTokenController(Controller):
 
     def revoke_refresh_token(
         self,
-        request: HttpRequest,
+        request: AuthenticatedHttpRequest,
         body: RefreshTokenRequestSchema,
     ) -> None:
         self._refresh_token_service.revoke_refresh_token(
             refresh_token=body.refresh_token,
-            user=cast(User, request.user),
+            user=request.user,
         )
 
-    def handle_exception(self, exception: Exception) -> NoReturn:
+    def handle_exception(self, exception: Exception) -> Any:
         if isinstance(exception, InvalidRefreshTokenError):
             raise HttpError(
                 status_code=HTTPStatus.UNAUTHORIZED,
@@ -141,7 +145,7 @@ class UserTokenController(Controller):
                 message="Refresh token error",
             ) from exception
 
-        raise exception
+        return super().handle_exception(exception)
 
 
 class CreateUserRequestSchema(BaseModel):
@@ -175,6 +179,7 @@ class UserController(Controller):
             methods=["POST"],
             view_func=self.create_user,
             auth=None,
+            throttle=AnonRateThrottle(rate="30/min"),
         )
 
         registry.add_api_operation(
@@ -182,6 +187,7 @@ class UserController(Controller):
             methods=["GET"],
             view_func=self.get_current_user,
             auth=self._auth,
+            throttle=AuthRateThrottle(rate="30/min"),
         )
 
     def create_user(
@@ -221,6 +227,6 @@ class UserController(Controller):
 
     def get_current_user(
         self,
-        request: HttpRequest,
+        request: AuthenticatedHttpRequest,
     ) -> UserSchema:
         return UserSchema.model_validate(request.user, from_attributes=True)

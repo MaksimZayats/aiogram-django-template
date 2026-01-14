@@ -462,6 +462,19 @@ wheels = [
 ]
 
 [[package]]
+name = "django-redis"
+version = "6.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+    { name = "redis" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/08/53/dbcfa1e528e0d6c39947092625b2c89274b5d88f14d357cee53c4d6dbbd4/django_redis-6.0.0.tar.gz", hash = "sha256:2d9cb12a20424a4c4dde082c6122f486628bae2d9c2bee4c0126a4de7fda00dd", size = 56904, upload-time = "2025-06-17T18:15:46.376Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7e/79/055dfcc508cfe9f439d9f453741188d633efa9eab90fc78a67b0ab50b137/django_redis-6.0.0-py3-none-any.whl", hash = "sha256:20bf0063a8abee567eb5f77f375143c32810c8700c0674ced34737f8de4e36c0", size = 33687, upload-time = "2025-06-17T18:15:34.165Z" },
+]
+
+[[package]]
 name = "django-storages"
 version = "1.14.6"
 source = { registry = "https://pypi.org/simple" }
@@ -973,6 +986,7 @@ dependencies = [
     { name = "django" },
     { name = "django-cors-headers" },
     { name = "django-ninja" },
+    { name = "django-redis" },
     { name = "django-storages", extra = ["s3"] },
     { name = "django-stubs", extra = ["compatible-mypy"] },
     { name = "gunicorn" },
@@ -985,6 +999,7 @@ dependencies = [
     { name = "pyjwt" },
     { name = "python-dotenv" },
     { name = "redis" },
+    { name = "throttled-py" },
     { name = "watchdog", extra = ["watchmedo"] },
 ]
 
@@ -1018,6 +1033,7 @@ requires-dist = [
     { name = "django", specifier = ">6" },
     { name = "django-cors-headers", specifier = ">=4.9.0" },
     { name = "django-ninja", specifier = ">=1.5.2" },
+    { name = "django-redis", specifier = ">=6.0.0" },
     { name = "django-storages", extras = ["s3"], specifier = ">=1.14.6" },
     { name = "django-stubs", extras = ["compatible-mypy"], specifier = ">=5.2.8" },
     { name = "gunicorn", specifier = ">=23.0.0" },
@@ -1030,6 +1046,7 @@ requires-dist = [
     { name = "pyjwt", specifier = ">=2.10.1" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "redis", specifier = ">=7.1.0" },
+    { name = "throttled-py", specifier = ">=3.1.0" },
     { name = "watchdog", extras = ["watchmedo"], specifier = ">=6.0.0" },
 ]
 
@@ -1871,6 +1888,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/90/76/437d71068094df0726366574cf3432a4ed754217b436eb7429415cf2d480/sqlparse-0.5.5.tar.gz", hash = "sha256:e20d4a9b0b8585fdf63b10d30066c7c94c5d7a7ec47c889a2d83a3caa93ff28e", size = 120815, upload-time = "2025-12-19T07:17:45.073Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/49/4b/359f28a903c13438ef59ebeee215fb25da53066db67b305c125f1c6d2a25/sqlparse-0.5.5-py3-none-any.whl", hash = "sha256:12a08b3bf3eec877c519589833aed092e2444e68240a3577e8e26148acc7b1ba", size = 46138, upload-time = "2025-12-19T07:17:46.573Z" },
+]
+
+[[package]]
+name = "throttled-py"
+version = "3.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/70/d8/4a4e24393d218297795d1bdce0a912ca291f0733e209d49178230fa0de27/throttled_py-3.1.0.tar.gz", hash = "sha256:4b9a613db2a38b4c35b0f442219e833a13d1101efd1c47ed1d3637bd0d420f63", size = 827092, upload-time = "2025-12-29T16:38:47.647Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cd/9d/2f99f75ac7f65e8798a5a7b7077c698e9bfa412494f28847e91a2e563113/throttled_py-3.1.0-py3-none-any.whl", hash = "sha256:3135a74a6760f73fb880501d89d29c6f52f2bcb37478ecce84ab05442f91aaed", size = 58780, upload-time = "2025-12-29T16:38:45.778Z" },
 ]
 
 [[package]]

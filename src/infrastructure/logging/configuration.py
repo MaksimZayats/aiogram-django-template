@@ -10,7 +10,7 @@ class LoggingConfig(BaseSettings):
 
     level: str = "INFO"
 
-    @computed_field()
+    @computed_field(alias="logging_settings")
     def settings(self) -> dict[str, Any]:
         return {
             "version": 1,
