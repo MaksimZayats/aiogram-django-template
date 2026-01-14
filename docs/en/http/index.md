@@ -58,6 +58,14 @@ HTTP Request
 
     [→ Learn More](refresh-tokens.md)
 
+-   **Rate Limiting**
+
+    ---
+
+    Protect your API from abuse with request throttling.
+
+    [→ Learn More](rate-limiting.md)
+
 -   **Error Handling**
 
     ---

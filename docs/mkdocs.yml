@@ -90,6 +90,7 @@ nav:
     - Controllers: http/controllers.md
     - JWT Authentication: http/jwt-authentication.md
     - Refresh Tokens: http/refresh-tokens.md
+    - Rate Limiting: http/rate-limiting.md
     - Error Handling: http/error-handling.md
   - Telegram Bot:
     - bot/index.md
