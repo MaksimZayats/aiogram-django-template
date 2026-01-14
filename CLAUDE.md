@@ -249,3 +249,12 @@ Settings classes are registered in IoC and injected into services.
 Tests use `.env.test` file loaded in `tests/conftest.py`. Required services:
 - PostgreSQL (or SQLite for unit tests)
 - Redis (for Celery tests)
+
+## Code Style Guidelines
+
+### `__init__.py` Files
+
+- **Do not write logic in `__init__.py` files** - Keep them empty or minimal
+- **Avoid `__all__` declarations** - Do not use `__all__` to control exports
+- **Exception**: Configuration code that must run before imports (e.g., Django setup) is allowed
+- **Always ask for user confirmation** before adding any code to `__init__.py` files
