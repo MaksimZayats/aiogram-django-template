@@ -1,7 +1,6 @@
 from uuid import uuid7
 
 import pytest
-from django.core.cache.backends.locmem import LocMemCache
 from ninja.testing import TestClient
 from punq import Container, Scope
 from pytest_django.fixtures import SettingsWrapper
