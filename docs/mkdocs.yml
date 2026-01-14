@@ -76,6 +76,7 @@ nav:
     - Your First Celery Task: tutorials/first-celery-task.md
   - Core Concepts:
     - concepts/index.md
+    - Service Layer Architecture: concepts/service-layer.md
     - IoC Container (punq): concepts/ioc-container.md
     - Controller Pattern: concepts/controller-pattern.md
     - Pydantic Settings: concepts/pydantic-settings.md

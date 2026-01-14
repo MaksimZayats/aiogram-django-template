@@ -76,24 +76,51 @@ Understanding the directory layout and module organization.
 
 ## Module Responsibilities
 
-### `core/` — Business Logic
+### `core/` — Business Logic and Services
 
-Contains domain models, business logic, and application settings. This layer is independent of delivery mechanisms.
+Contains domain models, services, and application settings. **Services are the only way to access models from the delivery layer.**
+
+```
+core/
+├── configs/           # Application settings
+│   └── core.py        # ApplicationSettings, DatabaseSettings
+├── user/
+│   ├── models.py      # Django ORM models
+│   └── services.py    # UserService (business logic + ORM access)
+└── health/
+    └── services.py    # HealthService
+```
+
+**Key principle**: All database operations are encapsulated in services. Controllers never import models directly.
 
 ```python
-# core/configs/core.py
-class ApplicationSettings(BaseSettings):
-    environment: Environment = Environment.PRODUCTION
-    version: str = "0.1.0"
+# core/user/services.py
+class UserService:
+    def get_user_by_id(self, user_id: int) -> User:
+        return User.objects.get(id=user_id)
+
+    def create_user(self, username: str, email: str, password: str) -> User:
+        return User.objects.create_user(username=username, email=email, password=password)
 ```
 
 ### `delivery/` — External Interfaces
 
-Handles communication with the outside world:
+Handles communication with the outside world. **Controllers use services, never models directly.**
 
 - **`http/`** — REST API endpoints using Django-Ninja
 - **`bot/`** — Telegram bot commands and handlers
 - **`tasks/`** — Celery background tasks
+
+```python
+# delivery/http/user/controllers.py
+class UserController(Controller):
+    def __init__(self, user_service: UserService) -> None:  # ✅ Inject service
+        self._user_service = user_service
+
+    def get_user(self, request: HttpRequest, user_id: int) -> UserSchema:
+        user = self._user_service.get_user_by_id(user_id)  # ✅ Use service
+        return UserSchema.model_validate(user, from_attributes=True)
+```
 
 Each delivery mechanism has its own entry point but shares the same IoC container.
 
@@ -182,6 +209,7 @@ Test factories enable per-test IoC container isolation, allowing you to mock dep
 
 ## Next Steps
 
+- [Service Layer Architecture](../concepts/service-layer.md) — How controllers interact with business logic
 - [IoC Container](../concepts/ioc-container.md) — Deep dive into dependency injection
 - [Controller Pattern](../concepts/controller-pattern.md) — Understand the controller abstraction
 - [Your First API Endpoint](../tutorials/first-api-endpoint.md) — Add a new endpoint

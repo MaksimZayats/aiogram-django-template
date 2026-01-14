@@ -8,6 +8,14 @@ This template uses several design patterns to achieve clean, testable, and maint
 
 <div class="grid cards" markdown>
 
+-   **Service Layer Architecture**
+
+    ---
+
+    Controllers use services for all database operations. Never access models directly.
+
+    [→ Learn More](service-layer.md)
+
 -   **IoC Container (punq)**
 
     ---
@@ -64,16 +72,46 @@ This template uses several design patterns to achieve clean, testable, and maint
           ┌──────────┼──────────┐
           │          │          │
           ▼          ▼          ▼
-┌─────────────┐ ┌─────────┐ ┌─────────────┐
-│  Factories  │ │Services │ │ Controllers │
-│ (Create API,│ │ (JWT,   │ │  (HTTP,     │
-│  Bot, etc.) │ │ Refresh)│ │  Bot, Task) │
-└─────────────┘ └─────────┘ └─────────────┘
+┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+│  Factories  │ │ Controllers │ │   Services  │
+│ (Create API,│ │  (HTTP,     │ │  (Business  │
+│  Bot, etc.) │ │  Bot, Task) │ │   Logic)    │
+└─────────────┘ └──────┬──────┘ └──────┬──────┘
+                       │               │
+                       └───────┬───────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │   Django Models     │
+                    │  (Database Layer)   │
+                    └─────────────────────┘
+
+Controllers → Services → Models (NEVER Controllers → Models directly)
 ```
 
 ## Key Principles
 
-### 1. Dependency Inversion
+### 1. Service Layer Separation
+
+**Controllers must NEVER access Django models directly.** All database operations go through services.
+
+```python
+# ✅ Correct: Controller uses service
+class UserController(Controller):
+    def __init__(self, user_service: UserService) -> None:
+        self._user_service = user_service
+
+    def get_user(self, request: HttpRequest, user_id: int) -> UserSchema:
+        user = self._user_service.get_user_by_id(user_id)
+        return UserSchema.model_validate(user, from_attributes=True)
+
+# ❌ Wrong: Direct model access
+class UserController(Controller):
+    def get_user(self, request: HttpRequest, user_id: int) -> UserSchema:
+        user = User.objects.get(id=user_id)  # Never do this!
+```
+
+### 2. Dependency Inversion
 
 High-level modules don't depend on low-level modules. Both depend on abstractions (interfaces).
 
@@ -84,16 +122,16 @@ class UserController(Controller):
         self._auth = auth
 ```
 
-### 2. Single Responsibility
+### 3. Single Responsibility
 
 Each class has one reason to change:
 
 - **Settings** — Configuration
-- **Services** — Business logic
-- **Controllers** — HTTP/Bot/Task handling
+- **Services** — Business logic and data access
+- **Controllers** — HTTP/Bot/Task handling (no business logic)
 - **Factories** — Object creation
 
-### 3. Explicit Dependencies
+### 4. Explicit Dependencies
 
 All dependencies are declared in `__init__`, making them visible and testable:
 
@@ -108,7 +146,7 @@ class RefreshSessionService:
         self._refresh_session_model = refresh_session_model
 ```
 
-### 4. Interface Segregation
+### 5. Interface Segregation
 
 Controllers implement only what they need:
 

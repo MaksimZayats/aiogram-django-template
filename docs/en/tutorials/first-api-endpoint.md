@@ -1,6 +1,6 @@
 # Your First API Endpoint
 
-Create a new HTTP controller and register it with the IoC container.
+Create a new HTTP endpoint following the service layer architecture. This tutorial demonstrates the correct pattern: Controller → Service → Model.
 
 ## Goal
 
@@ -9,26 +9,99 @@ Build a `/v1/items/` endpoint that:
 - Returns a list of items (GET)
 - Creates a new item (POST, authenticated)
 
-## Step 1: Create the Controller
+## Step 1: Create the Model
 
-Create a new file `src/delivery/http/item/controllers.py`:
+Create `src/core/item/models.py`:
+
+```python
+from django.db import models
+
+
+class Item(models.Model):
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return self.name
+```
+
+Create an empty `src/core/item/__init__.py` file.
+
+Run migrations:
+
+```bash
+make makemigrations
+make migrate
+```
+
+## Step 2: Create the Service
+
+Create `src/core/item/services.py`:
+
+```python
+from django.db import transaction
+
+from core.item.models import Item
+
+
+class ItemNotFoundError(Exception):
+    """Raised when an item is not found."""
+
+
+class ItemService:
+    """Service for managing items. All database operations go through this service."""
+
+    def get_item_by_id(self, item_id: int) -> Item:
+        """Get an item by ID or raise ItemNotFoundError."""
+        try:
+            return Item.objects.get(id=item_id)
+        except Item.DoesNotExist as e:
+            raise ItemNotFoundError(f"Item {item_id} not found") from e
+
+    def list_items(self) -> list[Item]:
+        """Return all items."""
+        return list(Item.objects.all())
+
+    @transaction.atomic
+    def create_item(self, name: str, description: str) -> Item:
+        """Create a new item."""
+        return Item.objects.create(
+            name=name,
+            description=description,
+        )
+```
+
+Key points:
+
+- Service contains all business logic and ORM access
+- Domain-specific exceptions (`ItemNotFoundError`) are raised for error cases
+- Use `@transaction.atomic` for write operations
+
+## Step 3: Create the Controller
+
+Create `src/delivery/http/item/controllers.py`:
 
 ```python
 from http import HTTPStatus
 from typing import NoReturn
-from uuid import uuid7
 
 from django.http import HttpRequest
 from ninja import Router
 from ninja.errors import HttpError
 from pydantic import BaseModel
 
+from core.item.services import ItemNotFoundError, ItemService
 from infrastructure.delivery.controllers import Controller
 from infrastructure.django.auth import JWTAuth
 
 
 class ItemSchema(BaseModel):
-    id: str
+    id: int
     name: str
     description: str
 
@@ -38,12 +111,13 @@ class CreateItemSchema(BaseModel):
     description: str
 
 
-# In-memory storage for demo purposes
-_items: list[ItemSchema] = []
-
-
 class ItemController(Controller):
-    def __init__(self, auth: JWTAuth) -> None:
+    def __init__(
+        self,
+        item_service: ItemService,
+        auth: JWTAuth,
+    ) -> None:
+        self._item_service = item_service
         self._auth = auth
 
     def register(self, registry: Router) -> None:
@@ -62,44 +136,72 @@ class ItemController(Controller):
         )
 
     def list_items(self, request: HttpRequest) -> list[ItemSchema]:
-        return _items
+        items = self._item_service.list_items()
+        return [
+            ItemSchema.model_validate(item, from_attributes=True)
+            for item in items
+        ]
 
     def create_item(
         self,
         request: HttpRequest,
         body: CreateItemSchema,
     ) -> ItemSchema:
-        new_item = ItemSchema(
-            id=str(uuid7()),
+        item = self._item_service.create_item(
             name=body.name,
             description=body.description,
         )
-        _items.append(new_item)
-        return new_item
+        return ItemSchema.model_validate(item, from_attributes=True)
+
+    def handle_exception(self, exception: Exception) -> NoReturn:
+        if isinstance(exception, ItemNotFoundError):
+            raise HttpError(
+                status_code=HTTPStatus.NOT_FOUND,
+                message="Item not found",
+            ) from exception
+
+        raise exception
 ```
+
+Create an empty `src/delivery/http/item/__init__.py` file.
 
 Key points:
 
-- Extend `Controller` base class
-- Inject dependencies via `__init__` (here: `JWTAuth`)
-- Implement `register()` to define routes
-- Use Pydantic models for request/response schemas
+- Controller imports **service**, not model
+- Dependencies (`ItemService`, `JWTAuth`) are injected via `__init__`
+- `handle_exception()` translates domain exceptions to HTTP errors
+- Pydantic schemas for request/response validation
 
-## Step 2: Register in IoC Container
+## Step 4: Register Service in IoC Container
 
-Edit `src/ioc/container.py`:
+Edit `src/ioc/registries/core.py`:
+
+```python
+from core.item.services import ItemService  # Add import
+
+
+def register_core(container: Container) -> None:
+    # ... existing registrations ...
+
+    # Add item service
+    container.register(ItemService, scope=Scope.singleton)
+```
+
+## Step 5: Register Controller in IoC Container
+
+Edit `src/ioc/registries/delivery.py`:
 
 ```python
 from delivery.http.item.controllers import ItemController  # Add import
 
-def _register_controllers(container: Container) -> None:
-    container.register(HealthController, scope=Scope.singleton)
-    container.register(UserController, scope=Scope.singleton)
-    container.register(UserTokenController, scope=Scope.singleton)
-    container.register(ItemController, scope=Scope.singleton)  # Add this
+
+def _register_http(container: Container) -> None:
+    # ... existing registrations ...
+
+    container.register(ItemController, scope=Scope.singleton)
 ```
 
-## Step 3: Register Routes in Factory
+## Step 6: Register Routes in Factory
 
 Edit `src/delivery/http/factories.py`:
 
@@ -136,7 +238,7 @@ class NinjaAPIFactory:
         return ninja_api
 ```
 
-## Step 4: Test It
+## Step 7: Test It
 
 ### Start the Server
 
@@ -153,10 +255,7 @@ curl http://localhost:8000/api/v1/items/
 Response:
 
 ```json
-[
-  {"id": 1, "name": "Item 1", "description": "First item"},
-  {"id": 2, "name": "Item 2", "description": "Second item"}
-]
+[]
 ```
 
 ### Create Item (Authenticated)
@@ -188,27 +287,66 @@ curl -X POST http://localhost:8000/api/v1/items/ \
 
 Open `http://localhost:8000/api/docs` to see your new endpoint in the interactive documentation.
 
-## Adding Error Handling
+## Architecture Summary
 
-Override `handle_exception()` for custom error responses:
+The complete data flow:
+
+```
+HTTP Request
+    │
+    ▼
+ItemController (delivery layer)
+    │
+    ├── Validates request (Pydantic schemas)
+    │
+    ▼
+ItemService (core layer)
+    │
+    ├── Contains business logic
+    ├── Performs ORM queries
+    │
+    ▼
+Item Model (database)
+    │
+    ▼
+ItemController (continues)
+    │
+    ├── Converts model to response schema
+    │
+    ▼
+HTTP Response
+```
+
+## Common Mistakes to Avoid
+
+### 1. Direct Model Import in Controller
 
 ```python
+# ❌ Wrong
+from core.item.models import Item
+
 class ItemController(Controller):
-    # ... existing code ...
-
-    def handle_exception(self, exception: Exception) -> NoReturn:
-        if isinstance(exception, ItemNotFoundError):
-            raise HttpError(
-                status_code=HTTPStatus.NOT_FOUND,
-                message="Item not found",
-            ) from exception
-
-        # Re-raise unhandled exceptions
-        raise exception
+    def list_items(self, request: HttpRequest) -> list[ItemSchema]:
+        items = Item.objects.all()  # Direct ORM access
 ```
+
+### 2. Business Logic in Controller
+
+```python
+# ❌ Wrong - validation logic belongs in service
+class ItemController(Controller):
+    def create_item(self, request: HttpRequest, body: CreateItemSchema) -> ItemSchema:
+        if len(body.name) < 3:  # Business rule in controller
+            raise HttpError(400, "Name too short")
+```
+
+### 3. Forgetting to Register Service
+
+If you see `punq.MissingDependencyError`, ensure the service is registered in the IoC container.
 
 ## Next Steps
 
-- [Controllers](../http/controllers.md) — Deep dive into the controller pattern
-- [JWT Authentication](../http/jwt-authentication.md) — Understand the auth system
-- [Testing HTTP APIs](../testing/http-tests.md) — Write tests for your endpoint
+- [Service Layer Architecture](../concepts/service-layer.md) - Deep dive into the pattern
+- [Controllers](../http/controllers.md) - Controller patterns and best practices
+- [JWT Authentication](../http/jwt-authentication.md) - Understand the auth system
+- [Testing HTTP APIs](../testing/http-tests.md) - Write tests for your endpoint

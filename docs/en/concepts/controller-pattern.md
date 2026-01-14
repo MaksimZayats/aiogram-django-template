@@ -263,22 +263,24 @@ Key points:
 
 ## Dependency Injection
 
-Controllers declare dependencies in `__init__`:
+Controllers declare dependencies in `__init__`. **Services should be injected via the IoC container, not models:**
 
 ```python
 class UserTokenController(Controller):
     def __init__(
         self,
-        jwt_service: JWTService,
+        user_service: UserService,           # ✅ Business logic service
+        jwt_service: JWTService,             # ✅ Infrastructure service
         refresh_token_service: RefreshSessionService,
         jwt_auth: JWTAuth,
     ) -> None:
+        self._user_service = user_service
         self._jwt_service = jwt_service
         self._refresh_token_service = refresh_token_service
         self._jwt_auth = jwt_auth
 ```
 
-The IoC container resolves these dependencies automatically when the controller is created.
+The IoC container resolves these dependencies automatically when the controller is created. See [Service Layer Architecture](service-layer.md) for how services encapsulate model access.
 
 ## Testing Controllers
 
@@ -300,7 +302,31 @@ See [Mocking IoC Dependencies](../testing/mocking-ioc.md) for integration testin
 
 ## Best Practices
 
-### 1. Single Responsibility
+### 1. Use Services for Data Access
+
+**Controllers must NEVER import or access Django models directly.** All database operations must go through services:
+
+```python
+# ✅ Correct: Inject and use services
+class UserController(Controller):
+    def __init__(self, user_service: UserService) -> None:
+        self._user_service = user_service
+
+    def get_user(self, request: HttpRequest, user_id: int) -> UserSchema:
+        user = self._user_service.get_user_by_id(user_id)
+        return UserSchema.model_validate(user, from_attributes=True)
+
+
+# ❌ Wrong: Direct model access
+class UserController(Controller):
+    def get_user(self, request: HttpRequest, user_id: int) -> UserSchema:
+        user = User.objects.get(id=user_id)  # Never do this!
+        return UserSchema.model_validate(user, from_attributes=True)
+```
+
+See [Service Layer Architecture](service-layer.md) for detailed guidance.
+
+### 2. Single Responsibility
 
 Each controller should handle one resource or feature area:
 
@@ -341,6 +367,7 @@ class CreateUserSchema(BaseModel):
 
 ## Related Topics
 
+- [Service Layer Architecture](service-layer.md) — How controllers interact with business logic
 - [HTTP Controllers](../http/controllers.md) — HTTP-specific patterns
 - [Task Controllers](../celery/task-controllers.md) — Celery-specific patterns
 - [Bot Handlers](../bot/handlers.md) — Telegram bot controller patterns
