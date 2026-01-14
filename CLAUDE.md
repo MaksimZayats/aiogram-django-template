@@ -61,9 +61,10 @@ The container is configured in `src/ioc/container.py`:
 def get_container() -> Container:
     container = Container()
     _register_services(container)      # JWTService, RefreshSessionService
-    _register_auth(container)          # JWTAuth
+    _register_http(container)          # JWTAuth, NinjaAPI
     _register_controllers(container)   # HTTP controllers
     _register_celery(container)        # Task controllers
+    _register_bot(container)           # Telegram bot controllers
     return container
 ```
 
@@ -88,18 +89,33 @@ controller = container.resolve(UserController)
 
 ## Controller Pattern
 
-All controllers extend `infrastructure/delivery/controllers.py:Controller`:
+Controllers are defined in `infrastructure/delivery/controllers.py`. There are two base classes:
+
+### Sync Controller (HTTP API, Celery)
 
 ```python
 class Controller(ABC):
     @abstractmethod
     def register(self, registry: Any) -> None: ...
 
-    def handle_exception(self, exception: Exception) -> NoReturn:
+    def handle_exception(self, exception: Exception) -> Any:
         raise exception  # Override for custom error handling
 ```
 
-Controllers auto-wrap all public methods with exception handling. Override `handle_exception()` to customize error responses.
+### Async Controller (Telegram Bot)
+
+For async handlers (like aiogram), use `AsyncController`:
+
+```python
+class AsyncController(ABC):
+    @abstractmethod
+    def register(self, registry: Any) -> None: ...
+
+    async def handle_exception(self, exception: Exception) -> Any:
+        raise exception  # Override for custom error handling
+```
+
+Both controllers auto-wrap public methods with exception handling. Override `handle_exception()` to customize error responses.
 
 ### HTTP Controller Registration
 
@@ -118,6 +134,32 @@ class UserController(Controller):
 class PingTaskController(Controller):
     def register(self, registry: Celery) -> None:
         registry.task(name=TaskName.PING)(self.ping)
+```
+
+### Telegram Bot Controller Registration
+
+```python
+class CommandsController(AsyncController):
+    def register(self, registry: Router) -> None:
+        registry.message.register(
+            self.handle_start_command,
+            Command(commands=["start"]),
+        )
+
+    async def handle_start_command(self, message: Message) -> None:
+        await message.answer("Hello!")
+```
+
+Bot controllers are registered in the IoC container and injected into `DispatcherFactory`:
+
+```python
+container.register(CommandsController, scope=Scope.singleton)
+container.register(DispatcherFactory, scope=Scope.singleton)
+container.register(
+    Dispatcher,
+    factory=lambda: container.resolve(DispatcherFactory)(),
+    scope=Scope.singleton,
+)
 ```
 
 ## Testing Architecture

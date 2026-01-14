@@ -1,8 +1,8 @@
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.types import BotCommand
 
-from delivery.bot.handlers import router
+from delivery.bot.controllers.commands import CommandsController
 from delivery.bot.settings import TelegramBotSettings
 
 
@@ -26,12 +26,18 @@ class DispatcherFactory:
     def __init__(
         self,
         bot: Bot,
+        commands_controller: CommandsController,
     ) -> None:
         self._bot = bot
+        self._commands_controller = commands_controller
 
     def __call__(self) -> Dispatcher:
         dispatcher = Dispatcher()
+
+        router = Router(name="commands")
         dispatcher.include_router(router)
+        self._commands_controller.register(router)
+
         dispatcher.startup()(self._set_bot_commands)
 
         return dispatcher

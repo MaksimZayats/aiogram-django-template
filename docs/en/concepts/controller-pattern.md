@@ -2,13 +2,17 @@
 
 The Controller pattern provides a consistent interface for handling requests across HTTP, Telegram bot, and Celery task contexts.
 
-## Base Controller
+## Base Controllers
 
-The abstract base class is defined in `src/infrastructure/delivery/controllers.py`:
+Two abstract base classes are defined in `src/infrastructure/delivery/controllers.py`:
+
+### Sync Controller
+
+For synchronous handlers (HTTP API, Celery tasks):
 
 ```python
 from abc import ABC, abstractmethod
-from typing import Any, NoReturn
+from typing import Any
 
 
 class Controller(ABC):
@@ -20,7 +24,25 @@ class Controller(ABC):
     @abstractmethod
     def register(self, registry: Any) -> None: ...
 
-    def handle_exception(self, exception: Exception) -> NoReturn:
+    def handle_exception(self, exception: Exception) -> Any:
+        raise exception
+```
+
+### Async Controller
+
+For asynchronous handlers (Telegram bot):
+
+```python
+class AsyncController(ABC):
+    def __new__(cls, *_args: Any, **_kwargs: Any) -> Self:
+        self = super().__new__(cls)
+        _wrap_async_methods(self)
+        return self
+
+    @abstractmethod
+    def register(self, registry: Any) -> None: ...
+
+    async def handle_exception(self, exception: Exception) -> Any:
         raise exception
 ```
 
@@ -28,7 +50,9 @@ class Controller(ABC):
 
 ### 1. Automatic Exception Wrapping
 
-When a controller is instantiated, all public methods are wrapped with exception handling:
+When a controller is instantiated, all public methods are wrapped with exception handling.
+
+**Sync controllers** wrap regular methods:
 
 ```python
 def _wrap_methods(controller: Controller) -> None:
@@ -43,6 +67,24 @@ def _wrap_methods(controller: Controller) -> None:
                 controller,
                 attr_name,
                 _wrap_route(attr, controller=controller),
+            )
+```
+
+**Async controllers** wrap coroutine functions:
+
+```python
+def _wrap_async_methods(controller: AsyncController) -> None:
+    for attr_name in dir(controller):
+        attr = getattr(controller, attr_name)
+        if (
+            inspect.iscoroutinefunction(attr)
+            and not attr_name.startswith("_")
+            and attr_name not in ("register", "handle_exception")
+        ):
+            setattr(
+                controller,
+                attr_name,
+                _wrap_async_route(attr, controller=controller),
             )
 ```
 
@@ -175,6 +217,50 @@ Key points:
 - Task name should be defined in `TaskName` enum
 - Return typed dict for type-safe results
 
+## Telegram Bot Controllers
+
+Bot controllers extend `AsyncController` and receive an aiogram `Router` as their registry:
+
+```python
+from aiogram import Router
+from aiogram.filters import Command
+from aiogram.types import Message
+
+from infrastructure.delivery.controllers import AsyncController
+
+
+class CommandsController(AsyncController):
+    def register(self, registry: Router) -> None:
+        registry.message.register(
+            self.handle_start_command,
+            Command(commands=["start"]),
+        )
+        registry.message.register(
+            self.handle_id_command,
+            Command(commands=["id"]),
+        )
+
+    async def handle_start_command(self, message: Message) -> None:
+        if message.from_user is None:
+            return
+        await message.answer("Hello! This is a bot.")
+
+    async def handle_id_command(self, message: Message) -> None:
+        if message.from_user is None:
+            return
+        await message.answer(
+            f"User Id: <b>{message.from_user.id}</b>\n"
+            f"Chat Id: <b>{message.chat.id}</b>",
+        )
+```
+
+Key points:
+
+- Extend `AsyncController` for async handlers
+- Use `registry.message.register()` to register handlers with filters
+- All handler methods must be `async`
+- Controllers are injected into `DispatcherFactory` via IoC container
+
 ## Dependency Injection
 
 Controllers declare dependencies in `__init__`:
@@ -257,4 +343,5 @@ class CreateUserSchema(BaseModel):
 
 - [HTTP Controllers](../http/controllers.md) — HTTP-specific patterns
 - [Task Controllers](../celery/task-controllers.md) — Celery-specific patterns
+- [Bot Handlers](../bot/handlers.md) — Telegram bot controller patterns
 - [IoC Container](ioc-container.md) — Dependency resolution

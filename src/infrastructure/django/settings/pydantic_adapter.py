@@ -23,7 +23,7 @@ class PydanticSettingsAdapter:
         settings: BaseSettings,
         settings_locals: dict[str, Any],
     ) -> None:
-        for key, value in settings.model_dump().items():
+        for key, value in settings.model_dump(by_alias=True).items():
             resolved_key = self._resolve_key(key)
             resolved_value = self._resolve_value(value)
             settings_locals[resolved_key] = resolved_value

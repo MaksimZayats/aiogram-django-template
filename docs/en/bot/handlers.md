@@ -1,35 +1,52 @@
 # Handlers
 
-Command handlers and message processing with aiogram.
+Command handlers and message processing with aiogram using the AsyncController pattern.
 
-## Handler Structure
+## Controller Structure
 
-Handlers are defined in `src/delivery/bot/handlers.py`:
+Handlers are organized in controller classes in `src/delivery/bot/controllers/`:
 
 ```python
+# src/delivery/bot/controllers/commands.py
+
 from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-router = Router()
+from infrastructure.delivery.controllers import AsyncController
 
 
-@router.message(Command(commands=["start"]))
-async def handle_start_command(message: Message) -> None:
-    if message.from_user is None:
-        return
-    await message.answer("Hello! This is a bot.")
+class CommandsController(AsyncController):
+    def register(self, registry: Router) -> None:
+        registry.message.register(
+            self.handle_start_command,
+            Command(commands=["start"]),
+        )
+        registry.message.register(
+            self.handle_id_command,
+            Command(commands=["id"]),
+        )
 
+    async def handle_start_command(self, message: Message) -> None:
+        if message.from_user is None:
+            return
+        await message.answer("Hello! This is a bot.")
 
-@router.message(Command(commands=["id"]))
-async def handle_id_command(message: Message) -> None:
-    if message.from_user is None:
-        return
-    await message.answer(
-        f"User Id: <b>{message.from_user.id}</b>\n"
-        f"Chat Id: <b>{message.chat.id}</b>",
-    )
+    async def handle_id_command(self, message: Message) -> None:
+        if message.from_user is None:
+            return
+        await message.answer(
+            f"User Id: <b>{message.from_user.id}</b>\n"
+            f"Chat Id: <b>{message.chat.id}</b>",
+        )
 ```
+
+Key points:
+
+- Extend `AsyncController` from `infrastructure.delivery.controllers`
+- Implement `register()` to register handlers with the Router
+- Use `registry.message.register()` to register message handlers
+- All handler methods must be `async`
 
 ## Filters
 
@@ -40,14 +57,25 @@ Match specific commands:
 ```python
 from aiogram.filters import Command
 
-@router.message(Command(commands=["help"]))
-async def handle_help(message: Message) -> None:
-    await message.answer("Help message here")
+class CommandsController(AsyncController):
+    def register(self, registry: Router) -> None:
+        registry.message.register(
+            self.handle_help,
+            Command(commands=["help"]),
+        )
 
-# Multiple commands
-@router.message(Command(commands=["start", "help"]))
-async def handle_start_or_help(message: Message) -> None:
-    await message.answer("Welcome or help!")
+    async def handle_help(self, message: Message) -> None:
+        await message.answer("Help message here")
+```
+
+Multiple commands:
+
+```python
+def register(self, registry: Router) -> None:
+    registry.message.register(
+        self.handle_start_or_help,
+        Command(commands=["start", "help"]),
+    )
 ```
 
 ### Text Filter
@@ -57,19 +85,20 @@ Match specific text:
 ```python
 from aiogram import F
 
-@router.message(F.text == "ping")
-async def handle_ping(message: Message) -> None:
-    await message.answer("pong")
+class TextController(AsyncController):
+    def register(self, registry: Router) -> None:
+        registry.message.register(self.handle_ping, F.text == "ping")
+        registry.message.register(self.handle_hello, F.text.lower() == "hello")
+        registry.message.register(self.handle_help_request, F.text.contains("help"))
 
-# Case-insensitive
-@router.message(F.text.lower() == "hello")
-async def handle_hello(message: Message) -> None:
-    await message.answer("Hi there!")
+    async def handle_ping(self, message: Message) -> None:
+        await message.answer("pong")
 
-# Contains text
-@router.message(F.text.contains("help"))
-async def handle_help_request(message: Message) -> None:
-    await message.answer("How can I help?")
+    async def handle_hello(self, message: Message) -> None:
+        await message.answer("Hi there!")
+
+    async def handle_help_request(self, message: Message) -> None:
+        await message.answer("How can I help?")
 ```
 
 ### Content Type Filter
@@ -79,21 +108,33 @@ Match by message content:
 ```python
 from aiogram.types import ContentType
 
-@router.message(F.content_type == ContentType.PHOTO)
-async def handle_photo(message: Message) -> None:
-    await message.answer("Nice photo!")
+class MediaController(AsyncController):
+    def register(self, registry: Router) -> None:
+        registry.message.register(
+            self.handle_photo,
+            F.content_type == ContentType.PHOTO,
+        )
+        registry.message.register(
+            self.handle_document,
+            F.content_type == ContentType.DOCUMENT,
+        )
 
-@router.message(F.content_type == ContentType.DOCUMENT)
-async def handle_document(message: Message) -> None:
-    await message.answer("Document received!")
+    async def handle_photo(self, message: Message) -> None:
+        await message.answer("Nice photo!")
+
+    async def handle_document(self, message: Message) -> None:
+        await message.answer("Document received!")
 ```
 
 ### Combined Filters
 
 ```python
-@router.message(F.text, F.chat.type == "private")
-async def handle_private_text(message: Message) -> None:
-    await message.answer("Private message received")
+def register(self, registry: Router) -> None:
+    registry.message.register(
+        self.handle_private_text,
+        F.text,
+        F.chat.type == "private",
+    )
 ```
 
 ## Command Arguments
@@ -101,15 +142,21 @@ async def handle_private_text(message: Message) -> None:
 Parse arguments from commands:
 
 ```python
-@router.message(Command(commands=["greet"]))
-async def handle_greet(message: Message) -> None:
-    # /greet John
-    if message.text is None:
-        return
+class GreetController(AsyncController):
+    def register(self, registry: Router) -> None:
+        registry.message.register(
+            self.handle_greet,
+            Command(commands=["greet"]),
+        )
 
-    parts = message.text.split(maxsplit=1)
-    name = parts[1] if len(parts) > 1 else "stranger"
-    await message.answer(f"Hello, {name}!")
+    async def handle_greet(self, message: Message) -> None:
+        # /greet John
+        if message.text is None:
+            return
+
+        parts = message.text.split(maxsplit=1)
+        name = parts[1] if len(parts) > 1 else "stranger"
+        await message.answer(f"Hello, {name}!")
 ```
 
 ## Callback Queries
@@ -119,27 +166,30 @@ Handle inline button clicks:
 ```python
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
-@router.message(Command(commands=["menu"]))
-async def show_menu(message: Message) -> None:
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="Option 1", callback_data="option_1"),
-            InlineKeyboardButton(text="Option 2", callback_data="option_2"),
-        ]
-    ])
-    await message.answer("Choose an option:", reply_markup=keyboard)
+class MenuController(AsyncController):
+    def register(self, registry: Router) -> None:
+        registry.message.register(self.show_menu, Command(commands=["menu"]))
+        registry.callback_query.register(self.handle_option_1, F.data == "option_1")
+        registry.callback_query.register(self.handle_option_2, F.data == "option_2")
 
+    async def show_menu(self, message: Message) -> None:
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="Option 1", callback_data="option_1"),
+                InlineKeyboardButton(text="Option 2", callback_data="option_2"),
+            ]
+        ])
+        await message.answer("Choose an option:", reply_markup=keyboard)
 
-@router.callback_query(F.data == "option_1")
-async def handle_option_1(callback: CallbackQuery) -> None:
-    await callback.answer("You chose option 1!")
-    await callback.message.edit_text("Option 1 selected")
+    async def handle_option_1(self, callback: CallbackQuery) -> None:
+        await callback.answer("You chose option 1!")
+        if callback.message:
+            await callback.message.edit_text("Option 1 selected")
 
-
-@router.callback_query(F.data == "option_2")
-async def handle_option_2(callback: CallbackQuery) -> None:
-    await callback.answer("You chose option 2!")
-    await callback.message.edit_text("Option 2 selected")
+    async def handle_option_2(self, callback: CallbackQuery) -> None:
+        await callback.answer("You chose option 2!")
+        if callback.message:
+            await callback.message.edit_text("Option 2 selected")
 ```
 
 ## State Management
@@ -156,129 +206,111 @@ class Form(StatesGroup):
     age = State()
 
 
-@router.message(Command(commands=["form"]))
-async def start_form(message: Message, state: FSMContext) -> None:
-    await state.set_state(Form.name)
-    await message.answer("What's your name?")
+class FormController(AsyncController):
+    def register(self, registry: Router) -> None:
+        registry.message.register(self.start_form, Command(commands=["form"]))
+        registry.message.register(self.process_name, Form.name)
+        registry.message.register(self.process_age, Form.age)
 
+    async def start_form(self, message: Message, state: FSMContext) -> None:
+        await state.set_state(Form.name)
+        await message.answer("What's your name?")
 
-@router.message(Form.name)
-async def process_name(message: Message, state: FSMContext) -> None:
-    await state.update_data(name=message.text)
-    await state.set_state(Form.age)
-    await message.answer("How old are you?")
+    async def process_name(self, message: Message, state: FSMContext) -> None:
+        await state.update_data(name=message.text)
+        await state.set_state(Form.age)
+        await message.answer("How old are you?")
 
+    async def process_age(self, message: Message, state: FSMContext) -> None:
+        data = await state.get_data()
+        name = data.get("name")
+        age = message.text
 
-@router.message(Form.age)
-async def process_age(message: Message, state: FSMContext) -> None:
-    data = await state.get_data()
-    name = data.get("name")
-    age = message.text
-
-    await state.clear()
-    await message.answer(f"Hello {name}, you are {age} years old!")
+        await state.clear()
+        await message.answer(f"Hello {name}, you are {age} years old!")
 ```
 
-## Middleware
+## Exception Handling
 
-Add custom middleware:
-
-```python
-from typing import Any, Awaitable, Callable, Dict
-
-from aiogram import BaseMiddleware
-from aiogram.types import Message
-
-
-class LoggingMiddleware(BaseMiddleware):
-    async def __call__(
-        self,
-        handler: Callable[[Message, Dict[str, Any]], Awaitable[Any]],
-        event: Message,
-        data: Dict[str, Any],
-    ) -> Any:
-        print(f"Received: {event.text}")
-        result = await handler(event, data)
-        print(f"Handled: {event.text}")
-        return result
-
-
-# Register in dispatcher factory
-dispatcher.message.middleware(LoggingMiddleware())
-```
-
-## Error Handling
-
-Handle errors in handlers:
+Override `handle_exception()` for custom error handling:
 
 ```python
-from aiogram.types import ErrorEvent
+class CommandsController(AsyncController):
+    async def handle_exception(self, exception: Exception) -> None:
+        # Log the error
+        import logging
+        logging.exception("Error in bot handler", exc_info=exception)
 
-@router.error()
-async def handle_error(event: ErrorEvent) -> None:
-    import logging
-    logging.exception("Error in handler", exc_info=event.exception)
+        # Custom handling for specific exceptions
+        if isinstance(exception, SomeCustomError):
+            # Handle specific error
+            return
 
-    if event.update.message:
-        await event.update.message.answer(
-            "An error occurred. Please try again."
-        )
+        # Re-raise unhandled exceptions
+        raise exception
 ```
 
 ## Dependency Injection
 
-Access container in handlers:
+Controllers can have dependencies injected via the IoC container:
 
 ```python
-# In __main__.py
-dispatcher.run_polling(bot, container=container)
+from core.user.services import UserService
 
-# In handlers
-from punq import Container
+class UserController(AsyncController):
+    def __init__(self, user_service: UserService) -> None:
+        self._user_service = user_service
 
-@router.message(Command(commands=["user_count"]))
-async def handle_user_count(
-    message: Message,
-    container: Container,
-) -> None:
-    from core.user.models import User
-    count = User.objects.count()
-    await message.answer(f"Total users: {count}")
+    def register(self, registry: Router) -> None:
+        registry.message.register(
+            self.handle_profile,
+            Command(commands=["profile"]),
+        )
+
+    async def handle_profile(self, message: Message) -> None:
+        if message.from_user is None:
+            return
+
+        user = await self._user_service.get_by_telegram_id(message.from_user.id)
+        if user:
+            await message.answer(f"Your profile: {user.username}")
+        else:
+            await message.answer("Profile not found")
 ```
 
-## Organizing Handlers
+Register in IoC container:
 
-Split handlers into modules:
+```python
+# src/ioc/container.py
+
+def _register_bot(container: Container) -> None:
+    container.register(UserController, scope=Scope.singleton)
+```
+
+## Organizing Controllers
+
+Split controllers by feature:
 
 ```
 delivery/bot/
-├── handlers/
+├── controllers/
 │   ├── __init__.py
-│   ├── commands.py      # Command handlers
+│   ├── commands.py      # Basic commands (/start, /id)
 │   ├── callbacks.py     # Callback query handlers
-│   └── admin.py         # Admin commands
-└── factories.py
+│   ├── admin.py         # Admin commands
+│   └── forms.py         # Multi-step forms
+├── factories.py
+└── settings.py
 ```
 
-```python
-# handlers/__init__.py
-from aiogram import Router
-
-from .commands import router as commands_router
-from .callbacks import router as callbacks_router
-
-main_router = Router()
-main_router.include_router(commands_router)
-main_router.include_router(callbacks_router)
-```
+Each controller is registered in the IoC container and injected into `DispatcherFactory`.
 
 ## Best Practices
 
 ### 1. Always Check for None
 
 ```python
-@router.message(Command(commands=["start"]))
-async def handle_start(message: Message) -> None:
+async def handle_start(self, message: Message) -> None:
     if message.from_user is None:
         return  # Guard against None
     await message.answer(f"Hello, {message.from_user.first_name}!")
@@ -296,10 +328,9 @@ await message.answer(
 ### 3. Handle Errors Gracefully
 
 ```python
-@router.message(Command(commands=["data"]))
-async def handle_data(message: Message) -> None:
+async def handle_data(self, message: Message) -> None:
     try:
-        data = fetch_data()
+        data = await fetch_data()
         await message.answer(f"Data: {data}")
     except Exception:
         await message.answer("Failed to fetch data. Please try again.")
@@ -318,5 +349,6 @@ await message.answer("Are you sure?", reply_markup=keyboard)
 ## Related Topics
 
 - [Bot & Dispatcher Factories](factories.md) — Factory configuration
+- [Controller Pattern](../concepts/controller-pattern.md) — Pattern explanation
 - [Your First Bot Command](../tutorials/first-bot-command.md) — Tutorial
 - [aiogram Documentation](https://docs.aiogram.dev/) — Official docs

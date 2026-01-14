@@ -152,6 +152,50 @@ class UserTokenController(Controller):
 
 punq resolves all three dependencies automatically because they're registered in the container.
 
+## Real Example: Bot Controllers
+
+```python
+def _register_bot(container: Container) -> None:
+    container.register(
+        TelegramBotSettings,
+        lambda: TelegramBotSettings(),
+        scope=Scope.singleton,
+    )
+
+    # Register controllers
+    container.register(CommandsController, scope=Scope.singleton)
+
+    # Register factories
+    container.register(BotFactory, scope=Scope.singleton)
+    container.register(
+        Bot,
+        factory=lambda: container.resolve(BotFactory)(),
+        scope=Scope.singleton,
+    )
+
+    container.register(DispatcherFactory, scope=Scope.singleton)
+    container.register(
+        Dispatcher,
+        factory=lambda: container.resolve(DispatcherFactory)(),
+        scope=Scope.singleton,
+    )
+```
+
+The `DispatcherFactory` has these dependencies:
+
+```python
+class DispatcherFactory:
+    def __init__(
+        self,
+        bot: Bot,
+        commands_controller: CommandsController,
+    ) -> None:
+        self._bot = bot
+        self._commands_controller = commands_controller
+```
+
+punq resolves `Bot` and `CommandsController` automatically, then injects them into `DispatcherFactory`.
+
 ## Factories with Container Access
 
 For complex creation logic, factories can access the container:

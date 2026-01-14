@@ -27,8 +27,9 @@ Understanding the directory layout and module organization.
 │   │   │
 │   │   ├── bot/                  # Telegram bot (aiogram)
 │   │   │   ├── __main__.py       # Bot entry point
+│   │   │   ├── controllers/      # Bot controllers (AsyncController)
+│   │   │   │   └── commands.py   # Command handlers
 │   │   │   ├── factories.py      # Bot & Dispatcher factories
-│   │   │   ├── handlers.py       # Command handlers
 │   │   │   └── settings.py       # Bot settings
 │   │   │
 │   │   └── tasks/                # Celery tasks
@@ -100,7 +101,7 @@ Each delivery mechanism has its own entry point but shares the same IoC containe
 
 Technical capabilities shared across the application:
 
-- **`controllers.py`** — Base controller class with exception handling
+- **`controllers.py`** — Base controller classes (`Controller` for sync, `AsyncController` for async handlers)
 - **`jwt/`** — JWT token issuance and validation
 - **`django/auth.py`** — HTTP Bearer authentication
 - **`logging/`** — Colored console logging

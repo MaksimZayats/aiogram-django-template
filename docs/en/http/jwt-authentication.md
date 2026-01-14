@@ -172,6 +172,41 @@ def some_handler(self, request: HttpRequest) -> dict:
     return {"user_id": payload["sub"]}
 ```
 
+### Type-Safe Authenticated Requests
+
+Use `AuthenticatedHttpRequest` for type-safe access to authenticated request properties:
+
+```python
+from infrastructure.django.auth import AuthenticatedHttpRequest
+
+def get_current_user(self, request: AuthenticatedHttpRequest) -> UserSchema:
+    # Type-safe access to:
+    # - request.user (AbstractBaseUser)
+    # - request.jwt_payload (dict[str, Any])
+    # - request.auth (AbstractBaseUser)
+    return UserSchema.model_validate(request.user, from_attributes=True)
+```
+
+The `AuthenticatedHttpRequest` class extends `HttpRequest` with typed attributes:
+
+```python
+# src/infrastructure/django/auth.py
+
+class AuthenticatedHttpRequest(HttpRequest):
+    jwt_payload: dict[str, Any]
+    auth: AbstractBaseUser
+    user: AbstractBaseUser
+```
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `user` | `AbstractBaseUser` | The authenticated user instance |
+| `jwt_payload` | `dict[str, Any]` | Decoded JWT token payload |
+| `auth` | `AbstractBaseUser` | Same as `user` (Django-Ninja convention) |
+
+!!! tip "When to Use"
+    Use `AuthenticatedHttpRequest` instead of `HttpRequest` for protected endpoints to get proper type checking and IDE autocompletion.
+
 ## Token Endpoint
 
 The `UserTokenController` issues tokens:
@@ -280,5 +315,6 @@ curl http://localhost:8000/v1/users/me \
 ## Related Topics
 
 - [Refresh Tokens](refresh-tokens.md) — Token refresh flow
+- [Rate Limiting](rate-limiting.md) — Request throttling
 - [Error Handling](error-handling.md) — Exception handling
 - [Production Configuration](../configuration/production.md) — Security settings

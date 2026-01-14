@@ -1,5 +1,6 @@
 from celery import Celery
 
+from core.configs.core import RedisSettings
 from core.configs.django import application_settings
 from delivery.tasks.registry import TaskName, TasksRegistry
 from delivery.tasks.settings import CelerySettings
@@ -10,9 +11,11 @@ class CeleryAppFactory:
     def __init__(
         self,
         settings: CelerySettings,
+        redis_settings: RedisSettings,
     ) -> None:
         self._instance: Celery | None = None
         self._settings = settings
+        self._redis_settings = redis_settings
 
     def __call__(self) -> Celery:
         if self._instance is not None:
@@ -20,8 +23,8 @@ class CeleryAppFactory:
 
         celery_app = Celery(
             "main",
-            broker=self._settings.redis_settings.redis_url.get_secret_value(),
-            backend=self._settings.redis_settings.redis_url.get_secret_value(),
+            broker=self._redis_settings.redis_url.get_secret_value(),
+            backend=self._redis_settings.redis_url.get_secret_value(),
         )
 
         self._configure_app(celery_app=celery_app)
@@ -31,7 +34,11 @@ class CeleryAppFactory:
         return self._instance
 
     def _configure_app(self, celery_app: Celery) -> None:
-        celery_app.conf.update(timezone=application_settings.time_zone)
+        celery_app.conf.update(
+            timezone=application_settings.time_zone,
+            enable_utc=True,
+            **self._settings.model_dump(),
+        )
 
     def _configure_beat_schedule(self, celery_app: Celery) -> None:
         celery_app.conf.beat_schedule = {

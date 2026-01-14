@@ -54,7 +54,38 @@ Components:
 |----------|------|---------|----------|-------------|
 | `REFRESH_TOKEN_NBYTES` | `int` | `32` | No | Refresh token entropy (bytes) |
 | `REFRESH_TOKEN_TTL_DAYS` | `int` | `30` | No | Refresh token TTL (days) |
-| `IP_HEADER` | `str` | `X-Forwarded-For` | No | Header for client IP |
+
+## Rate Limiting (Ninja)
+
+| Variable | Type | Default | Required | Description |
+|----------|------|---------|----------|-------------|
+| `NINJA_NUM_PROXIES` | `int` | `0` | No | Number of trusted proxies for IP extraction |
+| `NINJA_DEFAULT_THROTTLE_RATES` | `dict` | See below | No | Global throttle rate defaults |
+
+### Default Throttle Rates
+
+```python
+{
+    "auth": "10000/day",
+    "user": "10000/day",
+    "anon": "1000/day",
+}
+```
+
+!!! note "Rate Format"
+    Rates use the format `"N/period"` where period is `s`/`sec`, `m`/`min`, `h`/`hour`, or `d`/`day`.
+
+!!! tip "Proxy Configuration"
+    Set `NINJA_NUM_PROXIES` to the number of reverse proxies (Nginx, load balancers) in front of your application. This ensures correct client IP extraction for rate limiting. See [Rate Limiting](../http/rate-limiting.md#ip-address-extraction) for details.
+
+## Cache
+
+| Variable | Type | Default | Required | Description |
+|----------|------|---------|----------|-------------|
+| `CACHE_DEFAULT_TIMEOUT` | `int` | `300` | No | Default cache timeout (seconds) |
+
+!!! note "Cache Backend"
+    The cache uses Redis (same `REDIS_URL` as Celery). This enables distributed rate limiting across multiple application instances.
 
 ## Redis
 
@@ -147,6 +178,9 @@ REDIS_URL="redis://default:${REDIS_PASSWORD}@localhost:6379/0"
 AWS_S3_ENDPOINT_URL=http://localhost:9000
 AWS_S3_ACCESS_KEY_ID=your-minio-access-key
 AWS_S3_SECRET_ACCESS_KEY=your-minio-secret-key
+
+# Rate Limiting (optional)
+# NINJA_NUM_PROXIES=1  # Set to number of proxies in front of app
 
 # Telegram Bot (optional)
 # TELEGRAM_BOT_TOKEN=your-bot-token

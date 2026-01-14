@@ -35,7 +35,7 @@ docker compose up minio-create-buckets migrations collectstatic
 make dev
 ```
 
-The API is available at `http://localhost:8000` with interactive docs at `/docs`.
+The API is available at `http://localhost:8000` with interactive docs at `/api/docs`.
 
 ## Documentation
 
@@ -70,4 +70,4 @@ make test          # Run tests
 
 ## License
 
-MIT
+[MIT](LICENSE.md)

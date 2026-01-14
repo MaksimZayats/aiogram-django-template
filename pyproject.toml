@@ -12,7 +12,9 @@ dependencies = [
     "colorlog>=6.10.1",
     "dj-database-url>=3.1.0",
     "django>6",
+    "django-cors-headers>=4.9.0",
     "django-ninja>=1.5.2",
+    "django-redis>=6.0.0",
     "django-storages[s3]>=1.14.6",
     "django-stubs[compatible-mypy]>=5.2.8",
     "gunicorn>=23.0.0",
@@ -25,8 +27,12 @@ dependencies = [
     "pyjwt>=2.10.1",
     "python-dotenv>=1.2.1",
     "redis>=7.1.0",
+    "throttled-py>=3.1.0",
     "watchdog[watchmedo]>=6.0.0",
 ]
+
+[project.scripts]
+configure = "scripts.configure:main"
 
 [dependency-groups]
 dev = [
@@ -86,6 +92,9 @@ django_settings_module = "core.configs.django"
 
 [tool.ty.environment]
 extra-paths = ["typings"]
+
+[tool.ty.rules]
+unused-ignore-comment = "ignore"
 
 [tool.pyrefly]
 search_path = ["typings"]

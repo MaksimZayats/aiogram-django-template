@@ -10,6 +10,7 @@ The testing architecture provides:
 - **HTTP API Tests** — Django-Ninja test client integration
 - **Celery Tests** — In-process worker for task testing
 - **IoC Mocking** — Dependency injection for test doubles
+- **Django Settings** — Overriding Django settings for test isolation
 
 ## Test Stack
 
@@ -56,6 +57,14 @@ The testing architecture provides:
     Overriding dependencies for test isolation.
 
     [→ Learn More](mocking-ioc.md)
+
+-   **Django Settings Overrides**
+
+    ---
+
+    Overriding Django settings for test isolation.
+
+    [→ Learn More](django-settings.md)
 
 </div>
 

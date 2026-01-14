@@ -15,7 +15,7 @@ from infrastructure.django.refresh_sessions.models import BaseRefreshSession
 class RefreshSessionServiceSettings(BaseSettings):
     refresh_token_nbytes: int = 32
     refresh_token_ttl_days: int = 30
-    ip_header: str = "X-Forwarded-For"
+    ninja_num_proxies: int = 0
 
     @property
     def refresh_token_ttl(self) -> timedelta:
@@ -60,7 +60,7 @@ class RefreshSessionService:
             user=user,
             refresh_token_hash=refresh_token_hash,
             user_agent=request.META.get("HTTP_USER_AGENT", ""),
-            ip_address=request.META.get(self._settings.ip_header),
+            ip_address=self._get_ip_address(request),
             expires_at=timezone.now() + self._settings.refresh_token_ttl,
         )
 
@@ -118,3 +118,14 @@ class RefreshSessionService:
             raise ExpiredRefreshTokenError
 
         return session
+
+    def _get_ip_address(self, request: HttpRequest) -> str | None:
+        xff = request.META.get("HTTP_X_FORWARDED_FOR", None)
+        remote_address = request.META.get("REMOTE_ADDR", None)
+
+        if self._settings.ninja_num_proxies == 0 or xff is None:
+            return remote_address
+
+        addresses = xff.split(",")
+        client_address = addresses[-min(self._settings.ninja_num_proxies, len(addresses))]
+        return client_address.strip()

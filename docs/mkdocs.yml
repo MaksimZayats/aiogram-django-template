@@ -90,6 +90,7 @@ nav:
     - Controllers: http/controllers.md
     - JWT Authentication: http/jwt-authentication.md
     - Refresh Tokens: http/refresh-tokens.md
+    - Rate Limiting: http/rate-limiting.md
     - Error Handling: http/error-handling.md
   - Telegram Bot:
     - bot/index.md
@@ -106,6 +107,7 @@ nav:
     - HTTP API Tests: testing/http-tests.md
     - Celery Task Tests: testing/celery-tests.md
     - Mocking IoC Dependencies: testing/mocking-ioc.md
+    - Django Settings Overrides: testing/django-settings.md
   - Observability:
     - observability/index.md
     - Logging: observability/logging.md

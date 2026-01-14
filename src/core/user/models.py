@@ -4,7 +4,8 @@ from infrastructure.django.refresh_sessions.models import BaseRefreshSession
 
 
 class User(AbstractUser):
-    pass
+    def __str__(self) -> str:
+        return f"User(id={self.pk}, username={self.username})"
 
 
 class RefreshSession(BaseRefreshSession):

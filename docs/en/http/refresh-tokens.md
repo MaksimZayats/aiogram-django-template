@@ -35,7 +35,7 @@ The `RefreshSessionService` manages refresh tokens:
 class RefreshSessionServiceSettings(BaseSettings):
     refresh_token_nbytes: int = 32
     refresh_token_ttl_days: int = 30
-    ip_header: str = "X-Forwarded-For"
+    ninja_num_proxies: int = 0
 
 
 class RefreshSessionService:
@@ -59,7 +59,7 @@ class RefreshSessionService:
             user=user,
             refresh_token_hash=refresh_token_hash,
             user_agent=request.META.get("HTTP_USER_AGENT", ""),
-            ip_address=request.META.get(self._settings.ip_header),
+            ip_address=self._get_ip_address(request),
             expires_at=timezone.now() + self._settings.refresh_token_ttl,
         )
 
@@ -238,8 +238,11 @@ class UserTokenController(Controller):
 # Refresh token settings
 REFRESH_TOKEN_NBYTES=32       # Token entropy (bytes)
 REFRESH_TOKEN_TTL_DAYS=30     # Token lifetime
-IP_HEADER=X-Forwarded-For     # Header for client IP
+NINJA_NUM_PROXIES=0           # Number of trusted proxies (for IP extraction)
 ```
+
+!!! note "IP Address Extraction"
+    The `NINJA_NUM_PROXIES` setting controls how client IPs are extracted from the `X-Forwarded-For` header. See [Rate Limiting](rate-limiting.md#ip-address-extraction) for detailed configuration.
 
 ## Security Features
 
@@ -254,11 +257,13 @@ refresh_token_hash = sha256("actual-token").hexdigest()
 
 ### IP Tracking
 
-Client IP is recorded for each session:
+Client IP is recorded for each session using proxy-aware extraction:
 
 ```python
-ip_address=request.META.get(self._settings.ip_header)
+ip_address=self._get_ip_address(request)
 ```
+
+The IP extraction respects the `NINJA_NUM_PROXIES` setting to correctly parse the `X-Forwarded-For` header when behind reverse proxies. See [Rate Limiting - IP Address Extraction](rate-limiting.md#ip-address-extraction) for details.
 
 ### User Agent Tracking
 
@@ -333,5 +338,6 @@ async function fetchWithRefresh(url, options) {
 ## Related Topics
 
 - [JWT Authentication](jwt-authentication.md) — Access token details
+- [Rate Limiting](rate-limiting.md) — Request throttling and IP extraction
 - [Error Handling](error-handling.md) — Exception handling
 - [Production Configuration](../configuration/production.md) — Security settings
