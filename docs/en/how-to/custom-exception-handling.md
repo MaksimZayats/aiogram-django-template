@@ -109,12 +109,12 @@ from infrastructure.delivery.controllers import Controller
 class UserTokenController(Controller):
     def __init__(
         self,
-        jwt_auth: JWTAuth,
+        jwt_auth_factory: JWTAuthFactory,
         jwt_service: JWTService,
         refresh_token_service: RefreshSessionService,
         user_service: UserService,
     ) -> None:
-        self._jwt_auth = jwt_auth
+        self._jwt_auth = jwt_auth_factory()
         self._jwt_service = jwt_service
         self._refresh_token_service = refresh_token_service
         self._user_service = user_service

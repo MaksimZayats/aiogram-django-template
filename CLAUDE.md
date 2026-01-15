@@ -221,9 +221,11 @@ Both controllers auto-wrap public methods with exception handling. Override `han
 ### HTTP Controller Registration
 
 ```python
+from infrastructure.django.auth import JWTAuthFactory
+
 class UserController(Controller):
-    def __init__(self, jwt_auth: JWTAuth) -> None:
-        self._jwt_auth = jwt_auth
+    def __init__(self, jwt_auth_factory: JWTAuthFactory) -> None:
+        self._jwt_auth = jwt_auth_factory()
 
     def register(self, registry: Router) -> None:
         registry.add_api_operation(
@@ -234,6 +236,35 @@ class UserController(Controller):
             auth=self._jwt_auth,
         )
 ```
+
+### JWT Authentication with Permissions
+
+Use `JWTAuthFactory` for JWT authentication with optional permission checks:
+
+```python
+from infrastructure.django.auth import JWTAuthFactory
+
+class AdminController(Controller):
+    def __init__(self, jwt_auth_factory: JWTAuthFactory) -> None:
+        self._jwt_auth = jwt_auth_factory()  # Basic auth
+        self._staff_auth = jwt_auth_factory(require_staff=True)
+        self._superuser_auth = jwt_auth_factory(require_superuser=True)
+
+    def register(self, registry: Router) -> None:
+        # Staff-only endpoint
+        registry.add_api_operation(
+            path="/v1/admin/reports",
+            methods=["GET"],
+            view_func=self.list_reports,
+            auth=self._staff_auth,
+        )
+```
+
+Parameters:
+- `require_staff: bool = False` - If `True`, requires `user.is_staff=True`
+- `require_superuser: bool = False` - If `True`, requires `user.is_superuser=True`
+
+Permission denied returns `403 Forbidden` (not 401 - user is authenticated but not authorized).
 
 ### Celery Task Controller Registration
 

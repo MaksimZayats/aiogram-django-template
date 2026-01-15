@@ -199,7 +199,7 @@ from pydantic import BaseModel
 
 from core.products.services import ProductNotFoundError, ProductService
 from infrastructure.delivery.controllers import Controller
-from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuth
+from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuthFactory
 
 
 class ProductSchema(BaseModel):
@@ -224,10 +224,10 @@ class UpdateProductRequest(BaseModel):
 class ProductController(Controller):
     def __init__(
         self,
-        jwt_auth: JWTAuth,
+        jwt_auth_factory: JWTAuthFactory,
         product_service: ProductService,
     ) -> None:
-        self._jwt_auth = jwt_auth
+        self._jwt_auth = jwt_auth_factory()
         self._product_service = product_service
 
     def register(self, registry: Router) -> None:

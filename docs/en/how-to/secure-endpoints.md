@@ -2,27 +2,27 @@
 
 This guide explains how to add authentication and rate limiting to your API endpoints.
 
-## Authentication with JWTAuth
+## Authentication with JWTAuthFactory
 
 ### Basic Setup
 
-Inject `JWTAuth` into your controller and use it in `add_api_operation`:
+Inject `JWTAuthFactory` into your controller and use it in `add_api_operation`:
 
 ```python
 from ninja import Router
 from ninja.throttling import AuthRateThrottle
 
 from infrastructure.delivery.controllers import Controller
-from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuth
+from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuthFactory
 
 
 class ProductController(Controller):
     def __init__(
         self,
-        jwt_auth: JWTAuth,
+        jwt_auth_factory: JWTAuthFactory,
         product_service: ProductService,
     ) -> None:
-        self._jwt_auth = jwt_auth
+        self._jwt_auth = jwt_auth_factory()
         self._product_service = product_service
 
     def register(self, registry: Router) -> None:
@@ -81,6 +81,73 @@ def get_current_user(
     # request.user is now typed as User, not AbstractBaseUser
     # IDE autocompletion and type checking work with your custom fields
     return UserSchema.model_validate(request.user, from_attributes=True)
+```
+
+## Permission-Based Access Control
+
+### Using JWTAuthFactory with Permissions
+
+For endpoints requiring specific permissions (staff or superuser), use `JWTAuthFactory` with permission parameters:
+
+```python
+from ninja import Router
+from ninja.throttling import AuthRateThrottle
+
+from infrastructure.delivery.controllers import Controller
+from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuthFactory
+
+
+class AdminController(Controller):
+    def __init__(
+        self,
+        jwt_auth_factory: JWTAuthFactory,
+        admin_service: AdminService,
+    ) -> None:
+        self._staff_auth = jwt_auth_factory(require_staff=True)
+        self._superuser_auth = jwt_auth_factory(require_superuser=True)
+        self._admin_service = admin_service
+
+    def register(self, registry: Router) -> None:
+        # Only staff can view reports
+        registry.add_api_operation(
+            path="/v1/admin/reports",
+            methods=["GET"],
+            view_func=self.list_reports,
+            auth=self._staff_auth,
+            throttle=AuthRateThrottle(rate="30/min"),
+        )
+
+        # Only superusers can delete users
+        registry.add_api_operation(
+            path="/v1/admin/users/{user_id}",
+            methods=["DELETE"],
+            view_func=self.delete_user,
+            auth=self._superuser_auth,
+            throttle=AuthRateThrottle(rate="10/min"),
+        )
+```
+
+### Permission Options
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `require_staff` | `bool = False` | If `True`, requires `user.is_staff` to be `True` |
+| `require_superuser` | `bool = False` | If `True`, requires `user.is_superuser` to be `True` |
+
+### Error Responses
+
+| Scenario | Status Code | Message |
+|----------|-------------|---------|
+| Missing/invalid token | 401 Unauthorized | Various auth errors |
+| User not staff (when required) | 403 Forbidden | "Staff access required" |
+| User not superuser (when required) | 403 Forbidden | "Superuser access required" |
+
+### Combining Permissions
+
+Require both staff AND superuser:
+
+```python
+self._strict_auth = jwt_auth_factory(require_staff=True, require_superuser=True)
 ```
 
 ## Rate Limiting
@@ -185,7 +252,7 @@ from pydantic import BaseModel
 
 from core.orders.services import OrderNotFoundError, OrderService
 from infrastructure.delivery.controllers import Controller
-from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuth
+from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuthFactory
 
 
 class OrderSchema(BaseModel):
@@ -201,10 +268,10 @@ class CreateOrderRequest(BaseModel):
 class OrderController(Controller):
     def __init__(
         self,
-        jwt_auth: JWTAuth,
+        jwt_auth_factory: JWTAuthFactory,
         order_service: OrderService,
     ) -> None:
-        self._jwt_auth = jwt_auth
+        self._jwt_auth = jwt_auth_factory()
         self._order_service = order_service
 
     def register(self, registry: Router) -> None:
@@ -312,10 +379,11 @@ def register(self, registry: Router) -> None:
 
 ## Summary
 
-1. Inject `JWTAuth` into controllers that need authentication
-2. Use `auth=self._jwt_auth` in `add_api_operation` for protected endpoints
-3. Use `AuthenticatedHttpRequest` type hint for authenticated handlers
-4. Apply `AnonRateThrottle` for public endpoints (rate by IP)
-5. Apply `AuthRateThrottle` for authenticated endpoints (rate by user)
-6. Use stricter rate limits for sensitive operations (login, password reset)
-7. Access user via `request.user` in authenticated handlers
+1. Inject `JWTAuthFactory` into controllers that need authentication
+2. Call `jwt_auth_factory()` to get a basic auth instance, or use `jwt_auth_factory(require_staff=True)` / `jwt_auth_factory(require_superuser=True)` for permission-based auth
+3. Use `auth=self._jwt_auth` in `add_api_operation` for protected endpoints
+4. Use `AuthenticatedHttpRequest` type hint for authenticated handlers
+5. Apply `AnonRateThrottle` for public endpoints (rate by IP)
+6. Apply `AuthRateThrottle` for authenticated endpoints (rate by user)
+7. Use stricter rate limits for sensitive operations (login, password reset)
+8. Access user via `request.user` in authenticated handlers

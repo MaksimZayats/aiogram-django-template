@@ -37,7 +37,7 @@ from pydantic import BaseModel
 
 from core.<domain>.services import <Domain>Service, <Domain>NotFoundError
 from infrastructure.delivery.controllers import Controller
-from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuth
+from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuthFactory
 
 
 # Response Schemas
@@ -65,10 +65,10 @@ class Update<Model>Request(BaseModel):
 class <Domain>Controller(Controller):
     def __init__(
         self,
-        jwt_auth: JWTAuth,
+        jwt_auth_factory: JWTAuthFactory,
         <domain>_service: <Domain>Service,
     ) -> None:
-        self._jwt_auth = jwt_auth
+        self._jwt_auth = jwt_auth_factory()
         self._<domain>_service = <domain>_service
 
     def register(self, registry: Router) -> None:

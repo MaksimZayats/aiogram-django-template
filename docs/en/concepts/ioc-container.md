@@ -194,8 +194,8 @@ The container resolves the entire dependency graph:
 
 ```python
 # When resolving UserController, the container:
-# 1. Sees UserController needs JWTAuth and UserService
-# 2. Resolves JWTAuth (which needs JWTService, which needs JWTServiceSettings)
+# 1. Sees UserController needs JWTAuthFactory and UserService
+# 2. Resolves JWTAuthFactory (which needs JWTService, which needs JWTServiceSettings)
 # 3. Resolves UserService
 # 4. Creates UserController with both dependencies
 
@@ -205,7 +205,7 @@ controller = container.resolve(UserController)
 ```
 UserController
     |
-    +-- JWTAuth
+    +-- JWTAuthFactory
     |       |
     |       +-- JWTService
     |               |
@@ -235,7 +235,7 @@ Registers cross-cutting concerns:
 def register_infrastructure(container: Container) -> None:
     _register_jwt(container)              # JWTServiceSettings, JWTService
     _register_refresh_sessions(container) # RefreshSessionService
-    _register_auth(container)             # JWTAuth
+    _register_auth(container)             # JWTAuthFactory
 ```
 
 ### Delivery Registry (`registries/delivery.py`)
@@ -311,7 +311,7 @@ All dependencies are visible in the `__init__` signature:
 class UserTokenController(Controller):
     def __init__(
         self,
-        jwt_auth: JWTAuth,
+        jwt_auth_factory: JWTAuthFactory,
         jwt_service: JWTService,
         refresh_token_service: RefreshSessionService,
         user_service: UserService,
