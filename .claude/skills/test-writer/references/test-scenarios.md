@@ -2,6 +2,17 @@
 
 This reference provides complete test patterns for common scenarios.
 
+## Contents
+
+- [User-Scoped Resource Tests](#user-scoped-resource-tests)
+- [Error Handling Tests](#error-handling-tests)
+- [Pagination Tests](#pagination-tests)
+- [Authentication Tests](#authentication-tests)
+- [Celery Task Tests](#celery-task-tests)
+- [Empty State Tests](#empty-state-tests)
+- [Update Tests](#update-tests)
+- [Delete Tests](#delete-tests)
+
 ## User-Scoped Resource Tests
 
 When resources belong to specific users and should not be accessible by others:

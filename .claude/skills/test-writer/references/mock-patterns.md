@@ -2,6 +2,16 @@
 
 This reference provides comprehensive mocking patterns for testing with IoC container overrides.
 
+## Contents
+
+- [Basic Mocking Pattern](#basic-mocking-pattern)
+- [Mock Configuration Patterns](#mock-configuration-patterns)
+- [Mock Assertion Patterns](#mock-assertion-patterns)
+- [Service-Specific Mock Examples](#service-specific-mock-examples)
+- [Testing Multiple Services](#testing-multiple-services)
+- [Mocking External Dependencies](#mocking-external-dependencies)
+- [Common Pitfalls](#common-pitfalls)
+
 ## Basic Mocking Pattern
 
 ### Step-by-Step Process

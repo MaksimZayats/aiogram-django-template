@@ -1,6 +1,6 @@
 ---
 name: feature-developer
-description: This skill should be used when the user asks to "add a new feature", "create an endpoint", "implement CRUD", "add a new domain", "create a service", "add API endpoint", "build a new module", "implement functionality", or mentions adding new business logic, creating controllers, or extending the application.
+description: Implements new features, domains, and API endpoints.
 version: 1.0.0
 ---
 
@@ -67,138 +67,38 @@ Follow this 12-step checklist. Each step is detailed in `references/domain-check
 Services encapsulate ALL database operations. Controllers ONLY call service methods.
 
 ```python
-# src/core/<domain>/services.py
-from django.db import transaction
-from core.<domain>.models import <Model>
-
-
-class <Domain>NotFoundError(Exception):
-    """Domain-specific exception."""
-
-
 class <Domain>Service:
-    def get_by_id(self, id: int) -> <Model>:
-        try:
-            return <Model>.objects.get(id=id)
-        except <Model>.DoesNotExist as e:
-            raise <Domain>NotFoundError(f"<Domain> {id} not found") from e
-
-    def list_all(self) -> list[<Model>]:
-        return list(<Model>.objects.all())
-
-    @transaction.atomic
-    def create(self, **kwargs) -> <Model>:
-        return <Model>.objects.create(**kwargs)
+    def get_by_id(self, id: int) -> <Model>: ...
+    def list_all(self) -> list[<Model>]: ...
+    def create(self, **kwargs) -> <Model>: ...
 ```
+
+Full template with CRUD operations: See `references/domain-checklist.md` (Step 5)
 
 ## Controller Pattern
 
 Controllers handle HTTP, convert exceptions, and delegate to services.
 
 ```python
-# src/delivery/http/<domain>/controllers.py
-from http import HTTPStatus
-from typing import Any
-
-from django.http import HttpRequest
-from ninja import Router
-from ninja.errors import HttpError
-from pydantic import BaseModel
-
-from core.<domain>.services import <Domain>Service, <Domain>NotFoundError
-from infrastructure.delivery.controllers import Controller
-from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuth
-
-
-class <Model>Schema(BaseModel):
-    id: int
-    # ... fields matching model
-
-
 class <Domain>Controller(Controller):
-    def __init__(
-        self,
-        jwt_auth: JWTAuth,
-        <domain>_service: <Domain>Service,
-    ) -> None:
-        self._jwt_auth = jwt_auth
-        self._<domain>_service = <domain>_service
-
-    def register(self, registry: Router) -> None:
-        registry.add_api_operation(
-            path="/v1/<domain>s/",
-            methods=["GET"],
-            view_func=self.list_<domain>s,
-            auth=self._jwt_auth,
-        )
-
-    def list_<domain>s(
-        self,
-        request: AuthenticatedHttpRequest,
-    ) -> list[<Model>Schema]:
-        items = self._<domain>_service.list_all()
-        return [<Model>Schema.model_validate(i, from_attributes=True) for i in items]
-
-    def handle_exception(self, exception: Exception) -> Any:
-        if isinstance(exception, <Domain>NotFoundError):
-            raise HttpError(
-                status_code=HTTPStatus.NOT_FOUND,
-                message=str(exception),
-            ) from exception
-        return super().handle_exception(exception)
+    def __init__(self, jwt_auth: JWTAuth, service: <Domain>Service) -> None: ...
+    def register(self, registry: Router) -> None: ...
+    def handle_exception(self, exception: Exception) -> Any: ...
 ```
 
-## IoC Registration Patterns
+Full template with schemas and routes: See `references/controller-patterns.md`
 
-### Registering a Service
+## IoC Registration
 
 ```python
-# src/ioc/registries/core.py
-from punq import Container, Scope
-from core.<domain>.services import <Domain>Service
+# Service: src/ioc/registries/core.py
+container.register(<Domain>Service, scope=Scope.singleton)
 
-def _register_services(container: Container) -> None:
-    # ... existing registrations
-    container.register(<Domain>Service, scope=Scope.singleton)
+# Controller: src/ioc/registries/delivery.py
+container.register(<Domain>Controller, scope=Scope.singleton)
 ```
 
-### Registering a Controller
-
-```python
-# src/ioc/registries/delivery.py
-from punq import Container, Scope
-from delivery.http.<domain>.controllers import <Domain>Controller
-
-def _register_http_controllers(container: Container) -> None:
-    # ... existing registrations
-    container.register(<Domain>Controller, scope=Scope.singleton)
-```
-
-### Updating NinjaAPIFactory
-
-```python
-# src/delivery/http/factories.py
-from delivery.http.<domain>.controllers import <Domain>Controller
-
-class NinjaAPIFactory:
-    def __init__(
-        self,
-        # ... existing dependencies
-        <domain>_controller: <Domain>Controller,  # Add this
-    ) -> None:
-        # ... existing assignments
-        self._<domain>_controller = <domain>_controller
-
-    def __call__(self, urls_namespace: str | None = None) -> NinjaAPI:
-        # ... existing code
-
-        # Add router for new domain
-        <domain>_router = Router(tags=["<domain>s"])
-        ninja_api.add_router("/", <domain>_router)
-        self._<domain>_controller.register(registry=<domain>_router)
-
-        return ninja_api
-```
+Full NinjaAPIFactory update: See `references/domain-checklist.md` (Step 10)
 
 ## Validation: After Implementation
 

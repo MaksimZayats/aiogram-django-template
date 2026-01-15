@@ -1,6 +1,6 @@
 ---
 name: docs-reader
-description: This skill should be used when the user asks "how to", "what is", "explain", "where is", "show me", asks about architecture, patterns, configuration, asks conceptual questions, requests documentation, needs guidance on using this codebase, or wants to understand how something works.
+description: Answers questions using project documentation in docs/en/.
 version: 1.0.0
 ---
 

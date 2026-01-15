@@ -2,6 +2,23 @@
 
 This reference provides complete examples for all three controller types: HTTP API, Celery tasks, and Telegram bot handlers.
 
+## Contents
+
+- [HTTP Controller (Django Ninja)](#http-controller-django-ninja)
+  - [Basic CRUD Controller](#basic-crud-controller)
+  - [User-Scoped Resources](#user-scoped-resources)
+- [Celery Task Controller](#celery-task-controller)
+  - [Basic Task](#basic-task)
+  - [Task with Arguments](#task-with-arguments)
+  - [Register Task Name](#register-task-name)
+  - [Register Task in IoC](#register-task-in-ioc)
+  - [Update CeleryAppFactory](#update-celeryappfactory)
+- [Telegram Bot Controller (aiogram)](#telegram-bot-controller-aiogram)
+  - [Command Handler](#command-handler)
+  - [Register Bot Controller in IoC](#register-bot-controller-in-ioc)
+  - [Update DispatcherFactory](#update-dispatcherfactory)
+- [Exception Handling Patterns](#exception-handling-patterns)
+
 ## HTTP Controller (Django Ninja)
 
 ### Basic CRUD Controller

@@ -1,6 +1,6 @@
 ---
 name: test-writer
-description: This skill should be used when the user asks to "write tests", "add tests", "test this", "create tests", "integration test", "unit test", "mock service", "test factory", "pytest", or mentions testing, mocking, fixtures, test coverage, or test isolation.
+description: Writes tests using IoC overrides and test factories.
 version: 1.0.0
 ---
 
@@ -79,93 +79,24 @@ def test_with_mock(
 ## HTTP API Test Template
 
 ```python
-# tests/integration/http/<domain>/test_<domain>.py
-from http import HTTPStatus
-
-import pytest
-
-from core.<domain>.models import <Model>
-from core.user.models import User
-from tests.integration.factories import (
-    TestClientFactory,
-    TestUserFactory,
-)
-
-
-@pytest.fixture(scope="function")
-def user(user_factory: TestUserFactory) -> User:
-    return user_factory(username="<domain>_test_user")
-
-
-class TestCreate<Model>:
-    @pytest.mark.django_db(transaction=True)
-    def test_create_success(
-        self,
-        test_client_factory: TestClientFactory,
-        user: User,
-    ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.post(
-            "/v1/<domain>s/",
-            json={"name": "Test", "description": "Test description"},
-        )
-
-        assert response.status_code == HTTPStatus.OK
-        data = response.json()
-        assert data["name"] == "Test"
-        assert "id" in data
-
-    @pytest.mark.django_db(transaction=True)
-    def test_create_requires_auth(
-        self,
-        test_client_factory: TestClientFactory,
-    ) -> None:
-        test_client = test_client_factory()  # No auth
-
-        response = test_client.post("/v1/<domain>s/", json={"name": "Test"})
-
-        assert response.status_code == HTTPStatus.UNAUTHORIZED
-
-    @pytest.mark.django_db(transaction=True)
-    def test_create_validation_error(
-        self,
-        test_client_factory: TestClientFactory,
-        user: User,
-    ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.post("/v1/<domain>s/", json={})
-
-        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+@pytest.mark.django_db(transaction=True)
+def test_create_success(self, test_client_factory: TestClientFactory, user: User) -> None:
+    test_client = test_client_factory(auth_for_user=user)
+    response = test_client.post("/v1/<domain>s/", json={"name": "Test"})
+    assert response.status_code == HTTPStatus.OK
 ```
+
+Full CRUD test template: See `references/testing-new-features.md`
 
 ## Celery Task Test Template
 
 ```python
-# tests/integration/tasks/test_<task>.py
-import pytest
-
-from tests.integration.factories import (
-    TestCeleryWorkerFactory,
-    TestTasksRegistryFactory,
-)
-
-
-class Test<Task>Task:
-    @pytest.mark.django_db(transaction=True)
-    def test_task_success(
-        self,
-        celery_worker_factory: TestCeleryWorkerFactory,
-        tasks_registry_factory: TestTasksRegistryFactory,
-    ) -> None:
-        registry = tasks_registry_factory()
-
-        with celery_worker_factory():
-            result = registry.<task_name>.delay().get(timeout=5)
-
-        assert result == expected_value
+with celery_worker_factory():
+    result = registry.<task_name>.delay().get(timeout=5)
+assert result == expected_value
 ```
+
+Full task test patterns: See `references/test-scenarios.md`
 
 ## Mocking Patterns
 
@@ -216,36 +147,13 @@ pytest --cov=src --cov-report=html
 
 ## Creating a Custom Test Factory
 
-Add to `tests/integration/factories.py`:
-
 ```python
 class Test<Model>Factory(ContainerBasedFactory):
-    """Factory for creating test <Model> instances."""
-
-    def __call__(
-        self,
-        user: User,
-        name: str = "Test <Model>",
-        **kwargs: Any,
-    ) -> <Model>:
-        <domain>_service = self._container.resolve(<Domain>Service)
-        return <domain>_service.create(
-            user_id=user.pk,
-            name=name,
-            **kwargs,
-        )
+    def __call__(self, user: User, name: str = "Test") -> <Model>:
+        return self._container.resolve(<Domain>Service).create(user_id=user.pk, name=name)
 ```
 
-Register fixture in `tests/integration/conftest.py`:
-
-```python
-@pytest.fixture(scope="function")
-def <model>_factory(
-    transactional_db: None,
-    container: Container,
-) -> Test<Model>Factory:
-    return Test<Model>Factory(container=container)
-```
+Full factory + fixture pattern: See `references/testing-new-features.md`
 
 ## Common Testing Scenarios
 

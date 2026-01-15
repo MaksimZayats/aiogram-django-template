@@ -2,6 +2,17 @@
 
 This reference provides patterns for testing new domains following the established test architecture.
 
+## Contents
+
+- [Test File Structure](#test-file-structure)
+- [Creating a Test Factory](#creating-a-test-factory)
+- [Registering the Factory Fixture](#registering-the-factory-fixture)
+- [HTTP API Test Patterns](#http-api-test-patterns)
+- [IoC Override Pattern for Mocking](#ioc-override-pattern-for-mocking)
+- [Celery Task Test Pattern](#celery-task-test-pattern)
+- [Test Markers Reference](#test-markers-reference)
+- [Running Tests](#running-tests)
+
 ## Test File Structure
 
 ```

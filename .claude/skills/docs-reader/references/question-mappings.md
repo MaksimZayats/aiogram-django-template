@@ -2,6 +2,23 @@
 
 This reference provides comprehensive mappings from common user questions to the appropriate documentation files.
 
+## Contents
+
+- [Architecture & Design](#architecture--design)
+  - [Service Layer Questions](#service-layer-questions)
+  - [IoC & Dependency Injection Questions](#ioc--dependency-injection-questions)
+  - [Controller Questions](#controller-questions)
+  - [Factory Questions](#factory-questions)
+- [Implementation Tasks](#implementation-tasks)
+  - [Adding Features](#adding-features)
+  - [Background Tasks](#background-tasks)
+  - [Error Handling](#error-handling)
+  - [Testing](#testing)
+  - [Security](#security)
+- [Setup & Configuration](#setup--configuration)
+- [Learning Path Questions](#learning-path-questions)
+- [Troubleshooting Questions](#troubleshooting-questions)
+
 ## Architecture & Design
 
 ### Service Layer Questions

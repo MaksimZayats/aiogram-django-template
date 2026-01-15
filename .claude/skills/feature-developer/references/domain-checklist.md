@@ -2,6 +2,26 @@
 
 This reference provides the complete, detailed checklist for adding a new domain to the application. Use "products" as an example domain name.
 
+## Contents
+
+- [Phase 1: Core Layer Setup](#phase-1-core-layer-setup)
+  - [Step 1: Create Domain Directory](#step-1-create-domain-directory)
+  - [Step 2: Create Django App Configuration](#step-2-create-django-app-configuration)
+  - [Step 3: Register in Installed Apps](#step-3-register-in-installed-apps)
+  - [Step 4: Create the Domain Model](#step-4-create-the-domain-model)
+  - [Step 5: Create Service with Domain Exceptions](#step-5-create-service-with-domain-exceptions)
+  - [Step 6: Register Service in IoC](#step-6-register-service-in-ioc)
+- [Phase 2: Delivery Layer Setup](#phase-2-delivery-layer-setup)
+  - [Step 7: Create Controller Directory](#step-7-create-controller-directory)
+  - [Step 8: Create Controller with Schemas](#step-8-create-controller-with-schemas)
+  - [Step 9: Register Controller in IoC](#step-9-register-controller-in-ioc)
+  - [Step 10: Update NinjaAPIFactory](#step-10-update-ninjaapifactory)
+- [Phase 3: Finalization](#phase-3-finalization)
+  - [Step 11: Create and Run Migrations](#step-11-create-and-run-migrations)
+  - [Step 12: Create Tests](#step-12-create-tests)
+- [Verification Commands](#verification-commands)
+- [Summary Checklist](#summary-checklist)
+
 ## Phase 1: Core Layer Setup
 
 ### Step 1: Create Domain Directory
