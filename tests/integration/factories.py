@@ -16,18 +16,20 @@ from delivery.tasks.registry import TasksRegistry
 from infrastructure.jwt.services import JWTService
 
 
-class ContainerBasedFactory(ABC):
+class BaseFactory(ABC):
     __test__ = False
 
+    @abstractmethod
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        pass
+
+
+class ContainerBasedFactory(BaseFactory, ABC):
     def __init__(
         self,
         container: Container,
     ) -> None:
         self._container = container
-
-    @abstractmethod
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        pass
 
 
 class TestClientFactory(ContainerBasedFactory):
