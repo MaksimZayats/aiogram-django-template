@@ -40,7 +40,7 @@ from core.todo.services import (
     TodoService,
 )
 from infrastructure.delivery.controllers import Controller
-from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuth
+from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuthFactory
 
 
 # ============================================================================
@@ -92,10 +92,10 @@ class TodoController(Controller):
 
     def __init__(
         self,
-        jwt_auth: JWTAuth,
+        jwt_auth_factory: JWTAuthFactory,
         todo_service: TodoService,
     ) -> None:
-        self._jwt_auth = jwt_auth
+        self._jwt_auth = jwt_auth_factory()
         self._todo_service = todo_service
 
     def register(self, registry: Router) -> None:
@@ -232,10 +232,10 @@ Let's break down the key parts of the controller:
 ```python
 def __init__(
     self,
-    jwt_auth: JWTAuth,
+    jwt_auth_factory: JWTAuthFactory,
     todo_service: TodoService,
 ) -> None:
-    self._jwt_auth = jwt_auth
+    self._jwt_auth = jwt_auth_factory()
     self._todo_service = todo_service
 ```
 

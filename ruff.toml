@@ -36,6 +36,12 @@ ignore = [
     "ARG001",  # Unused function argument: `request`
     "ARG002",  # Unused function argument: `request`
 ]
+"**/models.py" = [
+    "RUF012",
+]
+"**/factories.py" = [
+    "PLR0913",
+]
 "**/settings.py" = [
     "RUF012",  # Unused function argument: `request`
 ]
@@ -43,7 +49,9 @@ ignore = [
     "S101",  # Use of assert detected
     "PT003",
     "ARG001",
+    "ARG002",
     "PLR2004",
+    "PLR0913",
 ]
 
 [lint.flake8-tidy-imports]

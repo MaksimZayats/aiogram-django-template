@@ -10,10 +10,47 @@ from ninja.security import HttpBearer
 from infrastructure.jwt.services import JWTService
 
 
-class AuthenticatedHttpRequest(HttpRequest):
+class AuthenticatedHttpRequest[UserT: AbstractBaseUser = AbstractBaseUser](HttpRequest):
     jwt_payload: dict[str, Any]
-    auth: AbstractBaseUser
-    user: AbstractBaseUser  # type: ignore[bad-override, assignment]
+    auth: UserT
+    user: UserT  # type: ignore[bad-override, assignment]
+
+
+class JWTAuthFactory:
+    """Factory for creating JWT auth instances with optional permission checks.
+
+    Example:
+        factory = container.resolve(JWTAuthFactory)
+        basic_auth = factory()  # No permission checks
+        staff_auth = factory(require_staff=True)  # Requires is_staff=True
+        admin_auth = factory(require_superuser=True)  # Requires is_superuser=True
+    """
+
+    def __init__(self, jwt_service: JWTService) -> None:
+        self._jwt_service = jwt_service
+
+    def __call__(
+        self,
+        *,
+        require_staff: bool = False,
+        require_superuser: bool = False,
+    ) -> JWTAuth:
+        """Create a JWT auth instance.
+
+        Args:
+            require_staff: If True, require user.is_staff to be True.
+            require_superuser: If True, require user.is_superuser to be True.
+
+        Returns:
+            A JWTAuth instance configured with the specified permission checks.
+        """
+        if require_staff or require_superuser:
+            return JWTAuthWithPermissions(
+                jwt_service=self._jwt_service,
+                require_staff=require_staff,
+                require_superuser=require_superuser,
+            )
+        return JWTAuth(jwt_service=self._jwt_service)
 
 
 class JWTAuth(HttpBearer):
@@ -61,3 +98,37 @@ class JWTAuth(HttpBearer):
                 status_code=HTTPStatus.UNAUTHORIZED,
                 message="Invalid token",
             ) from e
+
+
+class JWTAuthWithPermissions(JWTAuth):
+    """JWT auth with optional is_staff/is_superuser checks."""
+
+    def __init__(
+        self,
+        jwt_service: JWTService,
+        *,
+        require_staff: bool = False,
+        require_superuser: bool = False,
+    ) -> None:
+        super().__init__(jwt_service)
+        self._require_staff = require_staff
+        self._require_superuser = require_superuser
+
+    def authenticate(self, request: HttpRequest, token: str) -> AbstractBaseUser | None:
+        user = super().authenticate(request, token)
+        if user is None:
+            return None
+
+        if self._require_staff and not getattr(user, "is_staff", False):
+            raise HttpError(
+                status_code=HTTPStatus.FORBIDDEN,
+                message="Staff access required",
+            )
+
+        if self._require_superuser and not getattr(user, "is_superuser", False):
+            raise HttpError(
+                status_code=HTTPStatus.FORBIDDEN,
+                message="Superuser access required",
+            )
+
+        return user

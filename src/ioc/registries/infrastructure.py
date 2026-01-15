@@ -1,6 +1,6 @@
 from punq import Container, Scope
 
-from infrastructure.django.auth import JWTAuth
+from infrastructure.django.auth import JWTAuthFactory
 from infrastructure.django.refresh_sessions.services import (
     RefreshSessionService,
     RefreshSessionServiceSettings,
@@ -40,4 +40,4 @@ def _register_refresh_sessions(container: Container) -> None:
 
 
 def _register_auth(container: Container) -> None:
-    container.register(JWTAuth, scope=Scope.singleton)
+    container.register(JWTAuthFactory, scope=Scope.singleton)

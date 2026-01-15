@@ -203,10 +203,10 @@ class ItemController(Controller):
     # 1. Dependencies injected via __init__
     def __init__(
         self,
-        jwt_auth: JWTAuth,
+        jwt_auth_factory: JWTAuthFactory,
         item_service: ItemService,
     ) -> None:
-        self._jwt_auth = jwt_auth
+        self._jwt_auth = jwt_auth_factory()
         self._item_service = item_service
 
     # 2. Registration connects handlers to framework

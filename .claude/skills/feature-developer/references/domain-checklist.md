@@ -1,24 +1,37 @@
-# Add a New Domain
+# Complete Domain Checklist
 
-This guide walks you through adding a new business domain to your application. We will use "products" as an example domain.
+This reference provides the complete, detailed checklist for adding a new domain to the application. Use "products" as an example domain name.
 
-## Prerequisites
+## Contents
 
-- Understanding of the [Service Layer Architecture](../concepts/service-layer.md)
-- Familiarity with the [Controller Pattern](../concepts/controller-pattern.md)
+- [Phase 1: Core Layer Setup](#phase-1-core-layer-setup)
+  - [Step 1: Create Domain Directory](#step-1-create-domain-directory)
+  - [Step 2: Create Django App Configuration](#step-2-create-django-app-configuration)
+  - [Step 3: Register in Installed Apps](#step-3-register-in-installed-apps)
+  - [Step 4: Create the Domain Model](#step-4-create-the-domain-model)
+  - [Step 5: Create Service with Domain Exceptions](#step-5-create-service-with-domain-exceptions)
+  - [Step 6: Register Service in IoC](#step-6-register-service-in-ioc)
+- [Phase 2: Delivery Layer Setup](#phase-2-delivery-layer-setup)
+  - [Step 7: Create Controller Directory](#step-7-create-controller-directory)
+  - [Step 8: Create Controller with Schemas](#step-8-create-controller-with-schemas)
+  - [Step 9: Register Controller in IoC](#step-9-register-controller-in-ioc)
+  - [Step 10: Update NinjaAPIFactory](#step-10-update-ninjaapifactory)
+- [Phase 3: Finalization](#phase-3-finalization)
+  - [Step 11: Create and Run Migrations](#step-11-create-and-run-migrations)
+  - [Step 12: Create Tests](#step-12-create-tests)
+- [Verification Commands](#verification-commands)
+- [Summary Checklist](#summary-checklist)
 
-## Complete Checklist
+## Phase 1: Core Layer Setup
 
-### Step 1: Create the Domain Directory Structure
-
-Create the domain directory in `src/core/`:
+### Step 1: Create Domain Directory
 
 ```bash
 mkdir -p src/core/products
 touch src/core/products/__init__.py
 ```
 
-### Step 2: Create the Django App Configuration
+### Step 2: Create Django App Configuration
 
 Create `src/core/products/apps.py`:
 
@@ -32,27 +45,17 @@ class ProductsConfig(AppConfig):
     label = "products"
 ```
 
-### Step 3: Add to Installed Apps
+### Step 3: Register in Installed Apps
 
-Edit `src/core/configs/core.py` and add the new app to the `installed_apps` tuple in `ApplicationSettings`:
+Edit `src/core/configs/core.py`:
 
 ```python
 class ApplicationSettings(BaseSettings):
-    # ... existing fields ...
     installed_apps: tuple[str, ...] = (
-        "django.contrib.admin",
-        "django.contrib.auth",
-        "django.contrib.contenttypes",
-        "django.contrib.sessions",
-        "django.contrib.messages",
-        "django.contrib.staticfiles",
-        "core.user.apps.UserConfig",
+        # ... existing apps
         "core.products.apps.ProductsConfig",  # Add this line
     )
 ```
-
-!!! note "Pydantic Settings"
-    The `installed_apps` is a Pydantic field that gets adapted to Django's `INSTALLED_APPS` via `PydanticSettingsAdapter`.
 
 ### Step 4: Create the Domain Model
 
@@ -76,7 +79,7 @@ class Product(models.Model):
         return f"Product(id={self.pk}, name={self.name})"
 ```
 
-### Step 5: Create the Service with Domain Exceptions
+### Step 5: Create Service with Domain Exceptions
 
 Create `src/core/products/services.py`:
 
@@ -92,12 +95,18 @@ class ProductNotFoundError(Exception):
 
 class ProductService:
     def get_product_by_id(self, product_id: int) -> Product:
+        """Retrieve a product by ID.
+
+        Raises:
+            ProductNotFoundError: If the product does not exist.
+        """
         try:
             return Product.objects.get(id=product_id)
         except Product.DoesNotExist as e:
             raise ProductNotFoundError(f"Product {product_id} not found") from e
 
     def list_products(self) -> list[Product]:
+        """Return all products."""
         return list(Product.objects.all())
 
     @transaction.atomic
@@ -107,6 +116,7 @@ class ProductService:
         description: str,
         price: float,
     ) -> Product:
+        """Create a new product."""
         return Product.objects.create(
             name=name,
             description=description,
@@ -121,6 +131,11 @@ class ProductService:
         description: str | None = None,
         price: float | None = None,
     ) -> Product:
+        """Update an existing product.
+
+        Raises:
+            ProductNotFoundError: If the product does not exist.
+        """
         product = self.get_product_by_id(product_id)
 
         if name is not None:
@@ -135,14 +150,16 @@ class ProductService:
 
     @transaction.atomic
     def delete_product(self, product_id: int) -> None:
+        """Delete a product.
+
+        Raises:
+            ProductNotFoundError: If the product does not exist.
+        """
         product = self.get_product_by_id(product_id)
         product.delete()
 ```
 
-!!! warning "Service Layer Rule"
-    Services are the **only** place where you should import and use Django models directly. Controllers must never import models.
-
-### Step 6: Register the Service in IoC
+### Step 6: Register Service in IoC
 
 Edit `src/ioc/registries/core.py`:
 
@@ -150,22 +167,23 @@ Edit `src/ioc/registries/core.py`:
 from punq import Container, Scope
 
 from core.products.services import ProductService
-# ... other imports ...
 
 
 def _register_services(container: Container) -> None:
-    # ... existing registrations ...
+    # ... existing registrations
     container.register(ProductService, scope=Scope.singleton)
 ```
 
-### Step 7: Create the Controller
+## Phase 2: Delivery Layer Setup
 
-Create the controller directory and file:
+### Step 7: Create Controller Directory
 
 ```bash
 mkdir -p src/delivery/http/products
 touch src/delivery/http/products/__init__.py
 ```
+
+### Step 8: Create Controller with Schemas
 
 Create `src/delivery/http/products/controllers.py`:
 
@@ -310,7 +328,7 @@ class ProductController(Controller):
         return super().handle_exception(exception)
 ```
 
-### Step 8: Register the Controller in IoC
+### Step 9: Register Controller in IoC
 
 Edit `src/ioc/registries/delivery.py`:
 
@@ -318,21 +336,19 @@ Edit `src/ioc/registries/delivery.py`:
 from punq import Container, Scope
 
 from delivery.http.products.controllers import ProductController
-# ... other imports ...
 
 
 def _register_http_controllers(container: Container) -> None:
-    # ... existing registrations ...
+    # ... existing registrations
     container.register(ProductController, scope=Scope.singleton)
 ```
 
-### Step 9: Update NinjaAPIFactory
+### Step 10: Update NinjaAPIFactory
 
-Edit `src/delivery/http/factories.py` to include the new controller:
+Edit `src/delivery/http/factories.py`:
 
 ```python
 from delivery.http.products.controllers import ProductController
-# ... other imports ...
 
 
 class NinjaAPIFactory:
@@ -354,7 +370,7 @@ class NinjaAPIFactory:
         self,
         urls_namespace: str | None = None,
     ) -> NinjaAPI:
-        # ... existing code ...
+        # ... existing code
 
         # Add product router
         product_router = Router(tags=["products"])
@@ -364,24 +380,16 @@ class NinjaAPIFactory:
         return ninja_api
 ```
 
-### Step 10: Create and Run Migrations
+## Phase 3: Finalization
+
+### Step 11: Create and Run Migrations
 
 ```bash
-# Create migrations
 make makemigrations
-
-# Apply migrations
 make migrate
 ```
 
-### Step 11: Create Tests
-
-Create test directory and files:
-
-```bash
-mkdir -p tests/integration/http/products
-touch tests/integration/http/products/__init__.py
-```
+### Step 12: Create Tests
 
 Create `tests/integration/http/products/test_products.py`:
 
@@ -455,28 +463,35 @@ def test_get_product_not_found(
     assert response.status_code == HTTPStatus.NOT_FOUND
 ```
 
-### Step 12: Run Tests
+## Verification Commands
+
+After completing all steps:
 
 ```bash
+# Format code
+make format
+
+# Run linters
+make lint
+
+# Run tests
 make test
+
+# Start dev server
+make dev
 ```
 
-## Summary
+## Summary Checklist
 
-You have now added a complete new domain with:
-
-- [x] Django model in `core/products/models.py`
-- [x] Service layer in `core/products/services.py`
-- [x] Domain exceptions (`ProductNotFoundError`)
-- [x] HTTP controller in `delivery/http/products/controllers.py`
-- [x] IoC registrations for service and controller
-- [x] API routes with authentication and rate limiting
-- [x] Integration tests
-
-The data flow follows the architecture:
-
-```
-HTTP Request -> Controller -> Service -> Model -> Database
-```
-
-Controllers never import models directly - they only interact with services.
+- [ ] `src/core/<domain>/__init__.py` created
+- [ ] `src/core/<domain>/apps.py` created with AppConfig
+- [ ] `src/core/configs/core.py` updated with new app
+- [ ] `src/core/<domain>/models.py` created
+- [ ] `src/core/<domain>/services.py` created with exceptions
+- [ ] `src/ioc/registries/core.py` updated with service registration
+- [ ] `src/delivery/http/<domain>/__init__.py` created
+- [ ] `src/delivery/http/<domain>/controllers.py` created
+- [ ] `src/ioc/registries/delivery.py` updated with controller registration
+- [ ] `src/delivery/http/factories.py` updated with new controller
+- [ ] Migrations created and applied
+- [ ] Tests written and passing

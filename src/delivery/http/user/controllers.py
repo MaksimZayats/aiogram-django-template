@@ -11,7 +11,7 @@ from pydantic import BaseModel, EmailStr
 
 from core.user.services import UserService
 from infrastructure.delivery.controllers import Controller
-from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuth
+from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuthFactory
 from infrastructure.django.refresh_sessions.services import (
     ExpiredRefreshTokenError,
     InvalidRefreshTokenError,
@@ -40,12 +40,12 @@ class TokenResponseSchema(BaseModel):
 class UserTokenController(Controller):
     def __init__(
         self,
-        jwt_auth: JWTAuth,
+        jwt_auth_factory: JWTAuthFactory,
         jwt_service: JWTService,
         refresh_token_service: RefreshSessionService,
         user_service: UserService,
     ) -> None:
-        self._jwt_auth = jwt_auth
+        self._jwt_auth = jwt_auth_factory()
         self._jwt_service = jwt_service
         self._refresh_token_service = refresh_token_service
         self._user_service = user_service
@@ -175,10 +175,10 @@ class UserSchema(BaseModel):
 class UserController(Controller):
     def __init__(
         self,
-        jwt_auth: JWTAuth,
+        jwt_auth_factory: JWTAuthFactory,
         user_service: UserService,
     ) -> None:
-        self._jwt_auth = jwt_auth
+        self._jwt_auth = jwt_auth_factory()
         self._user_service = user_service
 
     def register(self, registry: Router) -> None:
