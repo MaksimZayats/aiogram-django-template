@@ -217,7 +217,13 @@ class UserController(Controller):
         self._jwt_auth = jwt_auth
 
     def register(self, registry: Router) -> None:
-        registry.add_api_operation("/v1/users/me", ["GET"], self.get_me, auth=self._jwt_auth)
+        registry.add_api_operation(
+            path="/v1/users/me",
+            methods=["GET"],
+            view_func=self.get_me,
+            response=UserSchema,
+            auth=self._jwt_auth,
+        )
 ```
 
 ### Celery Task Controller Registration

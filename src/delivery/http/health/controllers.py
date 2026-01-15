@@ -29,6 +29,7 @@ class HealthController(Controller):
             path="/v1/health",
             methods=["GET"],
             view_func=self.health_check,
+            response=HealthCheckResponseSchema,
             auth=None,
         )
 

@@ -104,6 +104,7 @@ class TodoController(Controller):
             path="/v1/todos/",
             methods=["GET"],
             view_func=self.list_todos,
+            response=TodoListSchema,
             auth=self._jwt_auth,
             throttle=AuthRateThrottle(rate="60/min"),
         )
@@ -112,6 +113,7 @@ class TodoController(Controller):
             path="/v1/todos/",
             methods=["POST"],
             view_func=self.create_todo,
+            response=TodoSchema,
             auth=self._jwt_auth,
             throttle=AuthRateThrottle(rate="30/min"),
         )
@@ -120,6 +122,7 @@ class TodoController(Controller):
             path="/v1/todos/{todo_id}",
             methods=["GET"],
             view_func=self.get_todo,
+            response=TodoSchema,
             auth=self._jwt_auth,
             throttle=AuthRateThrottle(rate="60/min"),
         )
@@ -128,6 +131,7 @@ class TodoController(Controller):
             path="/v1/todos/{todo_id}/complete",
             methods=["POST"],
             view_func=self.complete_todo,
+            response=TodoSchema,
             auth=self._jwt_auth,
             throttle=AuthRateThrottle(rate="30/min"),
         )
@@ -245,6 +249,7 @@ def register(self, registry: Router) -> None:
         path="/v1/todos/",
         methods=["GET"],
         view_func=self.list_todos,
+        response=TodoListSchema,
         auth=self._jwt_auth,
         throttle=AuthRateThrottle(rate="60/min"),
     )
@@ -255,6 +260,7 @@ Each endpoint specifies:
 - **path**: The URL path
 - **methods**: HTTP methods (GET, POST, etc.)
 - **view_func**: The handler method
+- **response**: The Pydantic schema for the response (for API documentation)
 - **auth**: Authentication backend (JWT in this case)
 - **throttle**: Rate limiting configuration
 

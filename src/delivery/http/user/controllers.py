@@ -55,6 +55,7 @@ class UserTokenController(Controller):
             path="/v1/users/me/token",
             methods=["POST"],
             view_func=self.issue_user_token,
+            response=TokenResponseSchema,
             auth=None,
             throttle=AnonRateThrottle(rate="5/min"),
         )
@@ -63,6 +64,7 @@ class UserTokenController(Controller):
             path="/v1/users/me/token/refresh",
             methods=["POST"],
             view_func=self.refresh_user_token,
+            response=TokenResponseSchema,
             auth=None,
             throttle=AnonRateThrottle(rate="5/min"),
         )
@@ -184,6 +186,7 @@ class UserController(Controller):
             path="/v1/users/",
             methods=["POST"],
             view_func=self.create_user,
+            response=UserSchema,
             auth=None,
             throttle=AnonRateThrottle(rate="30/min"),
         )
@@ -192,6 +195,7 @@ class UserController(Controller):
             path="/v1/users/me",
             methods=["GET"],
             view_func=self.get_current_user,
+            response=UserSchema,
             auth=self._jwt_auth,
             throttle=AuthRateThrottle(rate="30/min"),
         )

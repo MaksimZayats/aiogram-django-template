@@ -22,6 +22,7 @@ class HealthController(Controller):
             path="/v1/health",
             methods=["GET"],
             view_func=self.health_check,
+            response=HealthCheckResponseSchema,
             auth=None,
         )
 
@@ -105,6 +106,7 @@ class UserController(Controller):
             path="/v1/users/",
             methods=["POST"],
             view_func=self.create_user,
+            response=UserSchema,
             auth=None,
             throttle=AnonRateThrottle(rate="30/min"),
         )
@@ -113,6 +115,7 @@ class UserController(Controller):
             path="/v1/users/me",
             methods=["GET"],
             view_func=self.get_current_user,
+            response=UserSchema,
             auth=self._jwt_auth,
             throttle=AuthRateThrottle(rate="30/min"),
         )
@@ -212,12 +215,14 @@ class ItemController(Controller):
             path="/v1/items",
             methods=["GET"],
             view_func=self.list_items,
+            response=list[ItemSchema],
             auth=self._jwt_auth,
         )
         registry.add_api_operation(
             path="/v1/items/{item_id}",
             methods=["GET"],
             view_func=self.get_item,
+            response=ItemSchema,
             auth=self._jwt_auth,
         )
 
@@ -277,6 +282,7 @@ class HealthController(Controller):
             path="/v1/health",
             methods=["GET"],
             view_func=self.health_check,
+            response=HealthCheckResponseSchema,
             auth=None,
         )
 
