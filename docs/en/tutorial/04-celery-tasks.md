@@ -1,10 +1,14 @@
 # Step 4: Celery Tasks
 
-In this step, you'll create a background task to clean up old completed todos automatically.
+In this step, we will create a background task that automatically cleans up completed todos. This demonstrates how to integrate Celery tasks with the service layer and IoC container.
 
-> **See also:** [Controller Pattern concept](../concepts/controller-pattern.md)
+## What You Will Build
 
-## Files to Create/Modify
+- A `TodoCleanupTaskController` that removes completed todos older than 7 days
+- A typed task registry entry for type-safe task invocation
+- A scheduled task that runs daily at 3 AM
+
+## Files Overview
 
 | Action | File Path |
 |--------|-----------|
@@ -13,12 +17,13 @@ In this step, you'll create a background task to clean up old completed todos au
 | Modify | `src/ioc/registries/delivery.py` |
 | Modify | `src/delivery/tasks/factories.py` |
 
-## 1. Add Task Name to Registry
+---
 
-First, add the task name to the `TaskName` enum:
+## Step 4.1: Add the Task Name
 
-```python
-# src/delivery/tasks/registry.py
+First, add a new task name to the `TaskName` enum. This provides a centralized registry of all task names and prevents typos.
+
+```python title="src/delivery/tasks/registry.py" hl_lines="6 12-14"
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
@@ -28,35 +33,39 @@ from infrastructure.celery.registry import BaseTasksRegistry
 
 if TYPE_CHECKING:
     from delivery.tasks.tasks.ping import PingResult
-    from delivery.tasks.tasks.todo_cleanup import TodoCleanupResult  # Add this
+    from delivery.tasks.tasks.todo_cleanup import TodoCleanupResult
 
 
 class TaskName(StrEnum):
     PING = "ping"
-    TODO_CLEANUP = "todo.cleanup"  # Add this
+    TODO_CLEANUP = "todo.cleanup"
 
 
 class TasksRegistry(BaseTasksRegistry):
     @property
-    def ping(self) -> Task[[], "PingResult"]:
+    def ping(self) -> Task[[], PingResult]:
         return self._get_task_by_name(TaskName.PING)
 
     @property
-    def todo_cleanup(self) -> Task[[int], "TodoCleanupResult"]:  # Add this
+    def todo_cleanup(self) -> Task[[], TodoCleanupResult]:
         return self._get_task_by_name(TaskName.TODO_CLEANUP)
 ```
 
-The typed properties provide IDE completion and type safety when calling tasks.
+!!! info "Type-Safe Task Registry"
+    The `TasksRegistry` provides typed properties for each task. This enables IDE autocompletion and type checking when calling tasks, preventing runtime errors from typos in task names.
 
-## 2. Create the Task Controller
+---
 
-Create the task controller with its result type:
+## Step 4.2: Create the Task Controller
 
-```python
-# src/delivery/tasks/tasks/todo_cleanup.py
-from typing import Literal, TypedDict
+Create the task controller that implements the cleanup logic. Notice how the controller receives `TodoService` through dependency injection.
+
+```python title="src/delivery/tasks/tasks/todo_cleanup.py"
+from datetime import timedelta
+from typing import TypedDict
 
 from celery import Celery
+from django.utils import timezone
 
 from core.todo.services import TodoService
 from delivery.tasks.registry import TaskName
@@ -64,7 +73,6 @@ from infrastructure.delivery.controllers import Controller
 
 
 class TodoCleanupResult(TypedDict):
-    status: Literal["success"]
     deleted_count: int
 
 
@@ -75,83 +83,173 @@ class TodoCleanupTaskController(Controller):
     def register(self, registry: Celery) -> None:
         registry.task(name=TaskName.TODO_CLEANUP)(self.cleanup)
 
-    def cleanup(self, days: int = 30) -> TodoCleanupResult:
-        """Delete completed todos older than N days."""
-        deleted_count = self._todo_service.delete_completed_todos_older_than(
-            days=days,
-        )
-        return TodoCleanupResult(
-            status="success",
-            deleted_count=deleted_count,
-        )
+    def cleanup(self) -> TodoCleanupResult:
+        """Delete completed todos older than 7 days."""
+        cutoff_date = timezone.now() - timedelta(days=7)
+        deleted_count = self._todo_service.delete_completed_before(cutoff_date)
+
+        return TodoCleanupResult(deleted_count=deleted_count)
 ```
 
-**Key patterns:**
+!!! warning "Service Layer Required"
+    Controllers must **never** import models directly. The `TodoCleanupTaskController` uses `TodoService` to perform database operations, following the service layer architecture.
 
-- **TypedDict result** - Provides type safety for task results
-- **Service injection** - `TodoService` is injected via constructor
-- **Controller pattern** - Same pattern as HTTP controllers
-- **Named task** - Uses `TaskName` enum for consistency
+---
 
-## 3. Register Controller in IoC
+## Step 4.3: Add the Service Method
 
-Add the controller registration to `src/ioc/registries/delivery.py`:
+Add the `delete_completed_before` method to your `TodoService`.
 
-```python
-# src/ioc/registries/delivery.py
-# Add this import at the top
+```python title="src/core/todo/services.py" hl_lines="4 26-30"
+from datetime import datetime
+
+from django.db import transaction
+from django.db.models import QuerySet
+
+from core.todo.models import Todo
+
+
+class TodoNotFoundError(Exception):
+    """Raised when a todo is not found."""
+
+
+class TodoService:
+    def get_todo_by_id(self, todo_id: int, user_id: int) -> Todo:
+        try:
+            return Todo.objects.get(id=todo_id, user_id=user_id)
+        except Todo.DoesNotExist as e:
+            raise TodoNotFoundError(f"Todo {todo_id} not found") from e
+
+    def list_todos_for_user(self, user_id: int) -> QuerySet[Todo]:
+        return Todo.objects.filter(user_id=user_id)
+
+    @transaction.atomic
+    def create_todo(self, title: str, user_id: int, description: str = "") -> Todo:
+        return Todo.objects.create(title=title, description=description, user_id=user_id)
+
+    @transaction.atomic
+    def delete_completed_before(self, cutoff_date: datetime) -> int:
+        """Delete all completed todos before the cutoff date."""
+        deleted, _ = Todo.objects.filter(
+            is_completed=True,
+            updated_at__lt=cutoff_date,
+        ).delete()
+        return deleted
+```
+
+---
+
+## Step 4.4: Register the Controller in IoC
+
+Register the new controller in the IoC container so it can be resolved with its dependencies.
+
+```python title="src/ioc/registries/delivery.py" hl_lines="14 47"
+from punq import Container, Scope
+
+from delivery.bot.bot_factory import BotFactory
+from delivery.bot.controllers.commands import CommandsController
+from delivery.bot.controllers.events import LifecycleEventsController
+from delivery.bot.dispatcher_factory import DispatcherFactory
+from delivery.bot.settings import TelegramBotSettings
+from delivery.http.factories import AdminSiteFactory, NinjaAPIFactory, URLPatternsFactory
+from delivery.http.health.controllers import HealthController
+from delivery.http.user.controllers import UserController, UserTokenController
+from delivery.tasks.factories import CeleryAppFactory, TasksRegistryFactory
+from delivery.tasks.settings import CelerySettings
+from delivery.tasks.tasks.ping import PingTaskController
 from delivery.tasks.tasks.todo_cleanup import TodoCleanupTaskController
 
-# Add this line in _register_celery_controllers()
+
+def register_delivery(container: Container) -> None:
+    _register_http(container)
+    _register_http_controllers(container)
+
+    _register_celery(container)
+    _register_celery_controllers(container)
+
+    _register_bot(container)
+    _register_bot_controllers(container)
+
+
+def _register_http(container: Container) -> None:
+    container.register(NinjaAPIFactory, scope=Scope.singleton)
+    container.register(AdminSiteFactory, scope=Scope.singleton)
+    container.register(URLPatternsFactory, scope=Scope.singleton)
+
+
+def _register_http_controllers(container: Container) -> None:
+    container.register(HealthController, scope=Scope.singleton)
+    container.register(UserController, scope=Scope.singleton)
+    container.register(UserTokenController, scope=Scope.singleton)
+
+
+def _register_celery(container: Container) -> None:
+    container.register(CelerySettings, factory=lambda: CelerySettings(), scope=Scope.singleton)
+    container.register(CeleryAppFactory, scope=Scope.singleton)
+    container.register(TasksRegistryFactory, scope=Scope.singleton)
+
+
 def _register_celery_controllers(container: Container) -> None:
     container.register(PingTaskController, scope=Scope.singleton)
-    container.register(TodoCleanupTaskController, scope=Scope.singleton)  # Add this
+    container.register(TodoCleanupTaskController, scope=Scope.singleton)
+
+
+# ... rest of bot registrations
 ```
 
-## 4. Update TasksRegistryFactory
+!!! note "Automatic Dependency Resolution"
+    The IoC container automatically resolves `TodoService` when creating `TodoCleanupTaskController` because `TodoService` was registered in `src/ioc/registries/core.py` (Step 2).
 
-Modify `src/delivery/tasks/factories.py` to inject and register the controller:
+---
 
-```python
-# src/delivery/tasks/factories.py
-# Add import at the top
+## Step 4.5: Update the Tasks Registry Factory
+
+Inject the new controller into `TasksRegistryFactory` and register it with Celery.
+
+```python title="src/delivery/tasks/factories.py" hl_lines="8 10 58 65-66 74"
+from celery import Celery
+from celery.schedules import crontab
+
+from core.configs.core import RedisSettings
+from core.configs.django import application_settings
+from delivery.tasks.registry import TaskName, TasksRegistry
+from delivery.tasks.settings import CelerySettings
+from delivery.tasks.tasks.ping import PingTaskController
 from delivery.tasks.tasks.todo_cleanup import TodoCleanupTaskController
 
-class TasksRegistryFactory:
+
+class CeleryAppFactory:
     def __init__(
         self,
-        celery_app: Celery,
-        ping_controller: PingTaskController,
-        todo_cleanup_controller: TodoCleanupTaskController,  # Add this
+        settings: CelerySettings,
+        redis_settings: RedisSettings,
     ) -> None:
-        self._instance: TasksRegistry | None = None
-        self._celery_app = celery_app
-        self._ping_controller = ping_controller
-        self._todo_cleanup_controller = todo_cleanup_controller  # Add this
+        self._instance: Celery | None = None
+        self._settings = settings
+        self._redis_settings = redis_settings
 
-    def __call__(self) -> TasksRegistry:
+    def __call__(self) -> Celery:
         if self._instance is not None:
             return self._instance
 
-        registry = TasksRegistry(app=self._celery_app)
-        self._ping_controller.register(self._celery_app)
-        self._todo_cleanup_controller.register(self._celery_app)  # Add this
+        celery_app = Celery(
+            "main",
+            broker=self._redis_settings.redis_url.get_secret_value(),
+            backend=self._redis_settings.redis_url.get_secret_value(),
+        )
 
-        self._instance = registry
+        self._configure_app(celery_app=celery_app)
+        self._configure_beat_schedule(celery_app=celery_app)
+
+        self._instance = celery_app
         return self._instance
-```
 
-## 5. Add Beat Schedule
-
-Add the task to the beat schedule in `CeleryAppFactory`:
-
-```python
-# src/delivery/tasks/factories.py
-from celery.schedules import crontab
-from delivery.tasks.registry import TaskName
-
-class CeleryAppFactory:
-    # ... existing code ...
+    def _configure_app(self, celery_app: Celery) -> None:
+        celery_app.conf.update(
+            timezone=application_settings.time_zone,
+            enable_utc=True,
+            **self._settings.model_dump(),
+        )
 
     def _configure_beat_schedule(self, celery_app: Celery) -> None:
         celery_app.conf.beat_schedule = {
@@ -159,29 +257,67 @@ class CeleryAppFactory:
                 "task": TaskName.PING,
                 "schedule": 60.0,
             },
-            "todo-cleanup-daily": {  # Add this
+            "todo-cleanup-daily": {
                 "task": TaskName.TODO_CLEANUP,
-                "schedule": crontab(hour=3, minute=0),  # Daily at 3 AM
-                "kwargs": {"days": 30},
+                "schedule": crontab(hour=3, minute=0),
             },
         }
+
+
+class TasksRegistryFactory:
+    def __init__(
+        self,
+        celery_app_factory: CeleryAppFactory,
+        ping_controller: PingTaskController,
+        todo_cleanup_controller: TodoCleanupTaskController,
+    ) -> None:
+        self._instance: TasksRegistry | None = None
+        self._celery_app_factory = celery_app_factory
+        self._ping_controller = ping_controller
+        self._todo_cleanup_controller = todo_cleanup_controller
+
+    def __call__(self) -> TasksRegistry:
+        if self._instance is not None:
+            return self._instance
+
+        celery_app = self._celery_app_factory()
+        registry = TasksRegistry(app=celery_app)
+        self._ping_controller.register(celery_app)
+        self._todo_cleanup_controller.register(celery_app)
+
+        self._instance = registry
+        return self._instance
 ```
 
-## 6. Test the Task
+---
 
-### Start Celery Worker
+## Understanding Celery Beat Schedule
 
-```bash
-make celery-dev
-```
+The `crontab(hour=3, minute=0)` schedule runs the task daily at 3:00 AM (server timezone).
 
-### Call Task Manually
+| Schedule Expression | Meaning |
+|---------------------|---------|
+| `crontab()` | Every minute |
+| `crontab(minute=0)` | Every hour |
+| `crontab(hour=3, minute=0)` | Daily at 3:00 AM |
+| `crontab(hour=3, minute=0, day_of_week=1)` | Every Monday at 3:00 AM |
+| `60.0` | Every 60 seconds |
 
-In another terminal:
+!!! tip "Running Celery Beat"
+    To run the scheduler, use:
+    ```bash
+    celery -A delivery.tasks.app beat --loglevel=info
+    ```
+    Or with the worker:
+    ```bash
+    celery -A delivery.tasks.app worker --beat --loglevel=info
+    ```
 
-```bash
-uv run python src/manage.py shell
-```
+---
+
+## Invoking Tasks Manually
+
+You can invoke the cleanup task manually using the typed registry:
 
 ```python
 from ioc.container import get_container
@@ -190,54 +326,34 @@ from delivery.tasks.registry import TasksRegistry
 container = get_container()
 registry = container.resolve(TasksRegistry)
 
-# Call the task synchronously (for testing)
-result = registry.todo_cleanup.delay(days=0).get(timeout=10)
-print(result)  # {'status': 'success', 'deleted_count': 0}
+# Async invocation (returns immediately)
+result = registry.todo_cleanup.delay()
+print(f"Task ID: {result.id}")
+
+# Sync invocation (blocks until complete)
+result = registry.todo_cleanup.apply().get()
+print(f"Deleted {result['deleted_count']} todos")
 ```
 
-### Using the Task in Production
+---
 
-```python
-# Async call (returns immediately, task runs in background)
-registry.todo_cleanup.delay(days=30)
+## Summary
 
-# Sync call with timeout
-result = registry.todo_cleanup.delay(days=30).get(timeout=60)
+You have learned how to:
 
-# ETA (run at specific time)
-from datetime import datetime, timedelta
-registry.todo_cleanup.apply_async(
-    kwargs={"days": 30},
-    eta=datetime.now() + timedelta(hours=1),
-)
-```
+- Create a Celery task controller that follows the service layer pattern
+- Add typed properties to the task registry for type-safe invocation
+- Register task controllers in the IoC container
+- Configure scheduled tasks with Celery Beat
 
-## Understanding Celery Beat
+---
 
-Celery Beat is a scheduler that runs tasks at specified intervals:
+## Next Steps
 
-| Schedule Type | Example | Description |
-|---------------|---------|-------------|
-| `float` | `60.0` | Every 60 seconds |
-| `crontab(minute=0)` | Hourly | At minute 0 of every hour |
-| `crontab(hour=3, minute=0)` | Daily | At 3:00 AM every day |
-| `crontab(day_of_week=1)` | Weekly | Every Monday |
+Continue to [Step 5: Observability](05-observability.md) to add tracing and monitoring.
 
-To run beat scheduler:
+---
 
-```bash
-uv run celery -A delivery.tasks.app beat --loglevel=info
-```
-
-## What You've Learned
-
-In this step, you:
-
-1. Created a typed task controller following the same pattern as HTTP controllers
-2. Registered the task in the IoC container
-3. Added a beat schedule for automatic execution
-4. Learned how to call tasks synchronously and asynchronously
-
-## Next Step
-
-In [Step 5: Observability](05-observability.md), you'll set up Logfire for tracing and monitoring.
+!!! abstract "See Also"
+    - [Controller Pattern](../concepts/controller-pattern.md) - Deep dive into the controller architecture
+    - [Add Celery Task](../how-to/add-celery-task.md) - Quick reference for adding new tasks

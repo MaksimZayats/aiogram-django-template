@@ -1,259 +1,324 @@
 # Development Environment
 
-Configure your IDE and development tools for an optimal workflow.
+Configure your development environment for the best experience with the Modern Django API Template.
 
 ## IDE Setup
 
-### VS Code
+### Visual Studio Code
 
-Install recommended extensions:
+VS Code provides excellent Python support with the right extensions.
 
-```bash
-# Install extensions
-code --install-extension ms-python.python
-code --install-extension ms-python.vscode-pylance
-code --install-extension charliermarsh.ruff
-```
+#### Recommended Extensions
 
-Create `.vscode/settings.json`:
+Install these extensions for the best experience:
+
+- **Python** (`ms-python.python`) - Core Python support
+- **Pylance** (`ms-python.vscode-pylance`) - Fast, feature-rich language server
+- **Ruff** (`charliermarsh.ruff`) - Fast linting and formatting
+- **Even Better TOML** (`tamasfe.even-better-toml`) - TOML file support
+
+#### Workspace Settings
+
+Create or update `.vscode/settings.json`:
 
 ```json
 {
-    "python.defaultInterpreterPath": ".venv/bin/python",
-    "python.analysis.typeCheckingMode": "strict",
-    "python.analysis.extraPaths": ["src"],
-    "[python]": {
-        "editor.defaultFormatter": "charliermarsh.ruff",
-        "editor.formatOnSave": true,
-        "editor.codeActionsOnSave": {
-            "source.fixAll.ruff": "explicit",
-            "source.organizeImports.ruff": "explicit"
-        }
-    },
-    "ruff.lint.args": ["--config=pyproject.toml"],
-    "ruff.format.args": ["--config=pyproject.toml"]
+  "python.defaultInterpreterPath": ".venv/bin/python",
+  "python.analysis.typeCheckingMode": "strict",
+  "python.analysis.extraPaths": ["src", "typings"],
+
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    }
+  },
+
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    ".mypy_cache": true,
+    ".pytest_cache": true,
+    ".ruff_cache": true
+  }
 }
 ```
 
-### PyCharm
+### PyCharm / IntelliJ IDEA
 
-1. **Set Python interpreter**: Settings → Project → Python Interpreter → Select `.venv/bin/python`
-2. **Mark `src` as Sources Root**: Right-click `src/` → Mark Directory as → Sources Root
-3. **Enable Ruff**: Install the Ruff plugin from the marketplace
-4. **Configure Django**: Settings → Languages & Frameworks → Django → Enable Django Support
+PyCharm provides built-in support for most features.
 
-## Code Quality Tools
+#### Project Configuration
 
-The project uses several tools for code quality:
+1. **Set Python Interpreter**
+   - Go to `Settings` > `Project` > `Python Interpreter`
+   - Select the interpreter from `.venv/bin/python`
 
-| Tool | Purpose | Command |
-|------|---------|---------|
-| **ruff** | Linting & formatting | `make format`, `make lint` |
-| **mypy** | Static type checking | `make lint` |
-| **ty** | Type checker | `make lint` |
-| **pytest** | Testing | `make test` |
+2. **Configure Source Roots**
+   - Right-click `src/` directory
+   - Select `Mark Directory as` > `Sources Root`
+   - Right-click `typings/` directory
+   - Select `Mark Directory as` > `Sources Root`
 
-### Running Quality Checks
+3. **Enable Django Support**
+   - Go to `Settings` > `Languages & Frameworks` > `Django`
+   - Enable Django support
+   - Set Django project root to the repository root
+   - Set Settings to `core.configs.django`
+
+4. **Configure Ruff**
+   - Go to `Settings` > `Tools` > `Ruff`
+   - Enable Ruff as external tool
+   - Configure format on save
+
+## Type Checking
+
+The project uses multiple type checkers for comprehensive coverage.
+
+### mypy
+
+mypy is the primary type checker, configured in `pyproject.toml`:
+
+```toml
+[tool.mypy]
+python_version = "3.14"
+strict = true
+mypy_path = "typings"
+plugins = ["mypy_django_plugin.main"]
+```
+
+Run mypy manually:
 
 ```bash
-# Format code (auto-fix)
-make format
+uv run mypy src/ tests/
+```
 
-# Run all linters
+### ty
+
+ty is a fast type checker that complements mypy:
+
+```bash
+uv run ty check .
+```
+
+### pyrefly
+
+pyrefly provides additional static analysis:
+
+```bash
+uv run pyrefly check src/
+```
+
+### Running All Type Checkers
+
+Use the lint command to run all checks:
+
+```bash
 make lint
-
-# Run tests with coverage
-make test
 ```
 
-### Pre-commit Hooks (Optional)
+This runs:
 
-Install pre-commit to run checks automatically:
+1. `ruff check .` - Linting
+2. `ty check .` - Type checking (ty)
+3. `pyrefly check src/` - Static analysis
+4. `mypy src/ tests/` - Type checking (mypy)
+
+## Linting with Ruff
+
+[Ruff](https://docs.astral.sh/ruff/) is an extremely fast Python linter and formatter.
+
+### Format Code
 
 ```bash
-# Install pre-commit
-uv pip install pre-commit
+make format
+```
 
-# Create .pre-commit-config.yaml
-cat > .pre-commit-config.yaml << 'EOF'
+This runs:
+
+```bash
+uv run ruff format .
+uv run ruff check --fix-only .
+```
+
+### Check Without Fixing
+
+```bash
+uv run ruff check .
+```
+
+!!! tip "Editor Integration"
+    With the Ruff VS Code extension, formatting happens automatically on save. This is the recommended workflow.
+
+## Pre-commit Hooks
+
+The project includes pre-commit hooks for automated quality checks.
+
+### Installation
+
+```bash
+uv run pre-commit install
+```
+
+### Configuration
+
+The hooks are defined in `.pre-commit-config.yaml`:
+
+```yaml
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.6
+  - repo: builtin
     hooks:
-      - id: ruff
-        args: [--fix]
-      - id: ruff-format
-EOF
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: end-of-file-fixer
+      - id: check-added-large-files
 
-# Install hooks
-pre-commit install
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.9.24
+    hooks:
+      - id: uv-lock
 ```
 
-## Database Tools
+### What the Hooks Do
 
-### pgAdmin (Optional)
+| Hook | Purpose |
+|------|---------|
+| `check-yaml` | Validates YAML syntax |
+| `check-json` | Validates JSON syntax |
+| `check-toml` | Validates TOML syntax |
+| `end-of-file-fixer` | Ensures files end with newline |
+| `check-added-large-files` | Prevents committing large files |
+| `uv-lock` | Ensures `uv.lock` is up to date |
 
-For visual database management:
+### Running Manually
+
+Run hooks on all files:
 
 ```bash
-# Add to docker-compose.yml
-docker compose up -d pgadmin
+uv run pre-commit run --all-files
 ```
 
-Access at [http://localhost:5050](http://localhost:5050)
-
-### Django Shell
-
-Interactive Python shell with Django context:
-
-```bash
-uv run python src/manage.py shell
-```
-
-Example usage:
-
-```python
-from core.user.models import User
-User.objects.all()
-```
-
-## Testing Workflow
+## Testing
 
 ### Running Tests
 
 ```bash
-# Run all tests
 make test
-
-# Run specific test file
-uv run pytest tests/integration/http/test_v1_users.py -v
-
-# Run specific test
-uv run pytest tests/integration/http/test_v1_users.py::test_create_user -v
-
-# Run with coverage report
-uv run pytest --cov=src --cov-report=html
 ```
 
-### Debugging Tests
+This runs pytest with coverage:
 
-In VS Code, create `.vscode/launch.json`:
+```bash
+uv run pytest tests/
+```
 
-```json
-{
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Debug Tests",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "pytest",
-            "args": ["-v", "${file}"],
-            "cwd": "${workspaceFolder}",
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}/src"
-            }
-        },
-        {
-            "name": "Debug Django Server",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/manage.py",
-            "args": ["runserver", "--noreload"],
-            "django": true,
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}/src"
-            }
-        }
-    ]
-}
+### Test Configuration
+
+Tests are configured in `pyproject.toml`:
+
+```toml
+[tool.pytest.ini_options]
+minversion = "9.0"
+DJANGO_SETTINGS_MODULE = "core.configs.django"
+addopts = "--exitfirst -vv --cov=src --cov-report=html --cov-fail-under=80"
+testpaths = ["tests"]
+```
+
+Key settings:
+
+- **`--exitfirst`** - Stop on first failure for faster feedback
+- **`--cov=src`** - Measure coverage for `src/` directory
+- **`--cov-fail-under=80`** - Require 80% minimum coverage
+
+### Coverage Report
+
+After running tests, open the HTML coverage report:
+
+```bash
+open htmlcov/index.html
 ```
 
 ## Environment Variables
 
 ### Local Development
 
-The `.env` file is used for local development. Key variables:
+Copy the example file and customize:
 
 ```bash
-# Django
-DJANGO_DEBUG=true
-DJANGO_SECRET_KEY=your-secret-key
-
-# Database
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/app
-
-# Redis
-REDIS_URL=redis://localhost:6379
-
-# JWT
-JWT_SECRET_KEY=your-jwt-secret
-
-# Logfire (optional)
-LOGFIRE_ENABLED=false
+cp .env.example .env
 ```
 
 ### Test Environment
 
-Tests use `.env.test` which is loaded automatically:
+Tests use `.env.test` which is loaded automatically by `tests/conftest.py`.
 
-```bash
-# Minimal test configuration
-DJANGO_DEBUG=true
-DJANGO_SECRET_KEY=test-secret-key
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/test_app
-REDIS_URL=redis://localhost:6379
-JWT_SECRET_KEY=test-jwt-secret
+!!! warning "Secrets"
+    Never commit `.env` files with real secrets. The `.gitignore` excludes `.env` but not `.env.example`.
+
+## Useful Commands
+
+| Command | Description |
+|---------|-------------|
+| `make dev` | Run development server |
+| `make celery-dev` | Run Celery worker |
+| `make celery-beat-dev` | Run Celery beat scheduler |
+| `make bot-dev` | Run Telegram bot |
+| `make format` | Format code with Ruff |
+| `make lint` | Run all linters and type checkers |
+| `make test` | Run tests with coverage |
+| `make makemigrations` | Create new migrations |
+| `make migrate` | Apply migrations |
+| `make docs` | Serve documentation locally |
+
+## Debugging
+
+### VS Code Debugging
+
+Create `.vscode/launch.json`:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Django: Runserver",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/manage.py",
+      "args": ["runserver"],
+      "django": true,
+      "env": {
+        "DJANGO_DEBUG": "true"
+      }
+    },
+    {
+      "name": "Pytest: Current File",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["${file}", "-vv"],
+      "env": {
+        "DJANGO_SETTINGS_MODULE": "core.configs.django"
+      }
+    }
+  ]
+}
 ```
 
-## Common Development Tasks
+### PyCharm Debugging
 
-### Database Operations
-
-```bash
-# Create migrations
-make makemigrations
-
-# Apply migrations
-make migrate
-
-# Create superuser
-uv run python src/manage.py createsuperuser
-
-# Reset database (dangerous!)
-docker compose down -v postgres
-docker compose up -d postgres
-make migrate
-```
-
-### Celery Operations
-
-```bash
-# Start worker with auto-reload
-make celery-dev
-
-# Start beat scheduler
-uv run celery -A delivery.tasks.app beat --loglevel=info
-
-# Monitor tasks
-uv run celery -A delivery.tasks.app flower
-```
-
-### API Development
-
-```bash
-# Start server with auto-reload
-make dev
-
-# Access API docs
-open http://localhost:8000/docs
-
-# Access admin
-open http://localhost:8000/admin
-```
+1. Create a Django Server run configuration
+2. Set the script to `manage.py`
+3. Set parameters to `runserver`
+4. Enable Django support in the configuration
 
 ## Next Steps
 
-- [Quick Start](quick-start.md) - Run the application
-- [Project Structure](project-structure.md) - Understand the codebase
-- [Tutorial](../tutorial/index.md) - Build your first feature
+With your environment configured, you are ready to:
+
+- **[Tutorial: Build a Todo List](../tutorial/index.md)** - Learn by building
+- **[Add a New Domain](../how-to/add-new-domain.md)** - Create your first feature
+- **[Service Layer](../concepts/service-layer.md)** - Understand the architecture

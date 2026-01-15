@@ -1,72 +1,169 @@
 # Factory Pattern
 
-Factories create and configure complex objects. They encapsulate the construction logic and receive dependencies via injection.
+Factories encapsulate complex object construction, especially when objects require configuration, caching, or composition of multiple dependencies. This pattern is essential for creating framework-specific objects like Django-Ninja APIs, Celery apps, and aiogram dispatchers.
 
 ## Why Factories?
 
-Some objects require:
+### 1. Complex Object Construction
 
-- Multiple dependencies
-- Configuration from settings
-- Complex initialization logic
-- Framework-specific setup
+Some objects require multi-step initialization that doesn't fit in a simple constructor:
 
-Instead of putting this logic in the IoC container, we use factories.
+```python
+class CeleryAppFactory:
+    def __call__(self) -> Celery:
+        celery_app = Celery(
+            "main",
+            broker=self._redis_settings.redis_url.get_secret_value(),
+            backend=self._redis_settings.redis_url.get_secret_value(),
+        )
+
+        self._configure_app(celery_app)
+        self._configure_beat_schedule(celery_app)
+
+        return celery_app
+```
+
+### 2. Configuration-Based Creation
+
+Objects may need different configurations based on environment:
+
+```python
+class NinjaAPIFactory:
+    def __call__(self) -> NinjaAPI:
+        if self._settings.environment == Environment.PRODUCTION:
+            docs_decorator = staff_member_required
+        else:
+            docs_decorator = None
+
+        return NinjaAPI(docs_decorator=docs_decorator)
+```
+
+### 3. Caching (Singleton-like Behavior)
+
+Factories can cache expensive objects to avoid repeated construction:
+
+```python
+class CeleryAppFactory:
+    def __init__(self) -> None:
+        self._instance: Celery | None = None
+
+    def __call__(self) -> Celery:
+        if self._instance is not None:
+            return self._instance
+
+        self._instance = self._create_celery_app()
+        return self._instance
+```
+
+### 4. Deferred Construction
+
+Objects that should only be created when needed, not at container setup time.
 
 ## Factory Structure
 
-A factory is a callable class that creates and configures an object:
+A factory follows this pattern:
 
 ```python
 class SomeFactory:
     def __init__(
         self,
-        setting: SomeSetting,
-        dependency: SomeDependency,
+        dependency_a: DependencyA,
+        dependency_b: DependencyB,
     ) -> None:
-        self._setting = setting
-        self._dependency = dependency
+        # Store dependencies for later use
+        self._dependency_a = dependency_a
+        self._dependency_b = dependency_b
 
-    def __call__(self) -> SomeObject:
-        return SomeObject(
-            config=self._setting.value,
-            dependency=self._dependency,
-        )
+        # Optional: cache for singleton-like behavior
+        self._instance: SomeObject | None = None
+
+    def __call__(self, *args, **kwargs) -> SomeObject:
+        # Optional: return cached instance
+        if self._instance is not None:
+            return self._instance
+
+        # Create and configure the object
+        obj = self._create_object(*args, **kwargs)
+
+        # Optional: cache the result
+        self._instance = obj
+        return self._instance
+
+    def _create_object(self, *args, **kwargs) -> SomeObject:
+        # Complex construction logic here
+        ...
 ```
 
-## HTTP API Factory
+## Caching Pattern
+
+Many factories in this template cache their result to ensure only one instance exists:
 
 ```python
-# src/delivery/http/factories.py
-from ninja import NinjaAPI, Router
+class TasksRegistryFactory:
+    def __init__(
+        self,
+        celery_app_factory: CeleryAppFactory,
+        ping_controller: PingTaskController,
+    ) -> None:
+        self._instance: TasksRegistry | None = None
+        self._celery_app_factory = celery_app_factory
+        self._ping_controller = ping_controller
 
-from core.configs.core import ApplicationSettings
-from delivery.http.health.controllers import HealthController
-from delivery.http.user.controllers import UserController
+    def __call__(self) -> TasksRegistry:
+        if self._instance is not None:
+            return self._instance
 
+        celery_app = self._celery_app_factory()
+        registry = TasksRegistry(app=celery_app)
+        self._ping_controller.register(celery_app)
 
+        self._instance = registry
+        return self._instance
+```
+
+!!! note "Why Cache in Factories?"
+    While the IoC container has `Scope.singleton`, factories need internal caching because:
+
+    1. The factory itself is a singleton, but `__call__` can be invoked multiple times
+    2. Some objects (like Celery apps) must be truly single instances
+    3. Construction may have side effects that should only happen once
+
+## Real-World Examples
+
+### NinjaAPIFactory
+
+Creates and configures the Django-Ninja API with all controllers:
+
+```python
 class NinjaAPIFactory:
     def __init__(
         self,
         settings: ApplicationSettings,
         health_controller: HealthController,
+        user_token_controller: UserTokenController,
         user_controller: UserController,
     ) -> None:
         self._settings = settings
         self._health_controller = health_controller
+        self._user_token_controller = user_token_controller
         self._user_controller = user_controller
 
     def __call__(
         self,
         urls_namespace: str | None = None,
     ) -> NinjaAPI:
-        # Create API instance
+        # Environment-specific configuration
+        if self._settings.environment == Environment.PRODUCTION:
+            docs_decorator = staff_member_required
+        else:
+            docs_decorator = None
+
         ninja_api = NinjaAPI(
             urls_namespace=urls_namespace,
-            docs_decorator=self._get_docs_decorator(),
+            docs_decorator=docs_decorator,
         )
 
-        # Create routers and register controllers
+        # Register all controllers
         health_router = Router(tags=["health"])
         ninja_api.add_router("/", health_router)
         self._health_controller.register(registry=health_router)
@@ -74,33 +171,16 @@ class NinjaAPIFactory:
         user_router = Router(tags=["user"])
         ninja_api.add_router("/", user_router)
         self._user_controller.register(registry=user_router)
+        self._user_token_controller.register(registry=user_router)
 
         return ninja_api
-
-    def _get_docs_decorator(self):
-        if self._settings.environment == Environment.PRODUCTION:
-            return staff_member_required
-        return None
 ```
 
-Key patterns:
+### CeleryAppFactory
 
-- **Dependencies injected** - Controllers and settings come from IoC
-- **Optional parameters** - `urls_namespace` allows customization for tests
-- **Configuration logic** - Production vs development docs access
-
-## Celery App Factory
+Creates and configures the Celery application:
 
 ```python
-# src/delivery/tasks/factories.py
-from celery import Celery
-from celery.schedules import crontab
-
-from core.configs.core import RedisSettings
-from delivery.tasks.registry import TaskName
-from delivery.tasks.settings import CelerySettings
-
-
 class CeleryAppFactory:
     def __init__(
         self,
@@ -121,14 +201,18 @@ class CeleryAppFactory:
             backend=self._redis_settings.redis_url.get_secret_value(),
         )
 
-        self._configure_app(celery_app)
-        self._configure_beat_schedule(celery_app)
+        self._configure_app(celery_app=celery_app)
+        self._configure_beat_schedule(celery_app=celery_app)
 
         self._instance = celery_app
         return self._instance
 
     def _configure_app(self, celery_app: Celery) -> None:
-        celery_app.conf.update(**self._settings.model_dump())
+        celery_app.conf.update(
+            timezone=application_settings.time_zone,
+            enable_utc=True,
+            **self._settings.model_dump(),
+        )
 
     def _configure_beat_schedule(self, celery_app: Celery) -> None:
         celery_app.conf.beat_schedule = {
@@ -139,237 +223,153 @@ class CeleryAppFactory:
         }
 ```
 
-Key patterns:
+### TasksRegistryFactory
 
-- **Singleton caching** - `_instance` prevents recreating the Celery app
-- **Settings from Pydantic** - `model_dump()` converts settings to dict
-- **Beat schedule** - Periodic tasks configured in factory
-
-## Tasks Registry Factory
+Composes the Celery app with task controllers:
 
 ```python
-# src/delivery/tasks/factories.py
-from celery import Celery
-
-from delivery.tasks.registry import TasksRegistry
-from delivery.tasks.tasks.ping import PingTaskController
-
-
 class TasksRegistryFactory:
     def __init__(
         self,
-        celery_app: Celery,
+        celery_app_factory: CeleryAppFactory,
         ping_controller: PingTaskController,
     ) -> None:
         self._instance: TasksRegistry | None = None
-        self._celery_app = celery_app
+        self._celery_app_factory = celery_app_factory
         self._ping_controller = ping_controller
 
     def __call__(self) -> TasksRegistry:
         if self._instance is not None:
             return self._instance
 
-        registry = TasksRegistry(app=self._celery_app)
-
-        # Register task controllers
-        self._ping_controller.register(self._celery_app)
+        celery_app = self._celery_app_factory()
+        registry = TasksRegistry(app=celery_app)
+        self._ping_controller.register(celery_app)
 
         self._instance = registry
         return self._instance
 ```
 
-## Bot Factory
+## Factory Composition
+
+Factories can depend on other factories, forming a construction hierarchy:
+
+```
+URLPatternsFactory
+    |
+    +-- NinjaAPIFactory
+    |       |
+    |       +-- HealthController
+    |       +-- UserController
+    |       +-- UserTokenController
+    |
+    +-- AdminSiteFactory
+```
 
 ```python
-# src/delivery/bot/factories.py
-from aiogram import Bot, Dispatcher, Router
-from aiogram.client.default import DefaultBotProperties
-
-from delivery.bot.controllers.commands import CommandsController
-from delivery.bot.settings import TelegramBotSettings
-
-
-class BotFactory:
-    def __init__(self, settings: TelegramBotSettings) -> None:
-        self._settings = settings
-
-    def __call__(self) -> Bot:
-        return Bot(
-            token=self._settings.token.get_secret_value(),
-            default=DefaultBotProperties(
-                parse_mode=self._settings.parse_mode,
-            ),
-        )
-
-
-class DispatcherFactory:
+class URLPatternsFactory:
     def __init__(
         self,
-        bot: Bot,
-        commands_controller: CommandsController,
-    ) -> None:
-        self._bot = bot
-        self._commands_controller = commands_controller
-
-    def __call__(self) -> Dispatcher:
-        dispatcher = Dispatcher()
-
-        router = Router(name="commands")
-        dispatcher.include_router(router)
-        self._commands_controller.register(router)
-
-        dispatcher.startup()(self._set_bot_commands)
-
-        return dispatcher
-
-    async def _set_bot_commands(self) -> None:
-        await self._bot.set_my_commands([
-            BotCommand(command="/start", description="Start the bot"),
-        ])
-```
-
-## Admin Factory
-
-```python
-# src/delivery/http/factories.py
-from django.contrib.admin import AdminSite
-from django.contrib.admin.sites import site as default_site
-
-from core.user.models import User
-from delivery.http.user.admin import UserAdmin
-
-
-class AdminSiteFactory:
-    def __call__(self) -> AdminSite:
-        default_site.register(User, admin_class=UserAdmin)
-        return default_site
-```
-
-Note: Admin factories don't use IoC for admin classes because:
-
-- Admin classes are only used once at startup
-- They require direct model imports (acceptable exception)
-
-## IoC Registration
-
-Factories are registered and called via IoC:
-
-```python
-# src/ioc/registries/delivery.py
-def _register_http(container: Container) -> None:
-    # Register factory
-    container.register(NinjaAPIFactory, scope=Scope.singleton)
-
-    # Register product via factory call
-    container.register(
-        NinjaAPI,
-        factory=lambda: container.resolve(NinjaAPIFactory)(),
-        scope=Scope.singleton,
-    )
-```
-
-This pattern:
-
-1. Registers the factory as a singleton
-2. Registers the product with a lambda that resolves and calls the factory
-3. The product is also a singleton (created once, reused)
-
-## Test Factories
-
-For testing, we create extended factories:
-
-```python
-# tests/integration/factories.py
-from delivery.http.factories import NinjaAPIFactory
-
-
-class TestNinjaAPIFactory(NinjaAPIFactory):
-    __test__ = False  # Prevent pytest collection
-
-    def __call__(
-        self,
-        urls_namespace: str | None = None,
-    ) -> NinjaAPI:
-        # Use unique namespace per test to avoid conflicts
-        return super().__call__(urls_namespace=str(uuid.uuid7()))
-
-
-class TestClientFactory:
-    __test__ = False
-
-    def __init__(
-        self,
-        api_factory: TestNinjaAPIFactory,
-        jwt_service: JWTService,
+        api_factory: NinjaAPIFactory,
+        admin_site_factory: AdminSiteFactory,
     ) -> None:
         self._api_factory = api_factory
-        self._jwt_service = jwt_service
+        self._admin_site_factory = admin_site_factory
 
+    def __call__(self) -> list[URLResolver]:
+        api = self._api_factory()
+        admin_site = self._admin_site_factory()
+
+        return [
+            path("admin/", admin_site.urls),
+            path("api/", api.urls),
+        ]
+```
+
+## Integration with IoC Container
+
+Factories are registered as singletons in the IoC container:
+
+```python
+# ioc/registries/delivery.py
+def _register_http(container: Container) -> None:
+    container.register(NinjaAPIFactory, scope=Scope.singleton)
+    container.register(AdminSiteFactory, scope=Scope.singleton)
+    container.register(URLPatternsFactory, scope=Scope.singleton)
+
+def _register_celery(container: Container) -> None:
+    container.register(CeleryAppFactory, scope=Scope.singleton)
+    container.register(TasksRegistryFactory, scope=Scope.singleton)
+```
+
+The container resolves factory dependencies automatically:
+
+```python
+# When resolving TasksRegistryFactory, the container:
+# 1. Resolves CeleryAppFactory (needs CelerySettings, RedisSettings)
+# 2. Resolves PingTaskController
+# 3. Creates TasksRegistryFactory with both dependencies
+
+registry_factory = container.resolve(TasksRegistryFactory)
+registry = registry_factory()  # Creates the actual registry
+```
+
+## Testing with Factories
+
+Factories enable test isolation by allowing custom configurations:
+
+```python
+class NinjaAPIFactory:
     def __call__(
         self,
-        auth_for_user: User | None = None,
-        headers: dict[str, str] | None = None,
-    ) -> TestClient:
-        headers = headers or {}
+        urls_namespace: str | None = None,  # Allows unique namespace per test
+    ) -> NinjaAPI:
+        ...
 
-        if auth_for_user is not None:
-            token = self._jwt_service.issue_access_token(user_id=auth_for_user.pk)
-            headers["Authorization"] = f"Bearer {token}"
-
-        return TestClient(self._api_factory(), headers=headers)
+# In tests:
+def test_create_user(container: Container) -> None:
+    api_factory = container.resolve(NinjaAPIFactory)
+    api = api_factory(urls_namespace="test_create_user")  # Unique namespace
+    client = TestClient(api)
+    ...
 ```
 
-## Best Practices
+## When to Use Factories
 
-### 1. Singleton Caching
+| Scenario | Use Factory? |
+|----------|--------------|
+| Object needs multi-step configuration | Yes |
+| Object depends on environment settings | Yes |
+| Object should be cached/singleton | Yes |
+| Object construction has side effects | Yes |
+| Simple object with injected dependencies | No - use direct IoC registration |
 
-For expensive objects, cache the instance:
+## Factory vs Direct Registration
+
+### Use Direct Registration When:
 
 ```python
-class ExpensiveFactory:
-    def __init__(self) -> None:
-        self._instance: ExpensiveObject | None = None
-
-    def __call__(self) -> ExpensiveObject:
-        if self._instance is not None:
-            return self._instance
-        self._instance = ExpensiveObject()
-        return self._instance
+# Simple service with no complex construction
+container.register(UserService, scope=Scope.singleton)
 ```
 
-### 2. Configuration from Settings
-
-Use Pydantic settings for configuration:
+### Use Factory When:
 
 ```python
-class ApiFactory:
-    def __init__(self, settings: ApiSettings) -> None:
-        self._settings = settings
-
-    def __call__(self) -> Api:
-        return Api(
-            timeout=self._settings.timeout,
-            retries=self._settings.retries,
-        )
+# Complex construction, caching, or composition needed
+container.register(NinjaAPIFactory, scope=Scope.singleton)
 ```
 
-### 3. Optional Customization
+## Summary
 
-Allow customization for tests:
+The Factory pattern provides:
 
-```python
-class ApiFactory:
-    def __call__(
-        self,
-        base_url: str | None = None,  # Override for tests
-    ) -> Api:
-        return Api(
-            base_url=base_url or self._settings.base_url,
-        )
-```
+| Feature | Benefit |
+|---------|---------|
+| Encapsulated construction | Complex setup logic is isolated |
+| Caching | Expensive objects created once |
+| Configuration | Environment-specific behavior |
+| Composition | Factories can use other factories |
+| Testability | Custom configurations for tests |
 
-## Related Concepts
-
-- [IoC Container](ioc-container.md) - How factories are registered
-- [Controller Pattern](controller-pattern.md) - What factories create
-- [Pydantic Settings](pydantic-settings.md) - Configuration for factories
+Factories are the bridge between the IoC container and framework-specific objects that require careful construction and configuration.

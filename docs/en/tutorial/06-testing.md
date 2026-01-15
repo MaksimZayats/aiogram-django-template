@@ -1,8 +1,15 @@
 # Step 6: Testing
 
-In this final step, you'll write integration tests for your Todo API and Celery task using the template's test factories.
+In this final step, you will write comprehensive tests for the Todo feature. The template provides test factories that enable isolated, type-safe testing with IoC override capabilities.
 
-## Files to Create/Modify
+## What You Will Build
+
+- A `TestTodoFactory` for creating test data
+- HTTP API integration tests
+- Celery task integration tests
+- Examples of IoC override patterns for mocking
+
+## Files Overview
 
 | Action | File Path |
 |--------|-----------|
@@ -11,89 +18,242 @@ In this final step, you'll write integration tests for your Todo API and Celery 
 | Create | `tests/integration/http/test_v1_todos.py` |
 | Create | `tests/integration/tasks/test_todo_cleanup_task.py` |
 
-## Why Test Factories?
+---
 
-Test factories provide:
+## Why Test Factories Matter
 
-- **Isolation** - Each test gets fresh data via IoC-resolved factories
-- **Defaults** - Sensible default values reduce boilerplate
-- **Type safety** - Factory return types enable IDE completion
-- **Flexibility** - Override defaults for specific test cases
+Test factories provide several benefits:
 
-## 1. Create TestTodoFactory
+| Benefit | Description |
+|---------|-------------|
+| **Isolation** | Each test gets a fresh container and database state |
+| **Defaults** | Sensible defaults reduce boilerplate in tests |
+| **Type Safety** | IDE autocompletion and type checking for test data |
+| **Flexibility** | Override any default value for specific test scenarios |
+| **IoC Override** | Swap real services with mocks per-test |
 
-Add the todo factory to `tests/integration/factories.py`:
+---
 
-```python
-# tests/integration/factories.py
-# Add this import
+## Step 6.1: Create the Test Todo Factory
+
+Add a factory for creating test todos in `tests/integration/factories.py`.
+
+```python title="tests/integration/factories.py" hl_lines="10 19-20 91-107"
+import uuid
+from abc import ABC, abstractmethod
+from contextlib import AbstractContextManager
+from typing import Any, cast
+
+from celery.contrib.testing import worker
+from celery.worker import WorkController
+from django.contrib.auth.models import AbstractUser
+from ninja.testing import TestClient
+from punq import Container
+
 from core.todo.models import Todo
+from core.todo.services import TodoService
+from core.user.models import User
+from delivery.http.factories import NinjaAPIFactory
+from delivery.tasks.factories import CeleryAppFactory, TasksRegistryFactory
+from delivery.tasks.registry import TasksRegistry
+from infrastructure.jwt.services import JWTService
 
-# Add this class after TestUserFactory
-class TestTodoFactory:
-    __test__ = False  # Prevent pytest from collecting as test
+
+class ContainerBasedFactory(ABC):
+    __test__ = False
+
+    def __init__(
+        self,
+        container: Container,
+    ) -> None:
+        self._container = container
+
+    @abstractmethod
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        pass
+
+
+class TestClientFactory(ContainerBasedFactory):
+    def __call__(
+        self,
+        auth_for_user: User | None = None,
+        headers: dict[str, str] | None = None,
+        **kwargs: Any,
+    ) -> TestClient:
+        api_factory = self._container.resolve(NinjaAPIFactory)
+        jwt_service = self._container.resolve(JWTService)
+
+        headers = headers or {}
+
+        if auth_for_user is not None:
+            token = jwt_service.issue_access_token(user_id=auth_for_user.pk)
+            headers["Authorization"] = f"Bearer {token}"
+
+        return TestClient(
+            api_factory(urls_namespace=str(uuid.uuid7())),
+            headers=headers,
+            **kwargs,
+        )
+
+
+class TestUserFactory(ContainerBasedFactory):
+    def __call__(
+        self,
+        username: str = "test_user",
+        password: str = "password123",  # noqa: S107
+        email: str = "user@test.com",
+    ) -> User:
+        user_model = cast(
+            type[User],
+            self._container.resolve(type[AbstractUser]),
+        )
+
+        return user_model.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+        )
+
+
+class TestCeleryWorkerFactory(ContainerBasedFactory):
+    def __call__(self) -> AbstractContextManager[WorkController]:
+        celery_app_factory = self._container.resolve(CeleryAppFactory)
+
+        return worker.start_worker(
+            app=celery_app_factory(),
+            perform_ping_check=False,
+        )
+
+
+class TestTasksRegistryFactory(ContainerBasedFactory):
+    def __call__(self) -> TasksRegistry:
+        factory = self._container.resolve(TasksRegistryFactory)
+        return factory()
+
+
+class TestTodoFactory(ContainerBasedFactory):
+    """Factory for creating test Todo instances."""
+
+    __test__ = False  # Prevent pytest from collecting this as a test class
 
     def __call__(
         self,
         user: User,
         title: str = "Test Todo",
-        description: str = "",
+        description: str = "Test description",
         is_completed: bool = False,
     ) -> Todo:
-        return Todo.objects.create(
-            user=user,
+        todo_service = self._container.resolve(TodoService)
+
+        todo = todo_service.create_todo(
             title=title,
             description=description,
-            is_completed=is_completed,
+            user_id=user.pk,
         )
+
+        if is_completed:
+            todo.is_completed = True
+            todo.save()
+
+        return todo
 ```
 
-**Key points:**
+!!! warning "`__test__ = False` is Required"
+    Without `__test__ = False`, pytest will attempt to collect factory classes as test cases, causing errors.
 
-- `__test__ = False` prevents pytest from treating this as a test class
-- User is required (no default) - enforces explicit user association
-- Other fields have sensible defaults
+---
 
-## 2. Register Factory in conftest.py
+## Step 6.2: Register the Factory Fixture
 
-Add the factory registration and fixture:
+Add the fixture to `tests/integration/conftest.py`.
 
-```python
-# tests/integration/conftest.py
-# Add this import
-from tests.integration.factories import TestTodoFactory
+```python title="tests/integration/conftest.py" hl_lines="11 16 66-71"
+from uuid import uuid7
 
-# Modify the container fixture to register TestTodoFactory
+import pytest
+from django.contrib.auth.models import AbstractUser
+from punq import Container, Scope
+from pytest_django.fixtures import SettingsWrapper
+
+from core.user.models import User
+from ioc.container import get_container
+from tests.integration.factories import (
+    TestCeleryWorkerFactory,
+    TestClientFactory,
+    TestTasksRegistryFactory,
+    TestTodoFactory,
+    TestUserFactory,
+)
+
+
+@pytest.fixture(scope="function", autouse=True)
+def _configure_settings(settings: SettingsWrapper) -> None:
+    settings.CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": f"test-cache-{uuid7()}",
+        },
+    }
+
+
 @pytest.fixture(scope="function")
 def container(django_user_model: type[User]) -> Container:
     container = get_container()
-    container.register(TestNinjaAPIFactory, scope=Scope.singleton)
-    container.register(TestClientFactory, scope=Scope.singleton)
-    container.register(TestCeleryWorkerFactory, scope=Scope.singleton)
-    container.register(type[User], instance=django_user_model)
-    container.register(TestUserFactory, scope=Scope.singleton)
-    container.register(TestTodoFactory, scope=Scope.singleton)  # Add this
+    container.register(type[AbstractUser], instance=django_user_model, scope=Scope.singleton)
+
     return container
 
-# Add this fixture
+
+# region Factories
+
+
+@pytest.fixture(scope="function")
+def test_client_factory(container: Container) -> TestClientFactory:
+    return TestClientFactory(container=container)
+
+
+@pytest.fixture(scope="function")
+def user_factory(
+    transactional_db: None,
+    container: Container,
+) -> TestUserFactory:
+    return TestUserFactory(container=container)
+
+
+@pytest.fixture(scope="function")
+def celery_worker_factory(container: Container) -> TestCeleryWorkerFactory:
+    return TestCeleryWorkerFactory(container=container)
+
+
+@pytest.fixture(scope="function")
+def tasks_registry_factory(container: Container) -> TestTasksRegistryFactory:
+    return TestTasksRegistryFactory(container=container)
+
+
 @pytest.fixture(scope="function")
 def todo_factory(
     transactional_db: None,
     container: Container,
 ) -> TestTodoFactory:
-    return container.resolve(TestTodoFactory)
+    return TestTodoFactory(container=container)
+
+
+# endregion Factories
 ```
 
-## 3. Create HTTP API Tests
+!!! note "Function-Scoped Fixtures"
+    All fixtures use `scope="function"` to ensure complete isolation between tests. Each test gets a fresh container and can override IoC registrations without affecting other tests.
 
-Create comprehensive tests for the Todo API:
+---
 
-```python
-# tests/integration/http/test_v1_todos.py
+## Step 6.3: Write HTTP API Tests
+
+Create comprehensive tests for the Todo HTTP API.
+
+```python title="tests/integration/http/test_v1_todos.py"
 from http import HTTPStatus
 
 import pytest
-from punq import Container
 
 from core.todo.models import Todo
 from core.user.models import User
@@ -106,7 +266,7 @@ from tests.integration.factories import (
 
 @pytest.fixture(scope="function")
 def user(user_factory: TestUserFactory) -> User:
-    return user_factory(username="todo_test_user", password="test123")
+    return user_factory(username="todo_test_user")
 
 
 @pytest.fixture(scope="function")
@@ -114,195 +274,226 @@ def todo(todo_factory: TestTodoFactory, user: User) -> Todo:
     return todo_factory(user=user, title="Existing Todo")
 
 
-@pytest.mark.django_db(transaction=True)
-def test_list_todos_empty(
-    test_client_factory: TestClientFactory,
-    user: User,
-) -> None:
-    """Test listing todos when user has none."""
-    test_client = test_client_factory(auth_for_user=user)
+class TestCreateTodo:
+    @pytest.mark.django_db(transaction=True)
+    def test_create_todo_success(
+        self,
+        test_client_factory: TestClientFactory,
+        user: User,
+    ) -> None:
+        test_client = test_client_factory(auth_for_user=user)
 
-    response = test_client.get("/v1/todos/")
+        response = test_client.post(
+            "/v1/todos/",
+            json={
+                "title": "Buy groceries",
+                "description": "Milk, eggs, bread",
+            },
+        )
 
-    assert response.status_code == HTTPStatus.OK
-    assert response.json()["items"] == []
+        assert response.status_code == HTTPStatus.CREATED
+        data = response.json()
+        assert data["title"] == "Buy groceries"
+        assert data["description"] == "Milk, eggs, bread"
+        assert data["is_completed"] is False
+        assert "id" in data
 
+    @pytest.mark.django_db(transaction=True)
+    def test_create_todo_requires_authentication(
+        self,
+        test_client_factory: TestClientFactory,
+    ) -> None:
+        test_client = test_client_factory()  # No auth_for_user
 
-@pytest.mark.django_db(transaction=True)
-def test_list_todos_returns_user_todos(
-    test_client_factory: TestClientFactory,
-    user: User,
-    todo: Todo,
-) -> None:
-    """Test listing todos returns user's todos."""
-    test_client = test_client_factory(auth_for_user=user)
+        response = test_client.post(
+            "/v1/todos/",
+            json={"title": "Test"},
+        )
 
-    response = test_client.get("/v1/todos/")
+        assert response.status_code == HTTPStatus.UNAUTHORIZED
 
-    assert response.status_code == HTTPStatus.OK
-    items = response.json()["items"]
-    assert len(items) == 1
-    assert items[0]["title"] == "Existing Todo"
-    assert items[0]["is_completed"] is False
+    @pytest.mark.django_db(transaction=True)
+    def test_create_todo_validation_error(
+        self,
+        test_client_factory: TestClientFactory,
+        user: User,
+    ) -> None:
+        test_client = test_client_factory(auth_for_user=user)
 
+        response = test_client.post(
+            "/v1/todos/",
+            json={"description": "Missing title"},  # title is required
+        )
 
-@pytest.mark.django_db(transaction=True)
-def test_list_todos_does_not_return_other_users_todos(
-    test_client_factory: TestClientFactory,
-    user_factory: TestUserFactory,
-    todo_factory: TestTodoFactory,
-) -> None:
-    """Test that users can only see their own todos."""
-    user1 = user_factory(username="user1", email="user1@test.com")
-    user2 = user_factory(username="user2", email="user2@test.com")
-
-    # Create todo for user1
-    todo_factory(user=user1, title="User1 Todo")
-
-    # Login as user2
-    test_client = test_client_factory(auth_for_user=user2)
-
-    response = test_client.get("/v1/todos/")
-
-    assert response.status_code == HTTPStatus.OK
-    assert response.json()["items"] == []
-
-
-@pytest.mark.django_db(transaction=True)
-def test_create_todo(
-    test_client_factory: TestClientFactory,
-    user: User,
-) -> None:
-    """Test creating a new todo."""
-    test_client = test_client_factory(auth_for_user=user)
-
-    response = test_client.post(
-        "/v1/todos/",
-        json={
-            "title": "New Todo",
-            "description": "Test description",
-        },
-    )
-
-    assert response.status_code == HTTPStatus.OK
-    data = response.json()
-    assert data["title"] == "New Todo"
-    assert data["description"] == "Test description"
-    assert data["is_completed"] is False
+        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
-@pytest.mark.django_db(transaction=True)
-def test_get_todo(
-    test_client_factory: TestClientFactory,
-    user: User,
-    todo: Todo,
-) -> None:
-    """Test getting a specific todo."""
-    test_client = test_client_factory(auth_for_user=user)
+class TestListTodos:
+    @pytest.mark.django_db(transaction=True)
+    def test_list_todos_returns_only_user_todos(
+        self,
+        test_client_factory: TestClientFactory,
+        user_factory: TestUserFactory,
+        todo_factory: TestTodoFactory,
+    ) -> None:
+        user1 = user_factory(username="user1", email="user1@test.com")
+        user2 = user_factory(username="user2", email="user2@test.com")
 
-    response = test_client.get(f"/v1/todos/{todo.id}")
+        # Create todos for both users
+        todo_factory(user=user1, title="User1 Todo")
+        todo_factory(user=user2, title="User2 Todo")
 
-    assert response.status_code == HTTPStatus.OK
-    assert response.json()["title"] == "Existing Todo"
+        # User1 should only see their own todos
+        test_client = test_client_factory(auth_for_user=user1)
+        response = test_client.get("/v1/todos/")
 
+        assert response.status_code == HTTPStatus.OK
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["title"] == "User1 Todo"
 
-@pytest.mark.django_db(transaction=True)
-def test_get_todo_not_found(
-    test_client_factory: TestClientFactory,
-    user: User,
-) -> None:
-    """Test getting a non-existent todo returns 404."""
-    test_client = test_client_factory(auth_for_user=user)
+    @pytest.mark.django_db(transaction=True)
+    def test_list_todos_empty(
+        self,
+        test_client_factory: TestClientFactory,
+        user: User,
+    ) -> None:
+        test_client = test_client_factory(auth_for_user=user)
 
-    response = test_client.get("/v1/todos/99999")
+        response = test_client.get("/v1/todos/")
 
-    assert response.status_code == HTTPStatus.NOT_FOUND
-
-
-@pytest.mark.django_db(transaction=True)
-def test_get_other_users_todo_forbidden(
-    test_client_factory: TestClientFactory,
-    user_factory: TestUserFactory,
-    todo_factory: TestTodoFactory,
-) -> None:
-    """Test accessing another user's todo returns 403."""
-    user1 = user_factory(username="user1", email="user1@test.com")
-    user2 = user_factory(username="user2", email="user2@test.com")
-
-    todo = todo_factory(user=user1, title="User1 Todo")
-
-    # Login as user2 and try to access user1's todo
-    test_client = test_client_factory(auth_for_user=user2)
-
-    response = test_client.get(f"/v1/todos/{todo.id}")
-
-    assert response.status_code == HTTPStatus.FORBIDDEN
+        assert response.status_code == HTTPStatus.OK
+        assert response.json() == []
 
 
-@pytest.mark.django_db(transaction=True)
-def test_complete_todo(
-    test_client_factory: TestClientFactory,
-    user: User,
-    todo: Todo,
-) -> None:
-    """Test marking a todo as completed."""
-    test_client = test_client_factory(auth_for_user=user)
+class TestGetTodo:
+    @pytest.mark.django_db(transaction=True)
+    def test_get_todo_success(
+        self,
+        test_client_factory: TestClientFactory,
+        user: User,
+        todo: Todo,
+    ) -> None:
+        test_client = test_client_factory(auth_for_user=user)
 
-    response = test_client.post(f"/v1/todos/{todo.id}/complete")
+        response = test_client.get(f"/v1/todos/{todo.id}")
 
-    assert response.status_code == HTTPStatus.OK
-    data = response.json()
-    assert data["is_completed"] is True
-    assert data["completed_at"] is not None
+        assert response.status_code == HTTPStatus.OK
+        data = response.json()
+        assert data["id"] == todo.id
+        assert data["title"] == todo.title
+
+    @pytest.mark.django_db(transaction=True)
+    def test_get_todo_not_found(
+        self,
+        test_client_factory: TestClientFactory,
+        user: User,
+    ) -> None:
+        test_client = test_client_factory(auth_for_user=user)
+
+        response = test_client.get("/v1/todos/99999")
+
+        assert response.status_code == HTTPStatus.NOT_FOUND
+
+    @pytest.mark.django_db(transaction=True)
+    def test_get_todo_from_another_user(
+        self,
+        test_client_factory: TestClientFactory,
+        user_factory: TestUserFactory,
+        todo_factory: TestTodoFactory,
+    ) -> None:
+        user1 = user_factory(username="owner", email="owner@test.com")
+        user2 = user_factory(username="other", email="other@test.com")
+
+        todo = todo_factory(user=user1, title="Private Todo")
+
+        # User2 should not access User1's todo
+        test_client = test_client_factory(auth_for_user=user2)
+        response = test_client.get(f"/v1/todos/{todo.id}")
+
+        assert response.status_code == HTTPStatus.NOT_FOUND
 
 
-@pytest.mark.django_db(transaction=True)
-def test_delete_todo(
-    test_client_factory: TestClientFactory,
-    user: User,
-    todo: Todo,
-) -> None:
-    """Test deleting a todo."""
-    test_client = test_client_factory(auth_for_user=user)
+class TestUpdateTodo:
+    @pytest.mark.django_db(transaction=True)
+    def test_update_todo_success(
+        self,
+        test_client_factory: TestClientFactory,
+        user: User,
+        todo: Todo,
+    ) -> None:
+        test_client = test_client_factory(auth_for_user=user)
 
-    response = test_client.delete(f"/v1/todos/{todo.id}")
+        response = test_client.patch(
+            f"/v1/todos/{todo.id}",
+            json={"is_completed": True},
+        )
 
-    assert response.status_code == HTTPStatus.OK
-    assert response.json()["status"] == "deleted"
+        assert response.status_code == HTTPStatus.OK
+        data = response.json()
+        assert data["is_completed"] is True
 
-    # Verify todo is gone
-    response = test_client.get(f"/v1/todos/{todo.id}")
-    assert response.status_code == HTTPStatus.NOT_FOUND
+    @pytest.mark.django_db(transaction=True)
+    def test_update_todo_partial(
+        self,
+        test_client_factory: TestClientFactory,
+        user: User,
+        todo: Todo,
+    ) -> None:
+        test_client = test_client_factory(auth_for_user=user)
+        original_description = todo.description
+
+        response = test_client.patch(
+            f"/v1/todos/{todo.id}",
+            json={"title": "Updated Title"},
+        )
+
+        assert response.status_code == HTTPStatus.OK
+        data = response.json()
+        assert data["title"] == "Updated Title"
+        assert data["description"] == original_description  # Unchanged
 
 
-@pytest.mark.django_db(transaction=True)
-def test_requires_authentication(
-    test_client_factory: TestClientFactory,
-) -> None:
-    """Test that endpoints require authentication."""
-    test_client = test_client_factory()  # No auth
+class TestDeleteTodo:
+    @pytest.mark.django_db(transaction=True)
+    def test_delete_todo_success(
+        self,
+        test_client_factory: TestClientFactory,
+        user: User,
+        todo: Todo,
+    ) -> None:
+        test_client = test_client_factory(auth_for_user=user)
 
-    response = test_client.get("/v1/todos/")
+        response = test_client.delete(f"/v1/todos/{todo.id}")
 
-    assert response.status_code == HTTPStatus.UNAUTHORIZED
+        assert response.status_code == HTTPStatus.NO_CONTENT
+
+        # Verify deletion
+        response = test_client.get(f"/v1/todos/{todo.id}")
+        assert response.status_code == HTTPStatus.NOT_FOUND
 ```
 
-## 4. Create Celery Task Tests
+!!! tip "Test Class Organization"
+    Group tests by endpoint/operation using test classes. This improves readability and allows shared fixtures via class-level setup.
 
-Create tests for the cleanup task:
+---
 
-```python
-# tests/integration/tasks/test_todo_cleanup_task.py
-from datetime import UTC, datetime, timedelta
+## Step 6.4: Write Celery Task Tests
+
+Create tests for the todo cleanup task.
+
+```python title="tests/integration/tasks/test_todo_cleanup_task.py"
+from datetime import timedelta
 
 import pytest
-from punq import Container
+from django.utils import timezone
 
 from core.todo.models import Todo
 from core.user.models import User
-from delivery.tasks.registry import TasksRegistry
+from delivery.tasks.tasks.todo_cleanup import TodoCleanupResult
 from tests.integration.factories import (
     TestCeleryWorkerFactory,
+    TestTasksRegistryFactory,
     TestTodoFactory,
     TestUserFactory,
 )
@@ -313,155 +504,228 @@ def user(user_factory: TestUserFactory) -> User:
     return user_factory(username="cleanup_test_user")
 
 
-@pytest.fixture(scope="function")
-def tasks_registry(container: Container) -> TasksRegistry:
-    return container.resolve(TasksRegistry)
+class TestTodoCleanupTask:
+    @pytest.mark.django_db(transaction=True)
+    def test_cleanup_deletes_old_completed_todos(
+        self,
+        celery_worker_factory: TestCeleryWorkerFactory,
+        tasks_registry_factory: TestTasksRegistryFactory,
+        todo_factory: TestTodoFactory,
+        user: User,
+    ) -> None:
+        # Create an old completed todo (should be deleted)
+        old_todo = todo_factory(user=user, title="Old Todo", is_completed=True)
+        old_todo.updated_at = timezone.now() - timedelta(days=10)
+        old_todo.save(update_fields=["updated_at"])
 
+        # Create a recent completed todo (should NOT be deleted)
+        recent_todo = todo_factory(user=user, title="Recent Todo", is_completed=True)
 
-@pytest.mark.django_db(transaction=True)
-def test_todo_cleanup_deletes_old_completed_todos(
-    celery_worker_factory: TestCeleryWorkerFactory,
-    tasks_registry: TasksRegistry,
-    todo_factory: TestTodoFactory,
-    user: User,
-) -> None:
-    """Test that cleanup deletes old completed todos."""
-    # Create an old completed todo
-    old_todo = todo_factory(user=user, is_completed=True)
-    # Manually set completed_at to 31 days ago
-    old_todo.completed_at = datetime.now(tz=UTC) - timedelta(days=31)
-    old_todo.save()
+        # Create an old incomplete todo (should NOT be deleted)
+        incomplete_todo = todo_factory(user=user, title="Incomplete Todo")
+        incomplete_todo.updated_at = timezone.now() - timedelta(days=10)
+        incomplete_todo.save(update_fields=["updated_at"])
 
-    # Create a recent completed todo (should not be deleted)
-    recent_todo = todo_factory(
-        user=user,
-        title="Recent Todo",
-        is_completed=True,
-    )
-    recent_todo.completed_at = datetime.now(tz=UTC)
-    recent_todo.save()
+        registry = tasks_registry_factory()
 
-    # Create an incomplete todo (should not be deleted)
-    incomplete_todo = todo_factory(
-        user=user,
-        title="Incomplete Todo",
-        is_completed=False,
-    )
+        with celery_worker_factory():
+            result = registry.todo_cleanup.delay().get(timeout=5)
 
-    with celery_worker_factory():
-        result = tasks_registry.todo_cleanup.delay(days=30).get(timeout=10)
+        assert result == TodoCleanupResult(deleted_count=1)
 
-    assert result["status"] == "success"
-    assert result["deleted_count"] == 1
+        # Verify correct todos remain
+        remaining_ids = list(Todo.objects.values_list("id", flat=True))
+        assert old_todo.id not in remaining_ids
+        assert recent_todo.id in remaining_ids
+        assert incomplete_todo.id in remaining_ids
 
-    # Verify correct todos remain
-    remaining = Todo.objects.filter(user=user)
-    assert remaining.count() == 2
-    assert remaining.filter(title="Recent Todo").exists()
-    assert remaining.filter(title="Incomplete Todo").exists()
+    @pytest.mark.django_db(transaction=True)
+    def test_cleanup_with_no_matching_todos(
+        self,
+        celery_worker_factory: TestCeleryWorkerFactory,
+        tasks_registry_factory: TestTasksRegistryFactory,
+        todo_factory: TestTodoFactory,
+        user: User,
+    ) -> None:
+        # Create only recent todos
+        todo_factory(user=user, title="Recent Todo 1")
+        todo_factory(user=user, title="Recent Todo 2", is_completed=True)
 
+        registry = tasks_registry_factory()
 
-@pytest.mark.django_db(transaction=True)
-def test_todo_cleanup_with_no_old_todos(
-    celery_worker_factory: TestCeleryWorkerFactory,
-    tasks_registry: TasksRegistry,
-    todo_factory: TestTodoFactory,
-    user: User,
-) -> None:
-    """Test cleanup when there are no old todos."""
-    # Create only recent todos
-    todo_factory(user=user, is_completed=False)
+        with celery_worker_factory():
+            result = registry.todo_cleanup.delay().get(timeout=5)
 
-    with celery_worker_factory():
-        result = tasks_registry.todo_cleanup.delay(days=30).get(timeout=10)
+        assert result == TodoCleanupResult(deleted_count=0)
+        assert Todo.objects.count() == 2
 
-    assert result["status"] == "success"
-    assert result["deleted_count"] == 0
+    @pytest.mark.django_db(transaction=True)
+    def test_cleanup_with_empty_database(
+        self,
+        celery_worker_factory: TestCeleryWorkerFactory,
+        tasks_registry_factory: TestTasksRegistryFactory,
+    ) -> None:
+        registry = tasks_registry_factory()
 
+        with celery_worker_factory():
+            result = registry.todo_cleanup.delay().get(timeout=5)
 
-@pytest.mark.django_db(transaction=True)
-def test_todo_cleanup_with_custom_days(
-    celery_worker_factory: TestCeleryWorkerFactory,
-    tasks_registry: TasksRegistry,
-    todo_factory: TestTodoFactory,
-    user: User,
-) -> None:
-    """Test cleanup with custom days parameter."""
-    # Create a todo completed 5 days ago
-    todo = todo_factory(user=user, is_completed=True)
-    todo.completed_at = datetime.now(tz=UTC) - timedelta(days=5)
-    todo.save()
-
-    with celery_worker_factory():
-        # Should not delete with 7 days threshold
-        result = tasks_registry.todo_cleanup.delay(days=7).get(timeout=10)
-        assert result["deleted_count"] == 0
-
-        # Should delete with 3 days threshold
-        result = tasks_registry.todo_cleanup.delay(days=3).get(timeout=10)
-        assert result["deleted_count"] == 1
+        assert result == TodoCleanupResult(deleted_count=0)
 ```
 
-## 5. Run the Tests
+!!! info "Celery Worker Context Manager"
+    The `celery_worker_factory()` returns a context manager that starts and stops a test worker. Tasks are executed synchronously within the `with` block.
+
+---
+
+## Step 6.5: IoC Override Pattern for Mocking
+
+Override IoC registrations to mock services in specific tests.
+
+```python title="tests/integration/http/test_v1_todos_with_mock.py"
+from http import HTTPStatus
+from unittest.mock import MagicMock
+
+import pytest
+from punq import Container
+
+from core.todo.services import TodoNotFoundError, TodoService
+from core.user.models import User
+from tests.integration.factories import TestClientFactory, TestUserFactory
+
+
+@pytest.fixture(scope="function")
+def user(user_factory: TestUserFactory) -> User:
+    return user_factory(username="mock_test_user")
+
+
+class TestTodoControllerWithMockedService:
+    """Example of mocking the service layer for edge case testing."""
+
+    @pytest.mark.django_db(transaction=True)
+    def test_get_todo_handles_service_exception(
+        self,
+        container: Container,
+        user: User,
+    ) -> None:
+        # Create a mock service that raises an exception
+        mock_service = MagicMock(spec=TodoService)
+        mock_service.get_todo_by_id.side_effect = TodoNotFoundError("Mocked error")
+
+        # Override the IoC registration BEFORE creating the test client
+        container.register(TodoService, instance=mock_service)
+
+        # Now create the test client - it will use the mocked service
+        test_client_factory = TestClientFactory(container=container)
+        test_client = test_client_factory(auth_for_user=user)
+
+        response = test_client.get("/v1/todos/1")
+
+        assert response.status_code == HTTPStatus.NOT_FOUND
+        mock_service.get_todo_by_id.assert_called_once_with(todo_id=1, user_id=user.pk)
+
+    @pytest.mark.django_db(transaction=True)
+    def test_list_todos_with_custom_mock_data(
+        self,
+        container: Container,
+        user: User,
+    ) -> None:
+        # Create a mock that returns specific test data
+        mock_todo = MagicMock()
+        mock_todo.id = 999
+        mock_todo.title = "Mocked Todo"
+        mock_todo.description = "From mock"
+        mock_todo.is_completed = False
+        mock_todo.user_id = user.pk
+
+        mock_service = MagicMock(spec=TodoService)
+        mock_service.list_todos_for_user.return_value = [mock_todo]
+
+        container.register(TodoService, instance=mock_service)
+
+        test_client_factory = TestClientFactory(container=container)
+        test_client = test_client_factory(auth_for_user=user)
+
+        response = test_client.get("/v1/todos/")
+
+        assert response.status_code == HTTPStatus.OK
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["title"] == "Mocked Todo"
+```
+
+!!! warning "Override Before Creating Factories"
+    Always override IoC registrations **before** creating `TestClientFactory`. The container is resolved when the factory creates the API instance.
+
+---
+
+## Running Tests
 
 ```bash
 # Run all tests
 make test
 
-# Run only todo tests
-uv run pytest tests/integration/http/test_v1_todos.py tests/integration/tasks/test_todo_cleanup_task.py -v
+# Run specific test file
+pytest tests/integration/http/test_v1_todos.py -v
+
+# Run specific test class
+pytest tests/integration/http/test_v1_todos.py::TestCreateTodo -v
 
 # Run with coverage
-uv run pytest tests/integration/ --cov=src --cov-report=html
+pytest --cov=src --cov-report=html
 ```
 
-## IoC Override Pattern
+!!! tip "Coverage Requirement"
+    The template requires 80% code coverage. Check `pyproject.toml` for coverage configuration.
 
-For mocking dependencies in tests:
+---
 
-```python
-from unittest.mock import MagicMock
+## Test Markers Reference
 
-def test_with_mock_service(container: Container) -> None:
-    # Create mock
-    mock_service = MagicMock(spec=TodoService)
-    mock_service.list_todos.return_value = []
+| Marker | Purpose |
+|--------|---------|
+| `@pytest.mark.django_db` | Enable database access |
+| `@pytest.mark.django_db(transaction=True)` | Use transactional database (required for integration tests) |
+| `@pytest.mark.slow` | Mark slow tests (can be skipped with `-m "not slow"`) |
 
-    # Override in container
-    container.register(TodoService, instance=mock_service)
+---
 
-    # Now resolve factories - they'll use mock
-    test_client = container.resolve(TestClientFactory)()
-    response = test_client.get("/v1/todos/")
+## Summary
 
-    # Verify mock was called
-    mock_service.list_todos.assert_called_once()
-```
+You have learned how to:
 
-## What You've Learned
+- Create type-safe test factories for domain models
+- Write isolated integration tests for HTTP APIs
+- Test Celery tasks with the worker context manager
+- Override IoC registrations to mock services
+- Organize tests using test classes
 
-In this step, you:
-
-1. Created a test factory for Todo models
-2. Registered the factory in the IoC container
-3. Wrote comprehensive HTTP API tests
-4. Wrote Celery task tests
-5. Learned the IoC override pattern for mocking
+---
 
 ## Congratulations!
 
-You've completed the tutorial! You now have a fully-functional Todo List feature with:
+You have completed the Todo List tutorial. You now have a fully functional feature with:
 
-- Django model with user association
-- Service layer with business logic
-- REST API with JWT authentication
-- Django admin panel
-- Background cleanup task
-- Observability with Logfire
-- Comprehensive tests
+- Domain model and service layer
+- IoC registration and dependency injection
+- HTTP API with authentication
+- Background task with scheduling
+- Observability and tracing
+- Comprehensive test coverage
+
+---
 
 ## Next Steps
 
-- Explore the [Concepts](../concepts/index.md) section for deeper understanding
-- Check [How-To Guides](../how-to/index.md) for specific tasks
-- Read [Reference](../reference/index.md) for detailed configuration options
+Explore more advanced topics:
+
+- [Add a New Domain](../how-to/add-new-domain.md) - Build another feature
+- [Custom Exception Handling](../how-to/custom-exception-handling.md) - Improve error responses
+- [Override IoC in Tests](../how-to/override-ioc-in-tests.md) - Advanced mocking patterns
+
+---
+
+!!! abstract "See Also"
+    - [Service Layer](../concepts/service-layer.md) - Understand the architecture
+    - [IoC Container](../concepts/ioc-container.md) - Deep dive into dependency injection
+    - [Controller Pattern](../concepts/controller-pattern.md) - Learn about controller design

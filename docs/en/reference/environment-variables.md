@@ -1,236 +1,139 @@
 # Environment Variables
 
-Complete reference of all environment variables used by the application.
+All configuration is managed through environment variables using Pydantic Settings.
 
-## Django Settings
+## Django Core
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DJANGO_DEBUG` | `false` | Enable debug mode (never in production) |
-| `DJANGO_SECRET_KEY` | **Required** | Secret key for cryptographic signing |
-| `DJANGO_ALLOWED_HOSTS` | `*` | Comma-separated list of allowed hosts |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DJANGO_SECRET_KEY` | Yes | - | Django secret key for cryptographic signing |
+| `DJANGO_DEBUG` | No | `false` | Enable debug mode |
+| `ENVIRONMENT` | No | `production` | Environment: `local`, `development`, `staging`, `production`, `test`, `ci` |
+| `LOGGING_LEVEL` | No | `INFO` | Log level: `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+| `ALLOWED_HOSTS` | No | `["localhost", "127.0.0.1"]` | JSON list of allowed hosts |
+| `CSRF_TRUSTED_ORIGINS` | No | `["http://localhost"]` | JSON list of trusted CSRF origins |
 
 ## Database
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | `sqlite:///db.sqlite3` | Database connection URL |
-| `DATABASE_CONN_MAX_AGE` | `600` | Connection persistence in seconds |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DATABASE_URL` | Yes | `sqlite:///db.sqlite3` | Database connection string (PostgreSQL recommended) |
+| `CONN_MAX_AGE` | No | `600` | Database connection max age in seconds |
+| `POSTGRES_USER` | Yes* | - | PostgreSQL username (for Docker) |
+| `POSTGRES_PASSWORD` | Yes* | - | PostgreSQL password (for Docker) |
+| `POSTGRES_DB` | Yes* | - | PostgreSQL database name (for Docker) |
 
-### Connection URL Format
-
-```
-postgres://user:password@host:port/database
-```
-
-Examples:
-
-```bash
-# Local development
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/app
-
-# Production
-DATABASE_URL=postgres://appuser:secure_password@db.example.com:5432/production
-```
+*Required when using Docker Compose.
 
 ## Redis
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `REDIS_URL` | **Required** | Redis connection URL |
-
-### Connection URL Format
-
-```
-redis://[:password@]host:port[/database]
-```
-
-Examples:
-
-```bash
-# Local development
-REDIS_URL=redis://localhost:6379
-
-# With password
-REDIS_URL=redis://:mypassword@redis.example.com:6379
-
-# With database selection
-REDIS_URL=redis://localhost:6379/1
-```
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `REDIS_URL` | Yes | - | Redis connection string |
+| `REDIS_PASSWORD` | No | - | Redis password (used in Docker Compose) |
+| `CACHE_DEFAULT_TIMEOUT` | No | `300` | Default cache timeout in seconds |
 
 ## JWT Authentication
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `JWT_SECRET_KEY` | **Required** | Secret key for signing JWTs |
-| `JWT_ALGORITHM` | `HS256` | JWT signing algorithm |
-| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | `15` | Access token lifetime in minutes |
-| `JWT_REFRESH_TOKEN_EXPIRE_DAYS` | `30` | Refresh token lifetime in days |
-
-## Celery
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CELERY_WORKER_PREFETCH_MULTIPLIER` | `1` | Tasks to prefetch per worker |
-| `CELERY_WORKER_MAX_TASKS_PER_CHILD` | `1000` | Tasks before worker restart |
-| `CELERY_TASK_ACKS_LATE` | `true` | Acknowledge after completion |
-| `CELERY_TASK_TIME_LIMIT` | `300` | Hard time limit in seconds |
-| `CELERY_TASK_SOFT_TIME_LIMIT` | `270` | Soft time limit in seconds |
-| `CELERY_RESULT_EXPIRES` | `3600` | Result expiration in seconds |
-
-## Telegram Bot
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `TELEGRAM_BOT_TOKEN` | **Required** | Bot token from @BotFather |
-| `TELEGRAM_BOT_PARSE_MODE` | `HTML` | Default message parse mode |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `JWT_SECRET_KEY` | Yes | - | Secret key for JWT token signing |
+| `JWT_ALGORITHM` | No | `HS256` | JWT signing algorithm |
+| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | No | `15` | Access token lifetime in minutes |
 
 ## S3/MinIO Storage
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `AWS_S3_ENDPOINT_URL` | - | S3-compatible endpoint URL |
-| `AWS_S3_ACCESS_KEY_ID` | - | Access key ID |
-| `AWS_S3_SECRET_ACCESS_KEY` | - | Secret access key |
-| `AWS_S3_BUCKET_NAME` | - | Default bucket name |
-| `AWS_S3_REGION_NAME` | `us-east-1` | Region name |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `AWS_S3_ENDPOINT_URL` | Yes* | - | S3-compatible endpoint URL |
+| `AWS_S3_ACCESS_KEY_ID` | Yes* | - | S3 access key ID |
+| `AWS_S3_SECRET_ACCESS_KEY` | Yes* | - | S3 secret access key |
+| `AWS_S3_PROTECTED_BUCKET_NAME` | No | `protected` | Private bucket name |
+| `AWS_S3_PUBLIC_BUCKET_NAME` | No | `public` | Public bucket name |
 
-### Local MinIO Configuration
+*Required when using S3 storage backend.
+
+## Telegram Bot
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `TELEGRAM_BOT_TOKEN` | Yes* | - | Telegram bot API token |
+| `TELEGRAM_BOT_PARSE_MODE` | No | `HTML` | Default message parse mode |
+
+*Required when running the bot.
+
+## Celery
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `CELERY_WORKER_PREFETCH_MULTIPLIER` | No | `1` | Tasks to prefetch per worker |
+| `CELERY_WORKER_MAX_TASKS_PER_CHILD` | No | `1000` | Max tasks before worker restart |
+| `CELERY_WORKER_MAX_MEMORY_PER_CHILD` | No | - | Memory limit per worker (KB) |
+| `CELERY_TASK_ACKS_LATE` | No | `true` | Acknowledge after execution |
+| `CELERY_TASK_REJECT_ON_WORKER_LOST` | No | `true` | Requeue if worker dies |
+| `CELERY_TASK_TIME_LIMIT` | No | `300` | Hard time limit (seconds) |
+| `CELERY_TASK_SOFT_TIME_LIMIT` | No | `270` | Soft time limit (seconds) |
+| `CELERY_RESULT_EXPIRES` | No | `3600` | Result expiry (seconds) |
+| `CELERY_RESULT_BACKEND_ALWAYS_RETRY` | No | `true` | Retry on transient errors |
+| `CELERY_RESULT_BACKEND_MAX_RETRIES` | No | `10` | Max result backend retries |
+| `CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP` | No | `true` | Retry broker on startup |
+| `CELERY_BROKER_CONNECTION_MAX_RETRIES` | No | `10` | Max broker connection retries |
+| `CELERY_TASK_SERIALIZER` | No | `json` | Task serialization format |
+| `CELERY_RESULT_SERIALIZER` | No | `json` | Result serialization format |
+| `CELERY_ACCEPT_CONTENT` | No | `["json"]` | Accepted content types |
+| `CELERY_WORKER_SEND_TASK_EVENTS` | No | `true` | Send task events (for monitoring) |
+| `CELERY_TASK_SEND_SENT_EVENT` | No | `true` | Send sent events |
+
+## HTTP/CORS
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `CORS_ALLOW_CREDENTIALS` | No | `true` | Allow credentials in CORS |
+| `CORS_ALLOWED_ORIGINS` | No | `["http://localhost"]` | JSON list of allowed CORS origins |
+| `NINJA_NUM_PROXIES` | No | `0` | Number of reverse proxies |
+
+## Observability (Logfire)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `LOGFIRE_ENABLED` | No | `false` | Enable Logfire observability |
+| `LOGFIRE_TOKEN` | No | - | Logfire write token |
+
+## Docker Compose
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `COMPOSE_FILE` | No | `docker-compose.yaml` | Compose file(s) to use |
+
+For local development, set:
 
 ```bash
-AWS_S3_ENDPOINT_URL=http://localhost:9000
-AWS_S3_ACCESS_KEY_ID=minioadmin
-AWS_S3_SECRET_ACCESS_KEY=minioadmin
-AWS_S3_BUCKET_NAME=app-bucket
+COMPOSE_FILE=docker-compose.yaml:docker-compose.local.yaml
 ```
 
-## Observability
+## Example Configuration
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LOGFIRE_ENABLED` | `false` | Enable Logfire integration |
-| `LOGFIRE_TOKEN` | - | Logfire write token |
-| `LOGFIRE_PROJECT` | - | Logfire project name |
-
-### Alternative OpenTelemetry Backends
-
-| Variable | Description |
-|----------|-------------|
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP collector endpoint |
-| `OTEL_EXPORTER_OTLP_HEADERS` | Headers for OTLP (e.g., API keys) |
-| `OTEL_SERVICE_NAME` | Service name for traces |
-
-## Cache
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CACHE_DEFAULT_TIMEOUT` | `300` | Default cache timeout in seconds |
-
-## CORS
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CORS_ALLOWED_ORIGINS` | `[]` | Allowed CORS origins |
-| `CORS_ALLOW_ALL_ORIGINS` | `false` | Allow all origins (dev only) |
-
-## Example Configurations
-
-### Development (`.env`)
+Minimal `.env` for local development:
 
 ```bash
-# Django
+COMPOSE_FILE=docker-compose.yaml:docker-compose.local.yaml
+
+DJANGO_SECRET_KEY=your-secret-key
+JWT_SECRET_KEY=your-jwt-secret
+
+ENVIRONMENT=local
 DJANGO_DEBUG=true
-DJANGO_SECRET_KEY=dev-secret-key-change-in-production
+LOGGING_LEVEL=DEBUG
 
-# Database
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/app
+POSTGRES_USER=postgres
+POSTGRES_DB=postgres
+POSTGRES_PASSWORD=your-password
+DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}"
 
-# Redis
-REDIS_URL=redis://localhost:6379
+REDIS_PASSWORD=your-redis-password
+REDIS_URL="redis://default:${REDIS_PASSWORD}@localhost:6379/0"
 
-# JWT
-JWT_SECRET_KEY=dev-jwt-secret-change-in-production
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
-
-# Telegram (optional)
-TELEGRAM_BOT_TOKEN=your-bot-token
-
-# MinIO
 AWS_S3_ENDPOINT_URL=http://localhost:9000
-AWS_S3_ACCESS_KEY_ID=minioadmin
-AWS_S3_SECRET_ACCESS_KEY=minioadmin
-AWS_S3_BUCKET_NAME=app-bucket
-
-# Observability
-LOGFIRE_ENABLED=false
+AWS_S3_ACCESS_KEY_ID=your-access-key
+AWS_S3_SECRET_ACCESS_KEY=your-secret-key
 ```
-
-### Production
-
-```bash
-# Django
-DJANGO_DEBUG=false
-DJANGO_SECRET_KEY=<strong-random-key>
-DJANGO_ALLOWED_HOSTS=api.example.com,www.example.com
-
-# Database
-DATABASE_URL=postgres://appuser:secure_password@db.example.com:5432/production
-
-# Redis
-REDIS_URL=redis://:redis_password@redis.example.com:6379
-
-# JWT
-JWT_SECRET_KEY=<strong-random-key>
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=15
-
-# Celery
-CELERY_WORKER_MAX_TASKS_PER_CHILD=500
-CELERY_TASK_TIME_LIMIT=300
-
-# S3
-AWS_S3_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
-AWS_S3_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-AWS_S3_BUCKET_NAME=production-bucket
-AWS_S3_REGION_NAME=us-east-1
-
-# Observability
-LOGFIRE_ENABLED=true
-LOGFIRE_TOKEN=<your-token>
-
-# CORS
-CORS_ALLOWED_ORIGINS=https://app.example.com,https://admin.example.com
-```
-
-### Test (`.env.test`)
-
-```bash
-DJANGO_DEBUG=true
-DJANGO_SECRET_KEY=test-secret-key
-
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/test_app
-
-REDIS_URL=redis://localhost:6379
-
-JWT_SECRET_KEY=test-jwt-secret
-
-LOGFIRE_ENABLED=false
-```
-
-## Generating Secrets
-
-### Django Secret Key
-
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(50))"
-```
-
-### JWT Secret Key
-
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(32))"
-```
-
-## Related
-
-- [Pydantic Settings](../concepts/pydantic-settings.md) - How settings are loaded
-- [Docker Services](docker-services.md) - Container configuration

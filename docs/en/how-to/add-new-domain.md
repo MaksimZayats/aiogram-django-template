@@ -1,380 +1,476 @@
 # Add a New Domain
 
-This guide walks through adding a complete new domain (feature area) to the application.
+This guide walks you through adding a new business domain to your application. We will use "products" as an example domain.
 
 ## Prerequisites
 
-- Understanding of the [Service Layer](../concepts/service-layer.md) pattern
-- Familiarity with [IoC Container](../concepts/ioc-container.md) registration
+- Understanding of the [Service Layer Architecture](../concepts/service-layer.md)
+- Familiarity with the [Controller Pattern](../concepts/controller-pattern.md)
 
-## Checklist
+## Complete Checklist
 
-- [ ] Create Django app config
-- [ ] Create model
-- [ ] Create service with domain exceptions
-- [ ] Register app in Django settings
-- [ ] Register service in IoC
-- [ ] Create HTTP controller
-- [ ] Register controller in IoC
-- [ ] Update API factory
-- [ ] (Optional) Create admin
-- [ ] (Optional) Create Celery task
-- [ ] Create tests
+### Step 1: Create the Domain Directory Structure
 
-## Step-by-Step
+Create the domain directory in `src/core/`:
 
-### 1. Create Django App Config
+```bash
+mkdir -p src/core/products
+touch src/core/products/__init__.py
+```
+
+### Step 2: Create the Django App Configuration
+
+Create `src/core/products/apps.py`:
 
 ```python
-# src/core/article/__init__.py
-# (empty file)
-
-# src/core/article/apps.py
 from django.apps import AppConfig
 
 
-class ArticleConfig(AppConfig):
+class ProductsConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = "core.article"
+    name = "core.products"
+    label = "products"
 ```
 
-### 2. Create Model
+### Step 3: Add to INSTALLED_APPS
+
+Edit `src/core/configs/core.py` and add the new app to the installed apps list:
 
 ```python
-# src/core/article/models.py
+class ApplicationSettings(BaseSettings):
+    # ... existing fields ...
+
+    @property
+    def installed_apps(self) -> list[str]:
+        return [
+            # ... existing apps ...
+            "core.products",
+        ]
+```
+
+### Step 4: Create the Domain Model
+
+Create `src/core/products/models.py`:
+
+```python
 from django.db import models
 
-from core.user.models import User
 
-
-class Article(models.Model):
-    title = models.CharField(max_length=200)
-    content = models.TextField()
-    author = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name="articles",
-    )
+class Product(models.Model):
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    is_published = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return self.title
+        return f"Product(id={self.pk}, name={self.name})"
 ```
 
-### 3. Create Service
+### Step 5: Create the Service with Domain Exceptions
+
+Create `src/core/products/services.py`:
 
 ```python
-# src/core/article/services.py
 from django.db import transaction
 
-from core.article.models import Article
-from core.exceptions import ApplicationError
-from core.user.models import User
+from core.products.models import Product
 
 
-class ArticleNotFoundError(ApplicationError):
-    """Raised when article cannot be found."""
+class ProductNotFoundError(Exception):
+    """Raised when a product is not found."""
 
 
-class ArticleAccessDeniedError(ApplicationError):
-    """Raised when user cannot access the article."""
-
-
-class ArticleService:
-    def get_article_by_id(self, article_id: int) -> Article:
+class ProductService:
+    def get_product_by_id(self, product_id: int) -> Product:
         try:
-            return Article.objects.get(id=article_id)
-        except Article.DoesNotExist as e:
-            raise ArticleNotFoundError(f"Article {article_id} not found") from e
+            return Product.objects.get(id=product_id)
+        except Product.DoesNotExist as e:
+            raise ProductNotFoundError(f"Product {product_id} not found") from e
 
-    def list_published_articles(self) -> list[Article]:
-        return list(Article.objects.filter(is_published=True))
-
-    def list_user_articles(self, user: User) -> list[Article]:
-        return list(Article.objects.filter(author=user))
+    def list_products(self) -> list[Product]:
+        return list(Product.objects.all())
 
     @transaction.atomic
-    def create_article(
+    def create_product(
         self,
-        author: User,
-        title: str,
-        content: str,
-    ) -> Article:
-        return Article.objects.create(
-            author=author,
-            title=title,
-            content=content,
+        name: str,
+        description: str,
+        price: float,
+    ) -> Product:
+        return Product.objects.create(
+            name=name,
+            description=description,
+            price=price,
         )
 
     @transaction.atomic
-    def publish_article(self, article_id: int, user: User) -> Article:
-        article = self.get_article_by_id(article_id)
-        if article.author_id != user.id:
-            raise ArticleAccessDeniedError("Cannot publish another user's article")
-        article.is_published = True
-        article.save()
-        return article
+    def update_product(
+        self,
+        product_id: int,
+        name: str | None = None,
+        description: str | None = None,
+        price: float | None = None,
+    ) -> Product:
+        product = self.get_product_by_id(product_id)
+
+        if name is not None:
+            product.name = name
+        if description is not None:
+            product.description = description
+        if price is not None:
+            product.price = price
+
+        product.save()
+        return product
+
+    @transaction.atomic
+    def delete_product(self, product_id: int) -> None:
+        product = self.get_product_by_id(product_id)
+        product.delete()
 ```
 
-### 4. Register App in Django Settings
+!!! warning "Service Layer Rule"
+    Services are the **only** place where you should import and use Django models directly. Controllers must never import models.
+
+### Step 6: Register the Service in IoC
+
+Edit `src/ioc/registries/core.py`:
 
 ```python
-# src/core/configs/django.py
-application_settings = ApplicationSettings(
-    installed_apps=(
-        # ... existing apps ...
-        "core.article.apps.ArticleConfig",
-    ),
-)
-```
+from punq import Container, Scope
 
-### 5. Create and Apply Migration
-
-```bash
-make makemigrations
-make migrate
-```
-
-### 6. Register Service in IoC
-
-```python
-# src/ioc/registries/core.py
-from core.article.services import ArticleService
+from core.products.services import ProductService
+# ... other imports ...
 
 
 def _register_services(container: Container) -> None:
-    # ... existing services ...
-    container.register(ArticleService, scope=Scope.singleton)
+    # ... existing registrations ...
+    container.register(ProductService, scope=Scope.singleton)
 ```
 
-### 7. Create HTTP Controller
+### Step 7: Create the Controller
+
+Create the controller directory and file:
+
+```bash
+mkdir -p src/delivery/http/products
+touch src/delivery/http/products/__init__.py
+```
+
+Create `src/delivery/http/products/controllers.py`:
 
 ```python
-# src/delivery/http/article/__init__.py
-# (empty file)
-
-# src/delivery/http/article/controllers.py
 from http import HTTPStatus
 from typing import Any
 
+from django.http import HttpRequest
 from ninja import Router
 from ninja.errors import HttpError
-from ninja.throttling import AnonRateThrottle, AuthRateThrottle
+from ninja.throttling import AuthRateThrottle
 from pydantic import BaseModel
 
-from core.article.services import (
-    ArticleAccessDeniedError,
-    ArticleNotFoundError,
-    ArticleService,
-)
+from core.products.services import ProductNotFoundError, ProductService
 from infrastructure.delivery.controllers import Controller
 from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuth
 
 
-class CreateArticleRequestSchema(BaseModel):
-    title: str
-    content: str
-
-
-class ArticleSchema(BaseModel):
+class ProductSchema(BaseModel):
     id: int
-    title: str
-    content: str
-    author_id: int
-    is_published: bool
-    created_at: str
+    name: str
+    description: str
+    price: float
 
 
-class ArticleListSchema(BaseModel):
-    items: list[ArticleSchema]
+class CreateProductRequest(BaseModel):
+    name: str
+    description: str = ""
+    price: float
 
 
-class ArticleController(Controller):
+class UpdateProductRequest(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    price: float | None = None
+
+
+class ProductController(Controller):
     def __init__(
         self,
         jwt_auth: JWTAuth,
-        article_service: ArticleService,
+        product_service: ProductService,
     ) -> None:
         self._jwt_auth = jwt_auth
-        self._article_service = article_service
+        self._product_service = product_service
 
     def register(self, registry: Router) -> None:
         registry.add_api_operation(
-            path="/v1/articles/",
+            path="/v1/products/",
             methods=["GET"],
-            view_func=self.list_articles,
-            auth=None,
-            throttle=AnonRateThrottle(rate="60/min"),
+            view_func=self.list_products,
+            auth=self._jwt_auth,
+            throttle=AuthRateThrottle(rate="30/min"),
         )
         registry.add_api_operation(
-            path="/v1/articles/",
+            path="/v1/products/",
             methods=["POST"],
-            view_func=self.create_article,
+            view_func=self.create_product,
             auth=self._jwt_auth,
-            throttle=AuthRateThrottle(rate="10/min"),
+            throttle=AuthRateThrottle(rate="30/min"),
         )
         registry.add_api_operation(
-            path="/v1/articles/{article_id}/publish",
-            methods=["POST"],
-            view_func=self.publish_article,
+            path="/v1/products/{product_id}",
+            methods=["GET"],
+            view_func=self.get_product,
             auth=self._jwt_auth,
-            throttle=AuthRateThrottle(rate="10/min"),
+            throttle=AuthRateThrottle(rate="30/min"),
         )
+        registry.add_api_operation(
+            path="/v1/products/{product_id}",
+            methods=["PATCH"],
+            view_func=self.update_product,
+            auth=self._jwt_auth,
+            throttle=AuthRateThrottle(rate="30/min"),
+        )
+        registry.add_api_operation(
+            path="/v1/products/{product_id}",
+            methods=["DELETE"],
+            view_func=self.delete_product,
+            auth=self._jwt_auth,
+            throttle=AuthRateThrottle(rate="30/min"),
+        )
+
+    def list_products(
+        self,
+        request: AuthenticatedHttpRequest,
+    ) -> list[ProductSchema]:
+        products = self._product_service.list_products()
+        return [
+            ProductSchema.model_validate(p, from_attributes=True)
+            for p in products
+        ]
+
+    def create_product(
+        self,
+        request: AuthenticatedHttpRequest,
+        body: CreateProductRequest,
+    ) -> ProductSchema:
+        product = self._product_service.create_product(
+            name=body.name,
+            description=body.description,
+            price=body.price,
+        )
+        return ProductSchema.model_validate(product, from_attributes=True)
+
+    def get_product(
+        self,
+        request: AuthenticatedHttpRequest,
+        product_id: int,
+    ) -> ProductSchema:
+        product = self._product_service.get_product_by_id(product_id)
+        return ProductSchema.model_validate(product, from_attributes=True)
+
+    def update_product(
+        self,
+        request: AuthenticatedHttpRequest,
+        product_id: int,
+        body: UpdateProductRequest,
+    ) -> ProductSchema:
+        product = self._product_service.update_product(
+            product_id=product_id,
+            name=body.name,
+            description=body.description,
+            price=body.price,
+        )
+        return ProductSchema.model_validate(product, from_attributes=True)
+
+    def delete_product(
+        self,
+        request: AuthenticatedHttpRequest,
+        product_id: int,
+    ) -> None:
+        self._product_service.delete_product(product_id)
 
     def handle_exception(self, exception: Exception) -> Any:
-        if isinstance(exception, ArticleNotFoundError):
-            raise HttpError(HTTPStatus.NOT_FOUND, "Article not found") from exception
-        if isinstance(exception, ArticleAccessDeniedError):
-            raise HttpError(HTTPStatus.FORBIDDEN, "Access denied") from exception
+        if isinstance(exception, ProductNotFoundError):
+            raise HttpError(
+                status_code=HTTPStatus.NOT_FOUND,
+                message=str(exception),
+            ) from exception
+
         return super().handle_exception(exception)
-
-    def list_articles(self, request) -> ArticleListSchema:
-        articles = self._article_service.list_published_articles()
-        return ArticleListSchema(
-            items=[
-                ArticleSchema(
-                    id=a.id,
-                    title=a.title,
-                    content=a.content,
-                    author_id=a.author_id,
-                    is_published=a.is_published,
-                    created_at=a.created_at.isoformat(),
-                )
-                for a in articles
-            ]
-        )
-
-    def create_article(
-        self,
-        request: AuthenticatedHttpRequest,
-        request_body: CreateArticleRequestSchema,
-    ) -> ArticleSchema:
-        article = self._article_service.create_article(
-            author=request.user,
-            title=request_body.title,
-            content=request_body.content,
-        )
-        return ArticleSchema(
-            id=article.id,
-            title=article.title,
-            content=article.content,
-            author_id=article.author_id,
-            is_published=article.is_published,
-            created_at=article.created_at.isoformat(),
-        )
-
-    def publish_article(
-        self,
-        request: AuthenticatedHttpRequest,
-        article_id: int,
-    ) -> ArticleSchema:
-        article = self._article_service.publish_article(
-            article_id=article_id,
-            user=request.user,
-        )
-        return ArticleSchema(
-            id=article.id,
-            title=article.title,
-            content=article.content,
-            author_id=article.author_id,
-            is_published=article.is_published,
-            created_at=article.created_at.isoformat(),
-        )
 ```
 
-### 8. Register Controller in IoC
+### Step 8: Register the Controller in IoC
+
+Edit `src/ioc/registries/delivery.py`:
 
 ```python
-# src/ioc/registries/delivery.py
-from delivery.http.article.controllers import ArticleController
+from punq import Container, Scope
+
+from delivery.http.products.controllers import ProductController
+# ... other imports ...
 
 
 def _register_http_controllers(container: Container) -> None:
-    # ... existing controllers ...
-    container.register(ArticleController, scope=Scope.singleton)
+    # ... existing registrations ...
+    container.register(ProductController, scope=Scope.singleton)
 ```
 
-### 9. Update API Factory
+### Step 9: Update NinjaAPIFactory
+
+Edit `src/delivery/http/factories.py` to include the new controller:
 
 ```python
-# src/delivery/http/factories.py
-from delivery.http.article.controllers import ArticleController
+from delivery.http.products.controllers import ProductController
+# ... other imports ...
 
 
 class NinjaAPIFactory:
     def __init__(
         self,
-        # ... existing parameters ...
-        article_controller: ArticleController,
+        settings: ApplicationSettings,
+        health_controller: HealthController,
+        user_token_controller: UserTokenController,
+        user_controller: UserController,
+        product_controller: ProductController,  # Add this
     ) -> None:
-        # ... existing assignments ...
-        self._article_controller = article_controller
+        self._settings = settings
+        self._health_controller = health_controller
+        self._user_token_controller = user_token_controller
+        self._user_controller = user_controller
+        self._product_controller = product_controller  # Add this
 
-    def __call__(self, urls_namespace: str | None = None) -> NinjaAPI:
+    def __call__(
+        self,
+        urls_namespace: str | None = None,
+    ) -> NinjaAPI:
         # ... existing code ...
 
-        article_router = Router(tags=["article"])
-        ninja_api.add_router("/", article_router)
-        self._article_controller.register(registry=article_router)
+        # Add product router
+        product_router = Router(tags=["products"])
+        ninja_api.add_router("/", product_router)
+        self._product_controller.register(registry=product_router)
 
         return ninja_api
 ```
 
-### 10. (Optional) Create Admin
-
-```python
-# src/delivery/http/article/admin.py
-from django.contrib import admin
-
-from core.article.models import Article
-
-
-class ArticleAdmin(admin.ModelAdmin[Article]):
-    list_display = ("id", "title", "author", "is_published", "created_at")
-    list_filter = ("is_published", "created_at")
-    search_fields = ("title", "content", "author__username")
-```
-
-Register in `AdminSiteFactory`:
-
-```python
-# src/delivery/http/factories.py
-from core.article.models import Article
-from delivery.http.article.admin import ArticleAdmin
-
-
-class AdminSiteFactory:
-    def __call__(self) -> AdminSite:
-        # ... existing registrations ...
-        default_site.register(Article, admin_class=ArticleAdmin)
-        return default_site
-```
-
-## Verification
-
-Start the server and test:
+### Step 10: Create and Run Migrations
 
 ```bash
-make dev
+# Create migrations
+make makemigrations
 
-# List articles (public)
-curl http://localhost:8000/v1/articles/
-
-# Create article (authenticated)
-TOKEN="your-jwt-token"
-curl -X POST http://localhost:8000/v1/articles/ \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Hello World", "content": "This is my first article"}'
+# Apply migrations
+make migrate
 ```
 
-## Related
+### Step 11: Create Tests
 
-- [Service Layer](../concepts/service-layer.md) - Architecture pattern
-- [Controller Pattern](../concepts/controller-pattern.md) - Request handling
-- [Tutorial: Build a Todo List](../tutorial/index.md) - Full walkthrough
+Create test directory and files:
+
+```bash
+mkdir -p tests/integration/http/products
+touch tests/integration/http/products/__init__.py
+```
+
+Create `tests/integration/http/products/test_products.py`:
+
+```python
+from http import HTTPStatus
+
+import pytest
+
+from core.products.models import Product
+from tests.integration.factories import TestClientFactory, TestUserFactory
+
+
+@pytest.fixture
+def product() -> Product:
+    return Product.objects.create(
+        name="Test Product",
+        description="A test product",
+        price=99.99,
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_list_products(
+    test_client_factory: TestClientFactory,
+    user_factory: TestUserFactory,
+    product: Product,
+) -> None:
+    user = user_factory()
+    test_client = test_client_factory(auth_for_user=user)
+
+    response = test_client.get("/v1/products/")
+
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["name"] == product.name
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_product(
+    test_client_factory: TestClientFactory,
+    user_factory: TestUserFactory,
+) -> None:
+    user = user_factory()
+    test_client = test_client_factory(auth_for_user=user)
+
+    response = test_client.post(
+        "/v1/products/",
+        json={
+            "name": "New Product",
+            "description": "A new product",
+            "price": 49.99,
+        },
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()
+    assert data["name"] == "New Product"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_get_product_not_found(
+    test_client_factory: TestClientFactory,
+    user_factory: TestUserFactory,
+) -> None:
+    user = user_factory()
+    test_client = test_client_factory(auth_for_user=user)
+
+    response = test_client.get("/v1/products/999")
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
+```
+
+### Step 12: Run Tests
+
+```bash
+make test
+```
+
+## Summary
+
+You have now added a complete new domain with:
+
+- [x] Django model in `core/products/models.py`
+- [x] Service layer in `core/products/services.py`
+- [x] Domain exceptions (`ProductNotFoundError`)
+- [x] HTTP controller in `delivery/http/products/controllers.py`
+- [x] IoC registrations for service and controller
+- [x] API routes with authentication and rate limiting
+- [x] Integration tests
+
+The data flow follows the architecture:
+
+```
+HTTP Request -> Controller -> Service -> Model -> Database
+```
+
+Controllers never import models directly - they only interact with services.

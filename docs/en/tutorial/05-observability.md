@@ -1,183 +1,223 @@
 # Step 5: Observability
 
-In this step, you'll configure Logfire for observability - tracing, logging, and monitoring of your application.
+In this step, you will configure observability for your application using Logfire, an OpenTelemetry-based observability platform by Pydantic. This provides distributed tracing, automatic instrumentation, and sensitive data scrubbing.
 
-## No Code Changes Required
+## What You Will Learn
 
-This step is configuration-only. The template already includes Logfire integration.
+- What Logfire is and why it matters
+- How to obtain a Logfire token
+- What gets automatically instrumented
+- How sensitive data is scrubbed
+- How to swap Logfire for other OpenTelemetry backends
+
+!!! note "No Code Changes Required"
+    This step requires only environment configuration. The template already includes full Logfire integration.
+
+---
 
 ## What is Logfire?
 
-[Logfire](https://logfire.pydantic.dev/) is an OpenTelemetry-based observability platform by Pydantic. It provides:
+[Logfire](https://logfire.pydantic.dev/) is an observability platform built by the creators of Pydantic. It provides:
 
-- **Distributed tracing** - Track requests across services
-- **Structured logging** - Queryable log data
-- **Metrics** - Performance monitoring
-- **Error tracking** - Exception reporting
+- **Distributed Tracing**: Follow requests across HTTP, Celery tasks, and database queries
+- **Automatic Instrumentation**: Zero-config tracing for Django, Celery, PostgreSQL, Redis, and more
+- **Pydantic Integration**: See validation errors with full context
+- **OpenTelemetry Native**: Uses standard OTEL protocols, making it interchangeable with other backends
 
-**OpenTelemetry-compatible** - Logfire uses the OpenTelemetry standard, so you can switch to other backends (Jaeger, Honeycomb, Datadog) if needed.
+---
 
 ## Getting a Logfire Token
 
-1. Go to [https://logfire.pydantic.dev/](https://logfire.pydantic.dev/)
-2. Create an account (free tier available)
-3. Create a new project
-4. Go to Project Settings → Write Tokens
+1. Go to [logfire.pydantic.dev](https://logfire.pydantic.dev/)
+2. Create an account or sign in
+3. Create a new project (e.g., `my-todo-app`)
+4. Navigate to **Settings** > **Write Tokens**
 5. Generate a new write token
+6. Copy the token for the next step
 
-## Configure Environment Variables
+!!! warning "Keep Your Token Secret"
+    Never commit your Logfire token to version control. Use environment variables or a secrets manager.
 
-Add these to your `.env` file:
+---
 
-```bash
-# Enable Logfire
+## Environment Configuration
+
+Add these environment variables to your `.env` file:
+
+```bash title=".env"
+# Observability
 LOGFIRE_ENABLED=true
-
-# Your write token from Logfire dashboard
 LOGFIRE_TOKEN=your_write_token_here
 ```
 
-## What Gets Instrumented Automatically
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LOGFIRE_ENABLED` | Enable/disable Logfire instrumentation | `false` |
+| `LOGFIRE_TOKEN` | Your Logfire write token | `None` |
 
-Once enabled, Logfire automatically instruments:
+!!! tip "Development vs Production"
+    You can disable Logfire locally by setting `LOGFIRE_ENABLED=false` to reduce noise during development.
 
-| Component | What's Captured |
-|-----------|-----------------|
-| **Django** | Request/response, middleware, views |
+---
+
+## What Gets Instrumented
+
+The template automatically instruments these libraries when Logfire is enabled:
+
+| Library | What is Traced |
+|---------|----------------|
+| **Django** | HTTP requests, responses, middleware timing |
 | **Celery** | Task execution, retries, failures |
-| **PostgreSQL** | Queries with trace context in SQL comments |
-| **Redis** | Cache operations, Celery broker calls |
-| **HTTP clients** | requests, httpx, aiohttp |
-| **Pydantic** | Validation errors |
+| **PostgreSQL (psycopg)** | SQL queries with timing and parameters |
+| **Redis** | Cache operations and commands |
+| **HTTP Clients (requests, httpx)** | Outbound HTTP calls |
+| **Pydantic** | Validation errors with context |
 
-### Excluded Endpoints
+### Example Trace
 
-Health check endpoints (`/v1/health`) are excluded from tracing to reduce noise.
+When a user creates a todo, you will see a trace like:
 
-## Trace Context Propagation
-
-Traces automatically propagate across:
-
-- HTTP API → Service → Database
-- HTTP API → Celery Task → Database
-- Celery Task → HTTP Client → External API
-
-This gives you a complete picture of request flow.
-
-## SQL Query Comments
-
-PostgreSQL queries include trace context in SQL comments:
-
-```sql
-/* traceparent=00-abc123-def456-01 */
-SELECT * FROM core_todo WHERE user_id = 1;
+```
+POST /v1/todos/ (45ms)
+├── JWT Authentication (2ms)
+├── Pydantic Validation (1ms)
+├── TodoService.create_todo (38ms)
+│   └── INSERT INTO todo_todo... (35ms)
+└── Response Serialization (1ms)
 ```
 
-This allows correlating slow queries with specific requests.
+---
 
-## Scrubbing Sensitive Data
+## Sensitive Data Scrubbing
 
-Logfire automatically scrubs common sensitive patterns:
+Logfire automatically scrubs sensitive data from traces. The template adds custom patterns for JWT tokens:
 
-- `password`
-- `secret`
-- `token`
-- `api_key`
-- `authorization`
+```python title="src/infrastructure/otel/logfire.py"
+logfire.configure(
+    # ...
+    scrubbing=ScrubbingOptions(
+        extra_patterns=[
+            "access_token",
+            "refresh_token",
+        ],
+    ),
+)
+```
 
-The template adds custom patterns:
+### Built-in Scrubbing Patterns
 
-- `access_token`
-- `refresh_token`
+Logfire scrubs these by default:
+
+- `password`, `passwd`, `pwd`
+- `secret`, `api_key`, `apikey`
+- `token`, `auth`, `credential`
+- `ssn`, `social_security`
+- Credit card patterns
+
+### Custom Patterns
+
+Add additional patterns in `src/infrastructure/otel/logfire.py`:
+
+```python
+scrubbing=ScrubbingOptions(
+    extra_patterns=[
+        "access_token",
+        "refresh_token",
+        "my_custom_secret",  # Add your patterns
+    ],
+),
+```
+
+---
 
 ## Viewing Traces
 
-After enabling Logfire:
+Once configured, traces appear in the Logfire dashboard:
 
-1. Make some requests to your API:
-   ```bash
-   curl http://localhost:8000/v1/health
-   curl -X POST http://localhost:8000/v1/users/me/token \
-     -H "Content-Type: application/json" \
-     -d '{"username": "testuser", "password": "testpass"}'
-   ```
+1. Open [logfire.pydantic.dev](https://logfire.pydantic.dev/)
+2. Select your project
+3. Navigate to **Live** to see real-time traces
+4. Use **Explore** to search historical traces
 
-2. Open the Logfire dashboard
-3. View traces in the Explore tab
+### Useful Queries
 
-You'll see:
+| Query | Purpose |
+|-------|---------|
+| `service.name:http-api` | Filter HTTP API traces |
+| `service.name:celery-worker` | Filter Celery worker traces |
+| `span.name:POST /v1/todos/` | Find specific endpoint calls |
+| `level:error` | Find errors and exceptions |
 
-- Request duration breakdown
-- Database query timing
-- Error stack traces
-- Cross-service correlation
+---
 
-## Using a Different Backend
+## OpenTelemetry Compatibility
 
-Since Logfire uses OpenTelemetry, you can switch backends:
+Logfire uses standard OpenTelemetry protocols, meaning you can replace it with any OTEL-compatible backend:
 
-### Jaeger
+- **Jaeger** - Open-source distributed tracing
+- **Honeycomb** - Observability for distributed systems
+- **Datadog** - Full-stack monitoring platform
+- **Grafana Tempo** - Distributed tracing backend
+- **AWS X-Ray** - AWS native tracing
 
-```python
-# Set OTLP endpoint instead of Logfire token
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+To switch backends, modify `src/infrastructure/otel/logfire.py` to configure your preferred OTEL exporter instead of Logfire.
+
+!!! info "Why Logfire by Default?"
+    Logfire is included because it offers the best developer experience for Pydantic-based applications, with automatic validation error context and minimal configuration.
+
+---
+
+## Excluding Endpoints from Tracing
+
+Health check endpoints are excluded by default to reduce noise:
+
+```python title="src/infrastructure/otel/logfire.py"
+logfire.instrument_django(
+    excluded_urls=".*/v1/health",
+    is_sql_commentor_enabled=True,
+)
 ```
 
-### Honeycomb
+Add additional patterns using regex:
 
 ```python
-OTEL_EXPORTER_OTLP_ENDPOINT=https://api.honeycomb.io
-OTEL_EXPORTER_OTLP_HEADERS=x-honeycomb-team=your-api-key
+excluded_urls=".*/v1/health|.*/v1/metrics|.*/readiness"
 ```
 
-See [Configure Observability](../how-to/configure-observability.md) for detailed instructions.
+---
 
-## Best Practices
+## SQL Query Commenting
 
-### 1. Use Structured Logging
+The template enables SQL commentor, which adds trace context to SQL queries:
 
-```python
-import logfire
-
-# Good - structured data
-logfire.info("Todo created", todo_id=todo.id, user_id=user.id)
-
-# Bad - string interpolation
-logfire.info(f"Todo {todo.id} created by {user.id}")
+```sql
+/* db_driver='psycopg', dbapi_level='2.0',
+   traceparent='00-abc123-def456-01' */
+SELECT * FROM todo_todo WHERE user_id = 1;
 ```
 
-### 2. Add Custom Spans
+This allows you to correlate slow queries in your database monitoring tools with specific traces.
 
-```python
-import logfire
+---
 
-with logfire.span("process_todos"):
-    # Complex operation
-    for todo in todos:
-        with logfire.span("process_todo", todo_id=todo.id):
-            process_todo(todo)
-```
+## Summary
 
-### 3. Include Context in Errors
+You have learned how to:
 
-```python
-try:
-    result = process_data(data)
-except ValueError as e:
-    logfire.error("Processing failed", error=str(e), data_id=data.id)
-    raise
-```
+- Configure Logfire for production observability
+- Understand what gets automatically instrumented
+- Protect sensitive data with scrubbing patterns
+- Query and explore traces in the Logfire dashboard
+- Swap Logfire for other OpenTelemetry backends
 
-## What You've Learned
+---
 
-In this step, you:
+## Next Steps
 
-1. Understood what Logfire provides
-2. Configured environment variables for observability
-3. Learned what gets automatically instrumented
-4. Saw how to view traces
-5. Understood options for alternative backends
+Continue to [Step 6: Testing](06-testing.md) to write comprehensive tests for your Todo feature.
 
-## Next Step
+---
 
-In [Step 6: Testing](06-testing.md), you'll write integration tests for your Todo API and Celery task.
+!!! abstract "See Also"
+    - [Configure Observability](../how-to/configure-observability.md) - Detailed configuration guide
+    - [Environment Variables](../reference/environment-variables.md) - Full list of configuration options

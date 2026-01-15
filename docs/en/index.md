@@ -54,22 +54,22 @@ A production-ready Django + aiogram + Celery application template with dependenc
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Entry Points                              │
+│                        Entry Points                             │
 ├───────────────┬───────────────────────┬─────────────────────────┤
 │   HTTP API    │     Celery Worker     │     Telegram Bot        │
 │ (Django Ninja)│                       │      (aiogram)          │
 ├───────────────┴───────────────────────┴─────────────────────────┤
-│                     Controllers (delivery/)                      │
-│              HTTP Controllers │ Task Controllers                 │
+│                     Controllers (delivery/)                     │
+│              HTTP Controllers │ Task Controllers                │
 ├─────────────────────────────────────────────────────────────────┤
-│                      Services (core/)                            │
-│              Business Logic │ Database Operations                │
+│                      Services (core/)                           │
+│              Business Logic │ Database Operations               │
 ├─────────────────────────────────────────────────────────────────┤
-│                    IoC Container (ioc/)                          │
-│                   Dependency Resolution                          │
+│                    IoC Container (ioc/)                         │
+│                   Dependency Resolution                         │
 ├─────────────────────────────────────────────────────────────────┤
-│                   Infrastructure (infrastructure/)               │
-│              JWT │ Settings │ Base Classes                       │
+│                   Infrastructure (infrastructure/)              │
+│              JWT │ Settings │ Base Classes                      │
 └─────────────────────────────────────────────────────────────────┘
 ```
 

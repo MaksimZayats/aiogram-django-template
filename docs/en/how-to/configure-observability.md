@@ -1,357 +1,295 @@
 # Configure Observability
 
-This guide covers setting up observability with Logfire or alternative OpenTelemetry backends.
+This guide explains how to set up observability with Logfire (default) or replace it with other OpenTelemetry-compatible backends.
 
-## Logfire (Default)
+## Default Logfire Setup
+
+The template includes built-in support for [Logfire](https://pydantic.dev/logfire), a Pydantic-native observability platform.
 
 ### Enable Logfire
 
-Set environment variables:
+1. Create a Logfire account at [logfire.pydantic.dev](https://logfire.pydantic.dev)
+
+2. Get your project token from the Logfire dashboard
+
+3. Add environment variables to your `.env` file:
 
 ```bash
 LOGFIRE_ENABLED=true
-LOGFIRE_TOKEN=your_write_token_here
+LOGFIRE_TOKEN=your-logfire-token-here
 ```
 
-### Get a Logfire Token
+### What Gets Instrumented
 
-1. Go to [https://logfire.pydantic.dev/](https://logfire.pydantic.dev/)
-2. Create an account
-3. Create a new project
-4. Navigate to Project Settings → Write Tokens
-5. Generate a new write token
+When Logfire is enabled, these libraries are automatically instrumented:
 
-### What's Auto-Instrumented
+- **Django** - HTTP requests and responses (excluding health checks)
+- **Celery** - Task execution with trace context propagation
+- **psycopg** - PostgreSQL queries with SQL comments
+- **Redis** - Redis commands
+- **requests** - Outbound HTTP requests
+- **httpx** - Async HTTP requests
+- **Pydantic** - Validation timing
 
-Once enabled, Logfire automatically instruments:
-
-| Component | Traces |
-|-----------|--------|
-| Django | Requests, middleware, views |
-| Celery | Task execution, retries, failures |
-| PostgreSQL | Queries with trace context |
-| Redis | Cache operations |
-| HTTP clients | requests, httpx, aiohttp |
-| Pydantic | Validation errors |
-
-### Excluded Paths
-
-Health check endpoints are excluded to reduce noise:
+The configuration is in `src/infrastructure/otel/logfire.py`:
 
 ```python
-# Excluded from tracing
-/v1/health
-```
-
-## Alternative Backends
-
-Since the template uses OpenTelemetry standards, you can switch to other backends.
-
-### Jaeger
-
-Local development with Jaeger:
-
-```bash
-# Start Jaeger
-docker run -d --name jaeger \
-  -p 16686:16686 \
-  -p 4317:4317 \
-  jaegertracing/all-in-one:latest
-
-# Configure environment
-LOGFIRE_ENABLED=false
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-OTEL_SERVICE_NAME=my-app
-```
-
-Access the UI at [http://localhost:16686](http://localhost:16686).
-
-### Honeycomb
-
-```bash
-LOGFIRE_ENABLED=false
-OTEL_EXPORTER_OTLP_ENDPOINT=https://api.honeycomb.io
-OTEL_EXPORTER_OTLP_HEADERS=x-honeycomb-team=your-api-key
-OTEL_SERVICE_NAME=my-app
-```
-
-### Datadog
-
-```bash
-LOGFIRE_ENABLED=false
-DD_AGENT_HOST=localhost
-DD_TRACE_AGENT_PORT=8126
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-OTEL_SERVICE_NAME=my-app
-```
-
-### Grafana Tempo
-
-```bash
-LOGFIRE_ENABLED=false
-OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317
-OTEL_SERVICE_NAME=my-app
-```
-
-## Custom Instrumentation
-
-### Adding Spans
-
-```python
-import logfire
-
-# Simple span
-with logfire.span("process_order"):
-    process_order(order)
-
-# Span with attributes
-with logfire.span("process_order", order_id=order.id, amount=order.total):
-    process_order(order)
-
-# Nested spans
-with logfire.span("handle_checkout"):
-    with logfire.span("validate_cart"):
-        validate_cart(cart)
-    with logfire.span("process_payment"):
-        process_payment(payment)
-    with logfire.span("send_confirmation"):
-        send_confirmation(user)
-```
-
-### Structured Logging
-
-```python
-import logfire
-
-# Structured log with attributes
-logfire.info(
-    "User logged in",
-    user_id=user.id,
-    ip_address=request.META.get("REMOTE_ADDR"),
-)
-
-# Warning with context
-logfire.warning(
-    "Rate limit approaching",
-    user_id=user.id,
-    current_requests=current,
-    limit=max_requests,
-)
-
-# Error with exception
-try:
-    process_data(data)
-except ValueError as e:
-    logfire.error(
-        "Data processing failed",
-        error=str(e),
-        data_id=data.id,
+def _instrument_libraries() -> None:
+    logfire.instrument_django(
+        excluded_urls=".*/v1/health",
+        is_sql_commentor_enabled=True,
     )
+    logfire.instrument_celery(propagate_trace_context=True)
+    logfire.instrument_requests()
+    logfire.instrument_psycopg(
+        enable_commenter=True,
+        commenter_options=CommenterOptions(
+            db_driver=True,
+            dbapi_level=True,
+        ),
+    )
+    logfire.instrument_httpx()
+    logfire.instrument_redis()
+    logfire.instrument_pydantic()
 ```
 
-### Recording Exceptions
+### Sensitive Data Scrubbing
+
+Logfire automatically scrubs sensitive fields. Additional patterns are configured:
 
 ```python
-import logfire
-
-try:
-    risky_operation()
-except Exception as e:
-    logfire.exception("Operation failed")
-    raise
-```
-
-## Scrubbing Sensitive Data
-
-### Default Scrubbing
-
-Logfire automatically scrubs common sensitive patterns:
-
-- `password`
-- `secret`
-- `token`
-- `api_key`
-- `authorization`
-- `cookie`
-
-### Custom Scrubbing
-
-The template adds additional patterns:
-
-```python
-# Custom patterns scrubbed
-- access_token
-- refresh_token
-```
-
-### Adding More Patterns
-
-To add custom scrubbing patterns, configure Logfire:
-
-```python
-import logfire
-
 logfire.configure(
-    scrubbing=logfire.ScrubbingOptions(
+    # ...
+    scrubbing=ScrubbingOptions(
         extra_patterns=[
-            "credit_card",
-            "social_security",
-            "bank_account",
+            "access_token",
+            "refresh_token",
         ],
     ),
 )
 ```
 
-## SQL Query Comments
+## Replacing Logfire with Other Backends
 
-PostgreSQL queries include trace context:
+To use a different OpenTelemetry backend (Jaeger, Honeycomb, Datadog, etc.), replace the Logfire configuration with the OpenTelemetry SDK.
 
-```sql
-/* traceparent=00-abc123-def456-01 */
-SELECT * FROM core_user WHERE id = 1;
-```
-
-This allows correlating slow queries with specific requests in your observability dashboard.
-
-## Trace Propagation
-
-### HTTP Requests
-
-Traces automatically propagate through HTTP requests:
-
-```python
-import httpx
-
-# Trace context is automatically added to headers
-response = httpx.get("https://api.example.com/data")
-```
-
-### Celery Tasks
-
-Traces propagate from HTTP requests to background tasks:
-
-```python
-# HTTP handler
-def create_order(request, body):
-    # This span is the parent
-    order = self._order_service.create_order(...)
-
-    # Task inherits trace context
-    tasks.send_order_confirmation.delay(order.id)
-```
-
-## Environment-Specific Configuration
-
-### Development
+### Step 1: Install OpenTelemetry Packages
 
 ```bash
-LOGFIRE_ENABLED=false  # Disable in development
-# Or use local Jaeger
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+uv add opentelemetry-sdk opentelemetry-exporter-otlp
+uv add opentelemetry-instrumentation-django
+uv add opentelemetry-instrumentation-celery
+uv add opentelemetry-instrumentation-redis
+uv add opentelemetry-instrumentation-psycopg
+uv add opentelemetry-instrumentation-requests
 ```
 
-### Staging
+### Step 2: Create OpenTelemetry Configuration
 
-```bash
-LOGFIRE_ENABLED=true
-LOGFIRE_TOKEN=staging_token
-LOGFIRE_PROJECT=my-app-staging
-```
-
-### Production
-
-```bash
-LOGFIRE_ENABLED=true
-LOGFIRE_TOKEN=production_token
-LOGFIRE_PROJECT=my-app-production
-```
-
-## Best Practices
-
-### 1. Use Structured Data
+Replace `src/infrastructure/otel/logfire.py` with a new file `src/infrastructure/otel/opentelemetry.py`:
 
 ```python
-# ✅ GOOD - Structured, queryable
-logfire.info("Order created", order_id=123, total=99.99, items=5)
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# ❌ BAD - String interpolation
-logfire.info(f"Order 123 created with total $99.99 and 5 items")
-```
+from infrastructure.settings.types import Environment
 
-### 2. Add Context to Errors
 
-```python
-# ✅ GOOD - Context for debugging
-try:
-    process_order(order)
-except PaymentError as e:
-    logfire.error(
-        "Payment failed",
-        order_id=order.id,
-        payment_method=order.payment_method,
-        error_code=e.code,
+class OpenTelemetrySettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="OTEL_")
+
+    enabled: bool = False
+    endpoint: str = "http://localhost:4317"
+    api_key: SecretStr | None = None
+
+
+def configure_opentelemetry(
+    service_name: str,
+    environment: Environment,
+    version: str,
+) -> None:
+    settings = OpenTelemetrySettings()
+    if not settings.enabled:
+        return
+
+    resource = Resource.create({
+        "service.name": service_name,
+        "service.version": version,
+        "deployment.environment": environment,
+    })
+
+    provider = TracerProvider(resource=resource)
+
+    # Configure exporter with optional API key
+    headers = {}
+    if settings.api_key:
+        # Format depends on backend (Honeycomb, Datadog, etc.)
+        headers["x-honeycomb-team"] = settings.api_key.get_secret_value()
+
+    exporter = OTLPSpanExporter(
+        endpoint=settings.endpoint,
+        headers=headers,
     )
 
-# ❌ BAD - No context
-logfire.error("Payment failed")
+    provider.add_span_processor(BatchSpanProcessor(exporter))
+    trace.set_tracer_provider(provider)
+
+    _instrument_libraries()
+
+
+def _instrument_libraries() -> None:
+    from opentelemetry.instrumentation.celery import CeleryInstrumentor
+    from opentelemetry.instrumentation.django import DjangoInstrumentor
+    from opentelemetry.instrumentation.psycopg import PsycopgInstrumentor
+    from opentelemetry.instrumentation.redis import RedisInstrumentor
+    from opentelemetry.instrumentation.requests import RequestsInstrumentor
+
+    DjangoInstrumentor().instrument()
+    CeleryInstrumentor().instrument()
+    PsycopgInstrumentor().instrument()
+    RedisInstrumentor().instrument()
+    RequestsInstrumentor().instrument()
 ```
 
-### 3. Use Appropriate Log Levels
+### Step 3: Update Infrastructure Configuration
 
-| Level | Use Case |
-|-------|----------|
-| `debug` | Detailed debugging info |
-| `info` | Normal operations |
-| `warning` | Unusual but handled situations |
-| `error` | Errors that need attention |
-| `exception` | Errors with stack trace |
-
-### 4. Span Names Should Be Constants
+Edit `src/core/configs/infrastructure.py`:
 
 ```python
-# ✅ GOOD - Constant name, dynamic attributes
-with logfire.span("process_order", order_id=order.id):
-    ...
+# Replace this import:
+# from infrastructure.otel.logfire import configure_logfire
 
-# ❌ BAD - Dynamic name makes grouping impossible
-with logfire.span(f"process_order_{order.id}"):
-    ...
+# With this:
+from infrastructure.otel.opentelemetry import configure_opentelemetry
+
+
+def configure_infrastructure(service_name: str) -> None:
+    # ... existing code ...
+
+    # Replace configure_logfire with:
+    configure_opentelemetry(
+        service_name=service_name,
+        environment=application_settings.environment,
+        version=application_settings.version,
+    )
 ```
 
-## Troubleshooting
+### Step 4: Configure Environment Variables
 
-### No Traces Appearing
+For different backends:
 
-1. Check `LOGFIRE_ENABLED=true`
-2. Verify `LOGFIRE_TOKEN` is correct
-3. Ensure network can reach Logfire API
+**Jaeger:**
+```bash
+OTEL_ENABLED=true
+OTEL_ENDPOINT=http://localhost:4317
+```
 
-### Missing Database Queries
+**Honeycomb:**
+```bash
+OTEL_ENABLED=true
+OTEL_ENDPOINT=https://api.honeycomb.io:443
+OTEL_API_KEY=your-honeycomb-api-key
+```
 
-Ensure Django database backend supports tracing:
+**Datadog:**
+```bash
+OTEL_ENABLED=true
+OTEL_ENDPOINT=http://localhost:4317
+# Datadog Agent handles the rest
+```
+
+**Grafana Tempo:**
+```bash
+OTEL_ENABLED=true
+OTEL_ENDPOINT=http://tempo:4317
+```
+
+## Custom Instrumentation
+
+### Adding Custom Spans
 
 ```python
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        # ...
-    }
-}
+from opentelemetry import trace
+
+tracer = trace.get_tracer(__name__)
+
+
+class PaymentService:
+    def process_payment(self, amount: float) -> dict:
+        with tracer.start_as_current_span("process_payment") as span:
+            span.set_attribute("payment.amount", amount)
+
+            result = self._call_payment_gateway(amount)
+
+            span.set_attribute("payment.status", result["status"])
+            return result
 ```
 
-### High Cardinality Warnings
-
-Avoid dynamic span names or attributes with unbounded values:
+### Adding Custom Attributes
 
 ```python
-# ❌ BAD - Unbounded cardinality
-logfire.info("Request", path=request.path)  # Could be infinite paths
+from opentelemetry import trace
 
-# ✅ GOOD - Bounded cardinality
-logfire.info("Request", endpoint=endpoint_name)  # Known set of endpoints
+
+def my_endpoint(request: HttpRequest) -> Response:
+    span = trace.get_current_span()
+    span.set_attribute("user.id", request.user.id)
+    span.set_attribute("request.path", request.path)
+    # ... rest of handler
 ```
 
-## Related
+### Recording Exceptions
 
-- [Tutorial: Observability](../tutorial/05-observability.md) - Getting started
-- [Pydantic Settings](../concepts/pydantic-settings.md) - Configuration
+```python
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+
+
+def risky_operation() -> None:
+    span = trace.get_current_span()
+    try:
+        # ... operation that might fail
+        pass
+    except Exception as e:
+        span.record_exception(e)
+        span.set_status(Status(StatusCode.ERROR, str(e)))
+        raise
+```
+
+## Disabling Observability in Tests
+
+The template automatically disables Logfire in tests via `.env.test`:
+
+```bash
+LOGFIRE_ENABLED=false
+```
+
+For custom OpenTelemetry setup:
+
+```bash
+OTEL_ENABLED=false
+```
+
+## Summary
+
+| Backend | Environment Variables |
+|---------|----------------------|
+| Logfire (default) | `LOGFIRE_ENABLED`, `LOGFIRE_TOKEN` |
+| Jaeger | `OTEL_ENABLED`, `OTEL_ENDPOINT` |
+| Honeycomb | `OTEL_ENABLED`, `OTEL_ENDPOINT`, `OTEL_API_KEY` |
+| Datadog | `OTEL_ENABLED`, `OTEL_ENDPOINT` (via Agent) |
+| Grafana Tempo | `OTEL_ENABLED`, `OTEL_ENDPOINT` |
+
+The default Logfire integration provides:
+
+- Zero-config setup with just token
+- Automatic library instrumentation
+- Sensitive data scrubbing
+- Pydantic-native validation insights
+
+For custom backends, replace the Logfire module with OpenTelemetry SDK configuration.

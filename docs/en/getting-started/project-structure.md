@@ -1,176 +1,236 @@
 # Project Structure
 
-Understanding the directory layout and module organization.
+Understanding the codebase organization is essential for effective development. This template follows a layered architecture that separates concerns and promotes maintainability.
 
-## Directory Overview
+## High-Level Overview
 
 ```
 modern-django-template/
-├── src/                          # Application source code
-│   ├── core/                     # Business logic & models
-│   ├── delivery/                 # External interfaces
-│   ├── infrastructure/           # Cross-cutting concerns
-│   ├── ioc/                      # Dependency injection
-│   └── manage.py                 # Django entry point
-├── tests/                        # Test suite
-├── docs/                         # Documentation
-├── docker-compose.yml            # Container orchestration
-├── Makefile                      # Development commands
-└── pyproject.toml                # Project configuration
+├── src/                    # Application source code
+│   ├── core/               # Business logic and domain models
+│   ├── delivery/           # External interfaces (HTTP, Celery, Bot)
+│   ├── infrastructure/     # Cross-cutting concerns
+│   └── ioc/                # Dependency injection container
+├── tests/                  # Test suite
+├── docs/                   # Documentation (MkDocs)
+├── docker-compose.yaml     # Production Docker services
+├── docker-compose.local.yaml # Development overrides
+├── Makefile                # Development commands
+└── pyproject.toml          # Project configuration
 ```
 
-## Source Code (`src/`)
+## The `src/` Directory
+
+All application code lives under `src/`. This is structured as a Python namespace package with four main modules.
 
 ### `core/` - Business Logic
 
-Contains domain models, services, and business rules. **This is where your application logic lives.**
+The core module contains your domain models, business rules, and services. This is where the heart of your application logic resides.
 
 ```
-core/
-├── configs/                      # Application & Django settings
-│   ├── core.py                   # Pydantic settings classes
-│   └── django.py                 # Django settings adapter
-├── exceptions.py                 # Base application exception
-├── health/                       # Health check domain
-│   ├── services.py               # HealthService
-│   └── apps.py                   # Django app config
-└── user/                         # User domain
-    ├── models.py                 # User, RefreshSession models
-    ├── services.py               # UserService
-    └── apps.py                   # Django app config
+src/core/
+├── configs/                # Application configuration
+│   ├── core.py             # Core settings (environment, logging)
+│   ├── django.py           # Django settings module
+│   └── infrastructure.py   # Infrastructure settings (S3, Redis)
+├── health/                 # Health check domain
+│   └── services.py         # Health check service
+├── user/                   # User domain
+│   ├── models.py           # User model (extends Django AbstractUser)
+│   ├── services.py         # User business logic
+│   └── migrations/         # Database migrations
+└── exceptions.py           # Base domain exceptions
 ```
 
-**Key principles:**
-
-- Each domain has its own directory (`health/`, `user/`)
-- Services encapsulate all database operations
-- Models are Django ORM models
-- Controllers never import from `core/*/models.py` directly
+!!! important "The Golden Rule"
+    Services in `core/` are the **only** place where you should access Django models directly. Controllers in `delivery/` must always go through services.
 
 ### `delivery/` - External Interfaces
 
-Contains all entry points to the application: HTTP API, Celery tasks, and Telegram bot.
+The delivery module handles all external communication. Each sub-module is a separate entry point into your application.
 
 ```
-delivery/
-├── http/                         # Django Ninja API
-│   ├── api.py                    # NinjaAPI instance
-│   ├── factories.py              # NinjaAPIFactory, AdminSiteFactory
-│   ├── settings.py               # HTTP-specific settings
-│   ├── health/
-│   │   └── controllers.py        # HealthController
-│   └── user/
-│       ├── controllers.py        # UserController, UserTokenController
-│       └── admin.py              # UserAdmin
-├── tasks/                        # Celery workers
-│   ├── app.py                    # Celery app instance
-│   ├── factories.py              # CeleryAppFactory
-│   ├── registry.py               # TasksRegistry, TaskName enum
-│   ├── settings.py               # Celery settings
-│   └── tasks/
-│       └── ping.py               # PingTaskController
-└── bot/                          # Telegram bot
-    ├── __main__.py               # Bot entry point
-    ├── factories.py              # BotFactory, DispatcherFactory
-    ├── settings.py               # Bot settings
-    └── controllers/
-        └── commands.py           # CommandsController
+src/delivery/
+├── http/                   # HTTP API (Django Ninja)
+│   ├── app.py              # WSGI application factory
+│   ├── settings.py         # HTTP-specific settings
+│   ├── health/             # Health check endpoints
+│   │   └── controllers.py
+│   └── user/               # User endpoints
+│       └── controllers.py
+├── tasks/                  # Celery background tasks
+│   ├── app.py              # Celery application factory
+│   ├── registry.py         # Task name registry
+│   ├── settings.py         # Celery settings
+│   └── tasks/              # Task controllers
+│       └── ping.py
+└── bot/                    # Telegram bot (aiogram)
+    ├── __main__.py         # Bot entry point
+    ├── settings.py         # Bot settings
+    └── controllers/        # Bot command handlers
 ```
 
-**Key principles:**
+#### HTTP Controllers
 
-- Controllers are the only classes that handle requests
-- Controllers inject services via constructor
-- Each controller has a `register()` method for route/task registration
+HTTP controllers define API endpoints using Django Ninja's routing:
+
+```python
+# src/delivery/http/user/controllers.py
+class UserController(Controller):
+    def __init__(self, user_service: UserService) -> None:
+        self._user_service = user_service
+
+    def register(self, registry: Router) -> None:
+        registry.add_api_operation(
+            path="/v1/users/me",
+            methods=["GET"],
+            view_func=self.get_current_user,
+            auth=self._jwt_auth,
+        )
+```
+
+#### Celery Task Controllers
+
+Task controllers follow the same pattern but register with Celery:
+
+```python
+# src/delivery/tasks/tasks/ping.py
+class PingTaskController(Controller):
+    def register(self, registry: Celery) -> None:
+        registry.task(name=TaskName.PING)(self.ping)
+
+    def ping(self) -> str:
+        return "pong"
+```
+
+#### Bot Controllers
+
+Telegram bot controllers use aiogram's routing:
+
+```python
+# src/delivery/bot/controllers/__init__.py
+class CommandsController(AsyncController):
+    def register(self, registry: Router) -> None:
+        registry.message.register(
+            self.handle_start_command,
+            Command(commands=["start"]),
+        )
+```
 
 ### `infrastructure/` - Cross-Cutting Concerns
 
-Contains shared utilities, base classes, and framework integrations.
+Infrastructure code supports the application but is not domain-specific.
 
 ```
-infrastructure/
-├── delivery/
-│   └── controllers.py            # Controller, AsyncController base classes
-├── django/
-│   ├── auth.py                   # JWTAuth, AuthenticatedHttpRequest
-│   ├── settings/
-│   │   └── pydantic_adapter.py   # Django settings adapter
-│   └── refresh_sessions/
-│       └── models.py             # BaseRefreshSession
-├── jwt/
-│   └── services.py               # JWTService, JWTServiceSettings
-├── celery/
-│   └── registry.py               # BaseTasksRegistry
-├── logging/
-│   └── configuration.py          # Logging setup
-└── settings/
-    └── types.py                  # Environment enum
+src/infrastructure/
+├── celery/                 # Celery utilities
+│   └── registry.py         # Base task registry
+├── delivery/               # Controller base classes
+│   └── controllers.py      # Controller and AsyncController
+├── django/                 # Django extensions
+│   ├── auth.py             # JWT authentication
+│   ├── refresh_sessions/   # Refresh token management
+│   │   ├── models.py
+│   │   └── services.py
+│   └── settings/           # Settings adapters
+│       └── pydantic_adapter.py
+├── jwt/                    # JWT token service
+│   └── services.py
+├── logging/                # Logging configuration
+│   └── configuration.py
+├── otel/                   # OpenTelemetry integration
+│   └── logfire.py
+└── settings/               # Settings type definitions
+    └── types.py
 ```
 
 ### `ioc/` - Dependency Injection
 
-Contains the IoC container configuration using punq.
+The IoC container wires everything together.
 
 ```
-ioc/
-├── container.py                  # get_container() function
-└── registries/
-    ├── core.py                   # Service registrations
-    ├── delivery.py               # Controller registrations
-    └── infrastructure.py         # Infrastructure registrations
+src/ioc/
+├── container.py            # Container factory
+└── registries/             # Component registrations
+    ├── core.py             # Core services
+    ├── delivery.py         # Controllers
+    └── infrastructure.py   # Infrastructure services
 ```
 
-**Registration order matters:**
+The container is configured in three stages:
 
-1. `core.py` - Settings, models, services
-2. `infrastructure.py` - JWT, auth, base classes
-3. `delivery.py` - Controllers, factories, API instances
-
-## Tests (`tests/`)
-
-```
-tests/
-├── conftest.py                   # Shared fixtures
-├── integration/
-│   ├── conftest.py               # Integration test fixtures
-│   ├── factories.py              # Test factories
-│   ├── http/
-│   │   └── test_v1_users.py      # HTTP API tests
-│   └── tasks/
-│       └── test_ping.py          # Celery task tests
-└── unit/                         # Unit tests (if any)
+```python
+# src/ioc/container.py
+def get_container() -> Container:
+    container = Container()
+    register_core(container)           # Domain services
+    register_infrastructure(container) # JWT, auth, etc.
+    register_delivery(container)       # HTTP, Celery, Bot controllers
+    return container
 ```
 
-**Key patterns:**
+## Data Flow
 
-- `factories.py` contains `TestClientFactory`, `TestUserFactory`, etc.
-- Each test gets a fresh IoC container (function-scoped)
-- Use `@pytest.mark.django_db(transaction=True)` for database tests
+Understanding how data flows through the layers:
+
+```
+HTTP Request
+    │
+    ▼
+┌─────────────────────────────────────────────────────────┐
+│  delivery/http/                                         │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │  Controller                                       │  │
+│  │  - Validates request (Pydantic schemas)           │  │
+│  │  - Calls service methods                          │  │
+│  │  - Returns response (Pydantic schemas)            │  │
+│  └───────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────┐
+│  core/                                                  │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │  Service                                          │  │
+│  │  - Implements business logic                      │  │
+│  │  - Accesses models via Django ORM                 │  │
+│  │  - Raises domain exceptions                       │  │
+│  └───────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────┐
+│  Database (PostgreSQL)                                  │
+└─────────────────────────────────────────────────────────┘
+```
 
 ## Configuration Files
 
 | File | Purpose |
 |------|---------|
-| `pyproject.toml` | Project metadata, dependencies, tool configs |
-| `Makefile` | Development commands (`make dev`, `make test`) |
-| `docker-compose.yml` | Container services |
-| `.env.example` | Example environment variables |
-| `CLAUDE.md` | AI assistant instructions |
+| `pyproject.toml` | Python project configuration, dependencies, tool settings |
+| `Makefile` | Development command shortcuts |
+| `docker-compose.yaml` | Production Docker services |
+| `docker-compose.local.yaml` | Development Docker overrides |
+| `.env.example` | Template for environment variables |
+| `.pre-commit-config.yaml` | Pre-commit hook configuration |
 
-## Entry Points
+## Tests Directory
 
-The application has three main entry points:
-
-| Entry Point | Command | Description |
-|------------|---------|-------------|
-| HTTP API | `make dev` | Django development server |
-| Celery Worker | `make celery-dev` | Background task processor |
-| Telegram Bot | `uv run python -m delivery.bot` | Bot polling |
-
-All entry points share the same IoC container, ensuring consistent dependency resolution.
+```
+tests/
+├── conftest.py             # Pytest fixtures
+├── integration/            # Integration tests
+│   ├── factories.py        # Test factories
+│   ├── http/               # HTTP API tests
+│   └── tasks/              # Celery task tests
+└── unit/                   # Unit tests
+```
 
 ## Next Steps
 
-- [Development Environment](development-environment.md) - Set up your IDE
-- [Tutorial](../tutorial/index.md) - Build a feature from scratch
-- [Service Layer](../concepts/service-layer.md) - Deep dive into the architecture
+Now that you understand the project structure:
+
+- **[Development Environment](development-environment.md)** - Set up your IDE
+- **[Service Layer](../concepts/service-layer.md)** - Deep dive into the service pattern
+- **[IoC Container](../concepts/ioc-container.md)** - Learn about dependency injection

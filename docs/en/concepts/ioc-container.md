@@ -1,282 +1,373 @@
 # IoC Container
 
-The IoC (Inversion of Control) container manages dependency injection using [punq](https://github.com/bobthemighty/punq), a simple DI library for Python.
+Inversion of Control (IoC) is a design principle where the control of object creation is inverted from the component that needs the dependency to an external container. This template uses **punq**, a lightweight dependency injection container for Python.
 
 ## What is Dependency Injection?
 
-Without DI, classes create their own dependencies:
+Dependency Injection (DI) is a technique where an object receives its dependencies from an external source rather than creating them itself.
+
+### Without DI (Tight Coupling)
 
 ```python
-# ❌ BAD - Class creates its own dependencies
 class UserController:
-    def __init__(self):
-        self._user_service = UserService()  # Tight coupling
-        self._jwt_auth = JWTAuth(JWTService(JWTSettings()))  # Hard to test
+    def __init__(self) -> None:
+        # Controller creates its own dependencies
+        self._user_service = UserService()  # Hard to test, hard to replace
 ```
 
-With DI, dependencies are provided from outside:
+### With DI (Loose Coupling)
 
 ```python
-# ✅ GOOD - Dependencies injected
 class UserController:
-    def __init__(self, user_service: UserService, jwt_auth: JWTAuth) -> None:
-        self._user_service = user_service
-        self._jwt_auth = jwt_auth
+    def __init__(self, user_service: UserService) -> None:
+        # Dependencies are provided from outside
+        self._user_service = user_service  # Easy to test, easy to replace
 ```
 
-## Container Structure
+The IoC container automates this process by:
 
-The container is configured in `src/ioc/`:
+1. Reading type annotations from `__init__` signatures
+2. Resolving dependencies automatically
+3. Managing object lifecycles
+
+## Container Organization
+
+The container is organized into three registry modules, each responsible for a different architectural layer:
 
 ```
 ioc/
-├── container.py              # get_container() function
-└── registries/
-    ├── core.py               # Services, settings, models
-    ├── infrastructure.py     # JWT, auth, base classes
-    └── delivery.py           # Controllers, factories
++-- container.py          # Main container setup
++-- registries/
+    +-- core.py           # Domain services, settings, models
+    +-- infrastructure.py # Cross-cutting concerns (JWT, auth)
+    +-- delivery.py       # Controllers, factories, external interfaces
 ```
 
-## Registration Order
-
-Registration order matters because some components depend on others:
+### Registration Flow
 
 ```python
-# src/ioc/container.py
+# ioc/container.py
+from punq import Container
+
+from ioc.registries.core import register_core
+from ioc.registries.delivery import register_delivery
+from ioc.registries.infrastructure import register_infrastructure
+
+
 def get_container() -> Container:
     container = Container()
-    register_core(container)          # 1. Settings, services
-    register_infrastructure(container) # 2. JWT, auth
-    register_delivery(container)       # 3. Controllers, factories
+
+    register_core(container)           # 1. Domain layer first
+    register_infrastructure(container) # 2. Infrastructure depends on core
+    register_delivery(container)       # 3. Delivery depends on both
+
     return container
 ```
 
+!!! note "Registration Order Matters"
+    Components are registered in dependency order. Core components have no dependencies, infrastructure may depend on core, and delivery depends on both.
+
 ## Registration Patterns
 
-### Type-Based Registration
+### Type-Based Registration (Auto-Resolve)
 
-The most common pattern. punq auto-resolves dependencies from the `__init__` signature:
+The simplest pattern. The container inspects `__init__` type annotations and automatically resolves dependencies:
 
 ```python
-# Service with no dependencies
-container.register(HealthService, scope=Scope.singleton)
+# ioc/registries/core.py
+from punq import Container, Scope
+from core.health.services import HealthService
+from core.user.services import UserService
 
-# Service with dependencies - punq resolves automatically
-container.register(UserController, scope=Scope.singleton)
-# punq sees __init__(user_service: UserService, jwt_auth: JWTAuth)
-# and resolves both from the container
+
+def _register_services(container: Container) -> None:
+    container.register(HealthService, scope=Scope.singleton)
+    container.register(UserService, scope=Scope.singleton)
+```
+
+When `UserController` is resolved, the container sees it needs `UserService` and provides it automatically:
+
+```python
+# This happens automatically when you resolve UserController
+class UserController(Controller):
+    def __init__(self, user_service: UserService) -> None:
+        self._user_service = user_service
 ```
 
 ### Factory-Based Registration
 
-Used when the object needs special construction (e.g., loading from environment):
+Use factories when components need special initialization, typically for settings that load from environment variables:
 
 ```python
-# Settings loaded from environment variables
+# ioc/registries/infrastructure.py
+container.register(
+    JWTServiceSettings,
+    factory=lambda: JWTServiceSettings(),  # Creates instance from env vars
+)
+```
+
+The factory is called once (for singletons) or each time (for transient) when the type is resolved.
+
+### Instance-Based Registration
+
+Use instance registration for concrete implementations of abstract types:
+
+```python
+# ioc/registries/core.py
+from core.user.models import RefreshSession
+from infrastructure.django.refresh_sessions.models import BaseRefreshSession
+
+
+def _register_models(container: Container) -> None:
+    container.register(
+        type[BaseRefreshSession],  # Abstract type
+        instance=RefreshSession,   # Concrete implementation
+    )
+```
+
+This allows services to depend on the abstract type while receiving the concrete implementation:
+
+```python
+class RefreshSessionService:
+    def __init__(
+        self,
+        settings: RefreshSessionServiceSettings,
+        refresh_session_model: type[BaseRefreshSession],  # Receives RefreshSession
+    ) -> None:
+        self._refresh_session_model = refresh_session_model
+```
+
+## Scopes
+
+### Singleton Scope
+
+The same instance is returned for all resolutions:
+
+```python
+container.register(UserService, scope=Scope.singleton)
+
+# Both calls return the same instance
+service1 = container.resolve(UserService)
+service2 = container.resolve(UserService)
+assert service1 is service2  # True
+```
+
+!!! tip "When to Use Singleton"
+    Use singleton for:
+
+    - Stateless services
+    - Settings objects
+    - Connection pools
+    - Factories (they manage their own caching)
+
+### Transient Scope (Default)
+
+A new instance is created for each resolution:
+
+```python
+container.register(SomeService)  # Transient by default
+
+service1 = container.resolve(SomeService)
+service2 = container.resolve(SomeService)
+assert service1 is service2  # False - different instances
+```
+
+!!! tip "When to Use Transient"
+    Use transient for:
+
+    - Request-scoped objects
+    - Objects with mutable state
+    - Objects that should not be shared
+
+## Resolution
+
+### Basic Resolution
+
+```python
+container = get_container()
+user_service = container.resolve(UserService)
+```
+
+### Resolution with Automatic Dependency Injection
+
+The container resolves the entire dependency graph:
+
+```python
+# When resolving UserController, the container:
+# 1. Sees UserController needs JWTAuth and UserService
+# 2. Resolves JWTAuth (which needs JWTService, which needs JWTServiceSettings)
+# 3. Resolves UserService
+# 4. Creates UserController with both dependencies
+
+controller = container.resolve(UserController)
+```
+
+```
+UserController
+    |
+    +-- JWTAuth
+    |       |
+    |       +-- JWTService
+    |               |
+    |               +-- JWTServiceSettings
+    |
+    +-- UserService
+```
+
+## Registry Organization
+
+### Core Registry (`registries/core.py`)
+
+Registers domain-layer components:
+
+```python
+def register_core(container: Container) -> None:
+    _register_settings(container)  # ApplicationSettings, RedisSettings
+    _register_models(container)    # Model type mappings
+    _register_services(container)  # HealthService, UserService
+```
+
+### Infrastructure Registry (`registries/infrastructure.py`)
+
+Registers cross-cutting concerns:
+
+```python
+def register_infrastructure(container: Container) -> None:
+    _register_jwt(container)              # JWTServiceSettings, JWTService
+    _register_refresh_sessions(container) # RefreshSessionService
+    _register_auth(container)             # JWTAuth
+```
+
+### Delivery Registry (`registries/delivery.py`)
+
+Registers external interface components:
+
+```python
+def register_delivery(container: Container) -> None:
+    _register_http(container)             # NinjaAPIFactory, URLPatternsFactory
+    _register_http_controllers(container) # HealthController, UserController
+
+    _register_celery(container)           # CeleryAppFactory, TasksRegistryFactory
+    _register_celery_controllers(container)
+
+    _register_bot(container)              # BotFactory, DispatcherFactory
+    _register_bot_controllers(container)
+```
+
+## Benefits
+
+### 1. Loose Coupling
+
+Components depend on abstractions, not concrete implementations:
+
+```python
+class RefreshSessionService:
+    def __init__(
+        self,
+        refresh_session_model: type[BaseRefreshSession],  # Abstract
+    ) -> None:
+        ...
+```
+
+### 2. Testability
+
+Any component can be replaced in tests:
+
+```python
+def test_with_mock_service(container: Container) -> None:
+    mock_service = MagicMock()
+    container.register(UserService, instance=mock_service)
+
+    # All components that depend on UserService now use the mock
+    controller = container.resolve(UserController)
+```
+
+### 3. Configuration Flexibility
+
+Different configurations for different environments:
+
+```python
+# Production
+container.register(
+    JWTServiceSettings,
+    factory=lambda: JWTServiceSettings(),  # Loads from env vars
+)
+
+# Testing
+container.register(
+    JWTServiceSettings,
+    instance=JWTServiceSettings(
+        secret_key=SecretStr("test-secret"),
+        algorithm="HS256",
+    ),
+)
+```
+
+### 4. Explicit Dependencies
+
+All dependencies are visible in the `__init__` signature:
+
+```python
+class UserTokenController(Controller):
+    def __init__(
+        self,
+        jwt_auth: JWTAuth,
+        jwt_service: JWTService,
+        refresh_token_service: RefreshSessionService,
+        user_service: UserService,
+    ) -> None:
+        # All dependencies are explicit and documented
+```
+
+## Common Patterns
+
+### Registering a New Service
+
+```python
+# 1. Create the service in core/
+# core/item/services.py
+class ItemService:
+    def list_items(self) -> list[Item]:
+        return list(Item.objects.all())
+
+# 2. Register in ioc/registries/core.py
+def _register_services(container: Container) -> None:
+    container.register(HealthService, scope=Scope.singleton)
+    container.register(UserService, scope=Scope.singleton)
+    container.register(ItemService, scope=Scope.singleton)  # Add this
+```
+
+### Registering Settings
+
+```python
+# ioc/registries/core.py
 container.register(
     ApplicationSettings,
     factory=lambda: ApplicationSettings(),
     scope=Scope.singleton,
 )
-
-# Complex object with custom initialization
-container.register(
-    NinjaAPI,
-    factory=lambda: container.resolve(NinjaAPIFactory)(),
-    scope=Scope.singleton,
-)
 ```
 
-### Instance Registration
-
-Used to register a specific instance, often for abstract types:
+### Registering Controllers
 
 ```python
-# Concrete implementation of abstract type
-container.register(
-    type[BaseRefreshSession],
-    instance=RefreshSession,
-)
-
-# Pre-configured instance
-container.register(
-    SomeConfig,
-    instance=SomeConfig(debug=True, timeout=30),
-)
+# ioc/registries/delivery.py
+def _register_http_controllers(container: Container) -> None:
+    container.register(HealthController, scope=Scope.singleton)
+    container.register(UserController, scope=Scope.singleton)
+    container.register(ItemController, scope=Scope.singleton)  # Add this
 ```
 
-## Scopes
+## Summary
 
-| Scope | Description | Use Case |
-|-------|-------------|----------|
-| `Scope.singleton` | One instance per container | Services, controllers, settings |
-| `Scope.transient` | New instance every resolution | Rarely needed |
+The IoC container provides:
 
-For stateless services, always use `Scope.singleton`:
+| Feature | Benefit |
+|---------|---------|
+| Auto-resolution | Less boilerplate, automatic dependency wiring |
+| Scopes | Control over object lifecycles |
+| Registry organization | Clear separation by architectural layer |
+| Test overrides | Easy mocking and stubbing |
+| Explicit dependencies | Self-documenting code |
 
-```python
-container.register(UserService, scope=Scope.singleton)
-container.register(TodoService, scope=Scope.singleton)
-container.register(HealthService, scope=Scope.singleton)
-```
-
-## Resolution
-
-### Manual Resolution
-
-```python
-from ioc.container import get_container
-
-container = get_container()
-user_service = container.resolve(UserService)
-```
-
-### Automatic Resolution
-
-When resolving a class, punq automatically resolves its dependencies:
-
-```python
-# UserController.__init__(user_service: UserService, jwt_auth: JWTAuth)
-controller = container.resolve(UserController)
-# punq automatically:
-# 1. Resolves UserService
-# 2. Resolves JWTAuth
-# 3. Creates UserController with both
-```
-
-## Example: Full Registration
-
-```python
-# src/ioc/registries/core.py
-from punq import Container, Scope
-
-from core.todo.services import TodoService
-from core.user.services import UserService
-from core.health.services import HealthService
-
-
-def register_core(container: Container) -> None:
-    _register_settings(container)
-    _register_services(container)
-
-
-def _register_settings(container: Container) -> None:
-    container.register(
-        ApplicationSettings,
-        factory=lambda: ApplicationSettings(),
-        scope=Scope.singleton,
-    )
-
-
-def _register_services(container: Container) -> None:
-    # Services are registered as singletons
-    # Dependencies are auto-resolved from __init__ signature
-    container.register(HealthService, scope=Scope.singleton)
-    container.register(UserService, scope=Scope.singleton)
-    container.register(TodoService, scope=Scope.singleton)
-```
-
-## Testing with Container
-
-### Per-Test Container
-
-Each test gets a fresh container to avoid state pollution:
-
-```python
-@pytest.fixture(scope="function")
-def container() -> Container:
-    return get_container()
-```
-
-### Overriding Registrations
-
-Override registrations for mocking in tests:
-
-```python
-def test_with_mock_service(container: Container) -> None:
-    # Create mock
-    mock_service = MagicMock(spec=TodoService)
-    mock_service.list_todos.return_value = []
-
-    # Override registration
-    container.register(TodoService, instance=mock_service)
-
-    # Now all resolutions use the mock
-    controller = container.resolve(TodoController)
-    # controller._todo_service is mock_service
-```
-
-## Common Patterns
-
-### Lazy Factories
-
-For objects that need late initialization:
-
-```python
-container.register(
-    NinjaAPI,
-    factory=lambda: container.resolve(NinjaAPIFactory)(),
-    scope=Scope.singleton,
-)
-```
-
-### Type Aliases
-
-For registering concrete types against abstract base classes:
-
-```python
-container.register(
-    type[BaseRefreshSession],
-    instance=RefreshSession,
-)
-
-# Now this works:
-session_class = container.resolve(type[BaseRefreshSession])
-# Returns RefreshSession
-```
-
-### Settings with Prefixes
-
-```python
-container.register(
-    JWTServiceSettings,
-    factory=lambda: JWTServiceSettings(),  # Loads JWT_* env vars
-    scope=Scope.singleton,
-)
-
-container.register(
-    CelerySettings,
-    factory=lambda: CelerySettings(),  # Loads CELERY_* env vars
-    scope=Scope.singleton,
-)
-```
-
-## Debugging
-
-### Check What's Registered
-
-```python
-container = get_container()
-
-# Resolve and inspect
-service = container.resolve(TodoService)
-print(type(service))  # <class 'core.todo.services.TodoService'>
-
-# Verify singleton behavior
-service2 = container.resolve(TodoService)
-print(service is service2)  # True
-```
-
-### Missing Registration Errors
-
-If you see `punq.MissingDependencyError`, ensure:
-
-1. The dependency is registered before it's needed
-2. The type annotation matches exactly
-3. Registration order is correct (core → infrastructure → delivery)
-
-## Related Concepts
-
-- [Service Layer](service-layer.md) - What gets registered
-- [Factory Pattern](factory-pattern.md) - Creating complex objects
-- [Pydantic Settings](pydantic-settings.md) - Configuration registration
+Understanding the IoC container is essential for extending this template. When adding new components, always register them in the appropriate registry based on their architectural layer.

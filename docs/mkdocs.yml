@@ -1,6 +1,6 @@
-site_name: Modern API Template
+site_name: Modern Django API Template
 site_url: https://template.zayats.dev
-site_description: Production-ready Django + aiogram + Celery application with dependency injection
+site_description: Production-ready Django, Celery, and aiogram application with dependency injection
 repo_url: https://github.com/MaksimZayats/modern-django-template
 repo_name: MaksimZayats/modern-django-template
 

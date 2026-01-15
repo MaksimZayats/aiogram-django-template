@@ -1,282 +1,260 @@
 # Custom Exception Handling
 
-This guide shows how to map domain exceptions to HTTP responses.
+This guide explains how to handle domain exceptions in controllers and map them to appropriate HTTP status codes.
 
-## The Pattern
+## How Exception Handling Works
 
-1. Define domain exceptions in services
-2. Override `handle_exception()` in controllers
-3. Convert domain exceptions to `HttpError`
-
-## Step 1: Define Domain Exceptions
-
-Create exceptions that inherit from `ApplicationError`:
+Controllers extend the `Controller` base class, which automatically wraps all public methods with exception handling. When an exception occurs, the `handle_exception()` method is called.
 
 ```python
-# src/core/order/services.py
-from core.exceptions import ApplicationError
+class Controller(ABC):
+    @abstractmethod
+    def register(self, registry: Any) -> None: ...
 
-
-class OrderNotFoundError(ApplicationError):
-    """Raised when order cannot be found."""
-
-    def __init__(self, order_id: int) -> None:
-        self.order_id = order_id
-        super().__init__(f"Order {order_id} not found")
-
-
-class OrderAlreadyPaidError(ApplicationError):
-    """Raised when trying to pay an already paid order."""
-
-
-class InsufficientStockError(ApplicationError):
-    """Raised when product stock is insufficient."""
-
-    def __init__(self, product_id: int, requested: int, available: int) -> None:
-        self.product_id = product_id
-        self.requested = requested
-        self.available = available
-        super().__init__(
-            f"Insufficient stock for product {product_id}: "
-            f"requested {requested}, available {available}"
-        )
+    def handle_exception(self, exception: Exception) -> Any:
+        raise exception  # Default: re-raise the exception
 ```
 
-## Step 2: Override handle_exception()
+By default, exceptions are re-raised. Override `handle_exception()` to customize error responses.
 
-In your controller, override `handle_exception()` to convert domain exceptions:
+## Basic Pattern
+
+### Step 1: Define Domain Exceptions
+
+Domain exceptions belong in your service module:
 
 ```python
-# src/delivery/http/order/controllers.py
+# core/orders/services.py
+
+class OrderNotFoundError(Exception):
+    """Raised when an order is not found."""
+
+
+class OrderAlreadyShippedError(Exception):
+    """Raised when attempting to modify a shipped order."""
+
+
+class InsufficientInventoryError(Exception):
+    """Raised when there is not enough inventory."""
+```
+
+### Step 2: Override handle_exception() in Controller
+
+```python
+# delivery/http/orders/controllers.py
 from http import HTTPStatus
 from typing import Any
 
 from ninja.errors import HttpError
 
-from core.order.services import (
-    InsufficientStockError,
-    OrderAlreadyPaidError,
+from core.orders.services import (
+    InsufficientInventoryError,
+    OrderAlreadyShippedError,
     OrderNotFoundError,
+    OrderService,
 )
 from infrastructure.delivery.controllers import Controller
 
 
 class OrderController(Controller):
+    def __init__(self, order_service: OrderService) -> None:
+        self._order_service = order_service
+
+    def register(self, registry: Router) -> None:
+        # ... register routes ...
+
     def handle_exception(self, exception: Exception) -> Any:
         if isinstance(exception, OrderNotFoundError):
             raise HttpError(
                 status_code=HTTPStatus.NOT_FOUND,
-                message="Order not found",
+                message=str(exception),
             ) from exception
 
-        if isinstance(exception, OrderAlreadyPaidError):
+        if isinstance(exception, OrderAlreadyShippedError):
             raise HttpError(
                 status_code=HTTPStatus.CONFLICT,
-                message="Order has already been paid",
+                message="Cannot modify a shipped order",
             ) from exception
 
-        if isinstance(exception, InsufficientStockError):
+        if isinstance(exception, InsufficientInventoryError):
             raise HttpError(
                 status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-                message=f"Insufficient stock: only {exception.available} available",
+                message=str(exception),
             ) from exception
 
-        # Let base class handle unknown exceptions
+        # Fall back to default behavior for unhandled exceptions
         return super().handle_exception(exception)
 ```
 
-## HTTP Status Code Guide
+## Real-World Example: UserTokenController
 
-| Domain Exception | HTTP Status | Description |
-|-----------------|-------------|-------------|
-| `NotFoundError` | 404 | Resource doesn't exist |
-| `AccessDeniedError` | 403 | User lacks permission |
-| `AlreadyExistsError` | 409 | Resource conflict |
-| `ValidationError` | 422 | Invalid data |
-| `InvalidStateError` | 409 | Invalid state transition |
-| `ExternalServiceError` | 502 | Third-party failure |
-
-## Including Error Details
-
-For API clients that need structured error responses:
+Here is how the template handles refresh token exceptions:
 
 ```python
+# delivery/http/user/controllers.py
+
+from http import HTTPStatus
 from typing import Any
 
-from ninja import NinjaAPI
 from ninja.errors import HttpError
-from pydantic import BaseModel
+
+from infrastructure.django.refresh_sessions.services import (
+    ExpiredRefreshTokenError,
+    InvalidRefreshTokenError,
+    RefreshTokenError,
+)
+from infrastructure.delivery.controllers import Controller
 
 
-class ErrorResponse(BaseModel):
-    code: str
-    message: str
-    details: dict[str, Any] | None = None
+class UserTokenController(Controller):
+    def __init__(
+        self,
+        jwt_auth: JWTAuth,
+        jwt_service: JWTService,
+        refresh_token_service: RefreshSessionService,
+        user_service: UserService,
+    ) -> None:
+        self._jwt_auth = jwt_auth
+        self._jwt_service = jwt_service
+        self._refresh_token_service = refresh_token_service
+        self._user_service = user_service
 
+    def register(self, registry: Router) -> None:
+        # ... route registration ...
 
-class OrderController(Controller):
     def handle_exception(self, exception: Exception) -> Any:
-        if isinstance(exception, InsufficientStockError):
-            # Include structured details
+        if isinstance(exception, InvalidRefreshTokenError):
             raise HttpError(
-                status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-                message=ErrorResponse(
-                    code="INSUFFICIENT_STOCK",
-                    message="Insufficient stock",
-                    details={
-                        "product_id": exception.product_id,
-                        "requested": exception.requested,
-                        "available": exception.available,
-                    },
-                ).model_dump(),
+                status_code=HTTPStatus.UNAUTHORIZED,
+                message="Invalid refresh token",
+            ) from exception
+
+        if isinstance(exception, ExpiredRefreshTokenError):
+            raise HttpError(
+                status_code=HTTPStatus.UNAUTHORIZED,
+                message="Refresh token expired or revoked",
+            ) from exception
+
+        if isinstance(exception, RefreshTokenError):
+            raise HttpError(
+                status_code=HTTPStatus.UNAUTHORIZED,
+                message="Refresh token error",
             ) from exception
 
         return super().handle_exception(exception)
 ```
 
-## Handling Multiple Exception Types
+## Exception Chaining
 
-Group related exceptions:
+!!! important "Always Chain Exceptions"
+    Use `from exception` when raising `HttpError` to preserve the exception chain for debugging and logging.
+
+```python
+# Correct: preserves exception chain
+raise HttpError(
+    status_code=HTTPStatus.NOT_FOUND,
+    message="Order not found",
+) from exception
+
+# Incorrect: loses original exception context
+raise HttpError(
+    status_code=HTTPStatus.NOT_FOUND,
+    message="Order not found",
+)
+```
+
+## Common HTTP Status Codes
+
+| Status Code | Use Case |
+|-------------|----------|
+| `400 BAD_REQUEST` | Invalid input, validation errors |
+| `401 UNAUTHORIZED` | Authentication required or failed |
+| `403 FORBIDDEN` | Authenticated but not authorized |
+| `404 NOT_FOUND` | Resource does not exist |
+| `409 CONFLICT` | Resource state conflict (e.g., duplicate) |
+| `422 UNPROCESSABLE_ENTITY` | Valid syntax but semantic errors |
+| `429 TOO_MANY_REQUESTS` | Rate limit exceeded |
+
+## Exception Hierarchy Pattern
+
+For complex domains, create an exception hierarchy:
+
+```python
+# core/payments/services.py
+
+class PaymentError(Exception):
+    """Base exception for payment errors."""
+
+
+class PaymentNotFoundError(PaymentError):
+    """Payment does not exist."""
+
+
+class PaymentDeclinedError(PaymentError):
+    """Payment was declined by the processor."""
+
+
+class PaymentAlreadyProcessedError(PaymentError):
+    """Payment has already been processed."""
+```
+
+Then handle the base class as a fallback:
 
 ```python
 def handle_exception(self, exception: Exception) -> Any:
-    # Not found errors -> 404
-    if isinstance(exception, (OrderNotFoundError, ProductNotFoundError)):
-        raise HttpError(HTTPStatus.NOT_FOUND, "Resource not found") from exception
-
-    # Permission errors -> 403
-    if isinstance(exception, (OrderAccessDeniedError, ProductAccessDeniedError)):
-        raise HttpError(HTTPStatus.FORBIDDEN, "Access denied") from exception
-
-    # Validation errors -> 422
-    if isinstance(exception, (InvalidQuantityError, InvalidAddressError)):
+    if isinstance(exception, PaymentNotFoundError):
         raise HttpError(
-            HTTPStatus.UNPROCESSABLE_ENTITY,
-            str(exception),
+            status_code=HTTPStatus.NOT_FOUND,
+            message=str(exception),
+        ) from exception
+
+    if isinstance(exception, PaymentDeclinedError):
+        raise HttpError(
+            status_code=HTTPStatus.PAYMENT_REQUIRED,
+            message="Payment was declined",
+        ) from exception
+
+    if isinstance(exception, PaymentAlreadyProcessedError):
+        raise HttpError(
+            status_code=HTTPStatus.CONFLICT,
+            message="Payment has already been processed",
+        ) from exception
+
+    # Catch any other PaymentError
+    if isinstance(exception, PaymentError):
+        raise HttpError(
+            status_code=HTTPStatus.BAD_REQUEST,
+            message="Payment error occurred",
         ) from exception
 
     return super().handle_exception(exception)
 ```
 
-## Logging Exceptions
+## Async Controllers
 
-Add logging for debugging:
-
-```python
-import logging
-
-logger = logging.getLogger(__name__)
-
-
-class OrderController(Controller):
-    def handle_exception(self, exception: Exception) -> Any:
-        if isinstance(exception, OrderNotFoundError):
-            logger.warning(
-                "Order not found",
-                extra={"order_id": exception.order_id},
-            )
-            raise HttpError(HTTPStatus.NOT_FOUND, "Order not found") from exception
-
-        if isinstance(exception, InsufficientStockError):
-            logger.warning(
-                "Insufficient stock",
-                extra={
-                    "product_id": exception.product_id,
-                    "requested": exception.requested,
-                    "available": exception.available,
-                },
-            )
-            raise HttpError(
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                "Insufficient stock",
-            ) from exception
-
-        # Log unexpected exceptions as errors
-        logger.exception("Unexpected error in OrderController")
-        return super().handle_exception(exception)
-```
-
-## Testing Exception Handling
+For Telegram bot handlers, use `AsyncController` with an async `handle_exception()`:
 
 ```python
-# tests/integration/http/test_v1_orders.py
-from http import HTTPStatus
-
-import pytest
-
-from tests.integration.factories import TestClientFactory
+from infrastructure.delivery.controllers import AsyncController
 
 
-@pytest.mark.django_db(transaction=True)
-def test_get_nonexistent_order_returns_404(
-    test_client_factory: TestClientFactory,
-    user,
-) -> None:
-    test_client = test_client_factory(auth_for_user=user)
+class BotController(AsyncController):
+    def register(self, registry: Router) -> None:
+        # ... register handlers ...
 
-    response = test_client.get("/v1/orders/99999")
+    async def handle_exception(self, exception: Exception) -> Any:
+        if isinstance(exception, SomeDomainError):
+            # Handle async-specific error responses
+            return await self._send_error_message(exception)
 
-    assert response.status_code == HTTPStatus.NOT_FOUND
-    assert "not found" in response.json()["detail"].lower()
-
-
-@pytest.mark.django_db(transaction=True)
-def test_access_other_users_order_returns_403(
-    test_client_factory: TestClientFactory,
-    user,
-    other_user_order,
-) -> None:
-    test_client = test_client_factory(auth_for_user=user)
-
-    response = test_client.get(f"/v1/orders/{other_user_order.id}")
-
-    assert response.status_code == HTTPStatus.FORBIDDEN
+        return await super().handle_exception(exception)
 ```
 
-## Best Practices
+## Summary
 
-### 1. Be Specific in Services, Generic in Responses
-
-```python
-# Service - specific exception
-raise InsufficientStockError(
-    product_id=product.id,
-    requested=quantity,
-    available=product.stock,
-)
-
-# Controller - generic message for clients
-raise HttpError(
-    HTTPStatus.UNPROCESSABLE_ENTITY,
-    "Insufficient stock",  # Don't expose internal details
-)
-```
-
-### 2. Always Use `from exception`
-
-```python
-# ✅ GOOD - Preserves stack trace
-raise HttpError(HTTPStatus.NOT_FOUND, "Not found") from exception
-
-# ❌ BAD - Loses original exception info
-raise HttpError(HTTPStatus.NOT_FOUND, "Not found")
-```
-
-### 3. Don't Catch Too Broadly
-
-```python
-# ✅ GOOD - Specific handling
-if isinstance(exception, OrderNotFoundError):
-    raise HttpError(HTTPStatus.NOT_FOUND, "Order not found") from exception
-
-# ❌ BAD - Catches everything
-try:
-    order = self._order_service.get_order(order_id)
-except Exception:  # Too broad!
-    raise HttpError(HTTPStatus.NOT_FOUND, "Order not found")
-```
-
-## Related
-
-- [Service Layer](../concepts/service-layer.md) - Where exceptions are defined
-- [Controller Pattern](../concepts/controller-pattern.md) - How `handle_exception()` works
+1. Define domain exceptions in your service module
+2. Override `handle_exception()` in your controller
+3. Use `isinstance()` to check exception types
+4. Map exceptions to appropriate HTTP status codes using `HttpError`
+5. Always chain exceptions with `from exception`
+6. Call `super().handle_exception(exception)` for unhandled cases

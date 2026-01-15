@@ -1,280 +1,125 @@
 # Makefile Commands
 
-Reference for all available Make targets.
+All development commands are available through the Makefile.
 
-## Development
+## Development Server
 
-### `make dev`
-
-Start the Django development server with auto-reload.
-
-```bash
-make dev
-# Equivalent to: uv run python src/manage.py runserver
-```
-
-Access at [http://localhost:8000](http://localhost:8000)
-
-### `make celery-dev`
-
-Start Celery worker with auto-reload for development.
-
-```bash
-make celery-dev
-# Equivalent to: uv run celery -A delivery.tasks.app worker --loglevel=info
-```
-
-### `make shell`
-
-Open Django interactive shell.
-
-```bash
-make shell
-# Equivalent to: uv run python src/manage.py shell
-```
+| Command | Description |
+|---------|-------------|
+| `make dev` | Run Django development server with `DJANGO_DEBUG=true` |
+| `make celery-dev` | Run Celery worker with DEBUG logging |
+| `make celery-beat-dev` | Run Celery beat scheduler with DEBUG logging |
+| `make bot-dev` | Run Telegram bot in polling mode |
 
 ## Database
 
-### `make migrate`
+| Command | Description |
+|---------|-------------|
+| `make makemigrations` | Create new database migrations |
+| `make migrate` | Apply pending database migrations |
 
-Apply pending database migrations.
+## Static Files
 
-```bash
-make migrate
-# Equivalent to: uv run python src/manage.py migrate
-```
-
-### `make makemigrations`
-
-Create new migration files for model changes.
-
-```bash
-make makemigrations
-# Equivalent to: uv run python src/manage.py makemigrations
-```
-
-### `make showmigrations`
-
-Show all migrations and their status.
-
-```bash
-make showmigrations
-# Equivalent to: uv run python src/manage.py showmigrations
-```
+| Command | Description |
+|---------|-------------|
+| `make collectstatic` | Collect static files to storage backend |
 
 ## Code Quality
 
-### `make format`
+| Command | Description |
+|---------|-------------|
+| `make format` | Format code with ruff and apply auto-fixes |
+| `make lint` | Run all linters: ruff, ty, pyrefly, mypy |
+| `make test` | Run pytest test suite |
 
-Format code with ruff (auto-fix issues).
+## Documentation
 
-```bash
-make format
-# Equivalent to: uv run ruff format src tests && uv run ruff check src tests --fix
-```
+| Command | Description |
+|---------|-------------|
+| `make docs` | Serve documentation locally with live reload |
+| `make docs-build` | Build documentation for deployment |
 
-### `make lint`
+## Command Details
 
-Run all linters without auto-fixing.
-
-```bash
-make lint
-# Runs: ruff, ty, pyrefly, mypy
-```
-
-### `make check`
-
-Run all quality checks (format check + lint).
+### make dev
 
 ```bash
-make check
+DJANGO_DEBUG=true uv run manage.py runserver
 ```
 
-## Testing
+Starts the Django development server on `http://127.0.0.1:8000`.
 
-### `make test`
-
-Run the full test suite with coverage.
+### make celery-dev
 
 ```bash
-make test
-# Equivalent to: uv run pytest --cov=src --cov-report=term-missing --cov-fail-under=80
+OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES uv run celery -A delivery.tasks.app worker --loglevel=DEBUG
 ```
 
-### `make test-fast`
+The `OBJC_DISABLE_INITIALIZE_FORK_SAFETY` flag is required on macOS.
 
-Run tests without coverage (faster).
+### make celery-beat-dev
 
 ```bash
-make test-fast
-# Equivalent to: uv run pytest
+uv run celery -A delivery.tasks.app beat --loglevel=DEBUG
 ```
 
-### `make test-verbose`
+Runs the periodic task scheduler.
 
-Run tests with verbose output.
+### make bot-dev
 
 ```bash
-make test-verbose
-# Equivalent to: uv run pytest -v
+uv run python -m delivery.bot
 ```
 
-## Docker
+Runs the Telegram bot in long-polling mode. Requires `TELEGRAM_BOT_TOKEN`.
 
-### `make docker-up`
-
-Start all Docker services.
+### make format
 
 ```bash
-make docker-up
-# Equivalent to: docker compose up -d
+uv run ruff format .
+uv run ruff check --fix-only .
 ```
 
-### `make docker-down`
+Formats code and applies safe auto-fixes.
 
-Stop all Docker services.
+### make lint
 
 ```bash
-make docker-down
-# Equivalent to: docker compose down
+uv run ruff check .
+uv run ty check .
+uv run pyrefly check src/
+uv run mypy src/ tests/
 ```
 
-### `make docker-logs`
+Runs the complete linting pipeline:
 
-View logs from Docker services.
+| Tool | Purpose |
+|------|---------|
+| ruff | Fast Python linter |
+| ty | Type linter |
+| pyrefly | Additional static analysis |
+| mypy | Type checker |
+
+### make test
 
 ```bash
-make docker-logs
-# Equivalent to: docker compose logs -f
+uv run pytest tests/
 ```
 
-### `make docker-build`
+Runs the test suite. Configure coverage requirements in `pyproject.toml`.
 
-Build Docker images.
+### make docs
 
 ```bash
-make docker-build
-# Equivalent to: docker compose build
+uv run mkdocs serve --livereload -f docs/mkdocs.yml
 ```
 
-## Dependencies
+Serves documentation at `http://127.0.0.1:8000` with auto-reload.
 
-### `make install`
-
-Install all dependencies.
+### make docs-build
 
 ```bash
-make install
-# Equivalent to: uv sync --locked --all-extras --dev
+uv run mkdocs build -f docs/mkdocs.yml
 ```
 
-### `make update`
-
-Update dependencies to latest compatible versions.
-
-```bash
-make update
-# Equivalent to: uv sync --all-extras --dev
-```
-
-### `make lock`
-
-Regenerate lock file.
-
-```bash
-make lock
-# Equivalent to: uv lock
-```
-
-## Cleaning
-
-### `make clean`
-
-Remove build artifacts and cache files.
-
-```bash
-make clean
-# Removes: __pycache__, .pytest_cache, .mypy_cache, .ruff_cache, etc.
-```
-
-### `make clean-docker`
-
-Remove Docker volumes and orphan containers.
-
-```bash
-make clean-docker
-# Equivalent to: docker compose down -v --remove-orphans
-```
-
-## Help
-
-### `make help`
-
-Show available targets with descriptions.
-
-```bash
-make help
-```
-
-## Common Workflows
-
-### Starting Fresh
-
-```bash
-# Clone and setup
-git clone https://github.com/MaksimZayats/modern-django-template.git
-cd modern-django-template
-make install
-cp .env.example .env
-
-# Start services
-make docker-up
-make migrate
-
-# Run application
-make dev  # Terminal 1
-make celery-dev  # Terminal 2
-```
-
-### Before Committing
-
-```bash
-# Format and check
-make format
-make lint
-make test
-```
-
-### After Model Changes
-
-```bash
-make makemigrations
-make migrate
-```
-
-### Full Reset
-
-```bash
-make clean
-make clean-docker
-make docker-up
-make migrate
-```
-
-## Environment-Specific Commands
-
-Some commands respect environment variables:
-
-```bash
-# Use specific settings
-DJANGO_SETTINGS_MODULE=core.configs.production make migrate
-
-# Override database
-DATABASE_URL=postgres://... make migrate
-```
-
-## Related
-
-- [Environment Variables](environment-variables.md) - Configuration options
-- [Docker Services](docker-services.md) - Container details
-- [Quick Start](../getting-started/quick-start.md) - Getting started guide
+Builds static documentation to `docs/site/`.

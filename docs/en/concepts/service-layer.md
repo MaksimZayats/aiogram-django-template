@@ -1,266 +1,349 @@
 # Service Layer
 
-The service layer is the most important architectural pattern in this template. It enforces a clean separation between request handling (controllers) and business logic (services).
+The Service Layer is the most important architectural pattern in this template. It enforces a strict boundary between your delivery mechanisms (HTTP API, Telegram bot, Celery tasks) and your business logic.
 
 ## The Golden Rule
 
 ```
-Controller → Service → Model
+Controller --> Service --> Model
 
-✅ Controller imports Service
-✅ Service imports Model
-❌ Controller imports Model (NEVER)
+Controllers NEVER import or use Models directly.
 ```
+
+This rule is non-negotiable. Every database operation must go through a service.
 
 ## Why This Matters
 
-### Without Service Layer
+### 1. Testability
+
+When controllers depend only on services, you can mock the entire data layer in tests:
 
 ```python
-# ❌ BAD - Controller directly uses ORM
-class UserController:
-    def create_user(self, request, body):
-        # Validation scattered in controller
-        if User.objects.filter(email=body.email).exists():
-            raise HttpError(409, "Email exists")
+def test_user_creation(container: Container) -> None:
+    mock_service = MagicMock()
+    mock_service.create_user.return_value = User(id=1, username="test")
 
-        # Business logic in controller
-        user = User.objects.create(
-            email=body.email,
-            password=make_password(body.password),
-        )
-
-        # Direct model access
-        return UserSchema.from_orm(user)
+    container.register(UserService, instance=mock_service)
+    # Now all controllers use the mock
 ```
 
-Problems:
+### 2. Reusability
 
-- **Hard to test** - Must mock Django ORM
-- **Duplication** - Same logic repeated across HTTP/Celery/Bot
-- **Tight coupling** - Controller knows about database details
-
-### With Service Layer
+The same service works across all entry points:
 
 ```python
-# ✅ GOOD - Controller uses service
-class UserController:
+# HTTP API controller uses UserService
+class UserController(Controller):
     def __init__(self, user_service: UserService) -> None:
         self._user_service = user_service
 
-    def create_user(self, request, body):
-        # Service handles all business logic
-        user = self._user_service.create_user(
-            email=body.email,
-            password=body.password,
-        )
-        return UserSchema.model_validate(user, from_attributes=True)
+# Telegram bot controller uses the same UserService
+class CommandsController(AsyncController):
+    def __init__(self, user_service: UserService) -> None:
+        self._user_service = user_service
 
-
-# Service encapsulates business logic
-class UserService:
-    def create_user(self, email: str, password: str) -> User:
-        if User.objects.filter(email=email).exists():
-            raise UserAlreadyExistsError(email)
-
-        return User.objects.create(
-            email=email,
-            password=make_password(password),
-        )
+# Celery task uses the same UserService
+class UserCleanupController(Controller):
+    def __init__(self, user_service: UserService) -> None:
+        self._user_service = user_service
 ```
 
-Benefits:
+### 3. Maintainability
 
-- **Easy to test** - Mock the service, not the ORM
-- **Reusable** - Same service used by HTTP, Celery, Bot
-- **Maintainable** - Business logic in one place
+Changes to database schema or ORM queries are isolated to services. Controllers don't need to change when you:
 
-## Service Structure
+- Optimize a query
+- Add caching
+- Change the database structure
+- Add validation logic
 
-Services live in `core/<domain>/services.py`:
+### 4. Clear Boundaries
+
+The architecture makes responsibilities explicit:
+
+| Layer | Responsibility |
+|-------|----------------|
+| Controller | HTTP/Bot/Task concerns, request validation, response formatting |
+| Service | Business logic, database operations, domain rules |
+| Model | Data structure, database schema |
+
+## Correct Pattern
 
 ```python
-# src/core/user/services.py
-from django.db import transaction
-from core.exceptions import ApplicationError
+# core/user/services.py
 from core.user.models import User
 
-
-class UserNotFoundError(ApplicationError):
-    """Raised when user cannot be found."""
-
-
-class UserAlreadyExistsError(ApplicationError):
-    """Raised when user with email already exists."""
-
-
 class UserService:
-    def get_user_by_id(self, user_id: int) -> User:
+    def get_user_by_username_and_password(
+        self,
+        username: str,
+        password: str,
+    ) -> User | None:
         try:
-            return User.objects.get(id=user_id)
-        except User.DoesNotExist as e:
-            raise UserNotFoundError(f"User {user_id} not found") from e
-
-    def get_user_by_email(self, email: str) -> User | None:
-        try:
-            return User.objects.get(email=email)
+            user = User.objects.get(username=username)
         except User.DoesNotExist:
             return None
 
-    @transaction.atomic
-    def create_user(self, email: str, password: str) -> User:
-        if self.get_user_by_email(email) is not None:
-            raise UserAlreadyExistsError(email)
+        if not user.check_password(password):
+            return None
 
-        return User.objects.create_user(email=email, password=password)
+        return user
+
+    def create_user(
+        self,
+        username: str,
+        email: str,
+        first_name: str,
+        last_name: str,
+        password: str,
+    ) -> User:
+        return User.objects.create_user(
+            username=username,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            password=password,
+        )
 ```
 
-## Domain Exceptions
-
-Services define domain-specific exceptions that inherit from `ApplicationError`:
-
 ```python
-from core.exceptions import ApplicationError
+# delivery/http/user/controllers.py
+from core.user.services import UserService  # Import service, NOT model
 
+class UserController(Controller):
+    def __init__(self, user_service: UserService) -> None:
+        self._user_service = user_service
 
-class TodoNotFoundError(ApplicationError):
-    """Raised when a todo item cannot be found."""
-
-
-class TodoAccessDeniedError(ApplicationError):
-    """Raised when user tries to access another user's todo."""
+    def create_user(
+        self,
+        request: HttpRequest,
+        request_body: CreateUserRequestSchema,
+    ) -> UserSchema:
+        user = self._user_service.create_user(
+            username=request_body.username,
+            email=str(request_body.email),
+            first_name=request_body.first_name,
+            last_name=request_body.last_name,
+            password=request_body.password,
+        )
+        return UserSchema.model_validate(user, from_attributes=True)
 ```
 
-Controllers convert these to HTTP errors:
+## Incorrect Pattern
+
+!!! danger "Never Do This"
+    Direct model imports in controllers violate the architecture.
 
 ```python
-class TodoController(Controller):
-    def handle_exception(self, exception: Exception) -> Any:
-        if isinstance(exception, TodoNotFoundError):
-            raise HttpError(HTTPStatus.NOT_FOUND, "Todo not found") from exception
-        if isinstance(exception, TodoAccessDeniedError):
-            raise HttpError(HTTPStatus.FORBIDDEN, "Access denied") from exception
-        return super().handle_exception(exception)
+# WRONG - Direct model import in controller
+from core.user.models import User  # NEVER import models in controllers
+
+class UserController(Controller):
+    def create_user(
+        self,
+        request: HttpRequest,
+        request_body: CreateUserRequestSchema,
+    ) -> UserSchema:
+        # WRONG - Direct ORM access
+        user = User.objects.create_user(
+            username=request_body.username,
+            email=str(request_body.email),
+        )
+        return UserSchema.model_validate(user, from_attributes=True)
 ```
 
-## Best Practices
+## What Goes in a Service
 
-### 1. One Service Per Domain
+Services should contain:
+
+### Database Operations
+
+All ORM queries, creates, updates, and deletes:
 
 ```python
-# ✅ GOOD - Focused service
+class ItemService:
+    def list_items(self) -> list[Item]:
+        return list(Item.objects.all())
+
+    def get_item_by_id(self, item_id: int) -> Item:
+        try:
+            return Item.objects.get(id=item_id)
+        except Item.DoesNotExist as e:
+            raise ItemNotFoundError(f"Item {item_id} not found") from e
+```
+
+### Business Logic
+
+Domain rules and validations:
+
+```python
 class UserService:
-    def get_user_by_id(self, user_id: int) -> User: ...
-    def create_user(self, email: str, password: str) -> User: ...
-
-# ❌ BAD - Service doing too much
-class AppService:
-    def get_user(self, user_id: int) -> User: ...
-    def create_todo(self, user: User, title: str) -> Todo: ...
-    def send_email(self, to: str, subject: str) -> None: ...
+    def is_valid_password(
+        self,
+        password: str,
+        *,
+        username: str,
+        email: str,
+        first_name: str,
+        last_name: str,
+    ) -> bool:
+        """Validate the strength of the given password."""
+        try:
+            validate_password(
+                password=password,
+                user=User(
+                    username=username,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                ),
+            )
+        except ValidationError:
+            return False
+        return True
 ```
 
-### 2. Return Domain Objects
+### Transactions
 
-```python
-# ✅ GOOD - Returns domain object
-def get_user(self, user_id: int) -> User:
-    return User.objects.get(id=user_id)
-
-# ❌ BAD - Returns dictionary
-def get_user(self, user_id: int) -> dict:
-    user = User.objects.get(id=user_id)
-    return {"id": user.id, "email": user.email}
-```
-
-### 3. Use Transactions for Writes
+Atomic operations that span multiple database changes:
 
 ```python
 from django.db import transaction
 
-class OrderService:
+class RefreshSessionService:
     @transaction.atomic
-    def create_order(self, user: User, items: list[Item]) -> Order:
-        order = Order.objects.create(user=user)
-        for item in items:
-            OrderItem.objects.create(order=order, item=item)
-        return order
+    def rotate_refresh_token(self, refresh_token: str) -> RefreshSessionResult:
+        session = self._get_refresh_session(refresh_token)
+
+        new_refresh_token = self._issue_refresh_token()
+        session.refresh_token_hash = self._hash_refresh_token(new_refresh_token)
+        session.rotation_counter += 1
+        session.last_used_at = timezone.now()
+        session.save(
+            update_fields=[
+                "refresh_token_hash",
+                "rotation_counter",
+                "last_used_at",
+            ],
+        )
+
+        return RefreshSessionResult(
+            refresh_token=new_refresh_token,
+            session=session,
+        )
 ```
 
-### 4. Keep Services Stateless
+## What Stays Out of Services
+
+Services should NOT contain:
+
+| Concern | Where It Belongs |
+|---------|------------------|
+| HTTP status codes | Controller |
+| Request/response schemas | Controller |
+| Route definitions | Controller |
+| Authentication decorators | Controller |
+| Serialization to JSON | Controller |
+| Rate limiting | Controller |
+
+## Domain Exceptions
+
+Services communicate errors through domain-specific exceptions that inherit from `ApplicationError`:
 
 ```python
-# ✅ GOOD - Stateless service
-class UserService:
-    def get_user(self, user_id: int) -> User:
-        return User.objects.get(id=user_id)
+# core/exceptions.py
+class ApplicationError(Exception):
+    """Base class for all application-specific exceptions."""
 
-# ❌ BAD - Stateful service
-class UserService:
-    def __init__(self):
-        self._current_user = None  # Don't store state!
+# core/health/services.py
+from core.exceptions import ApplicationError
 
-    def set_user(self, user: User) -> None:
-        self._current_user = user
+class HealthCheckError(ApplicationError):
+    pass
+
+class HealthService:
+    def check_system_health(self) -> None:
+        """Check the health of the system components.
+
+        Raises:
+            HealthCheckError: If any component is not healthy.
+        """
+        try:
+            Session.objects.first()
+        except Exception as e:
+            logger.exception("Health check failed: database is not reachable")
+            raise HealthCheckError from e
+```
+
+!!! tip "Document Exceptions"
+    Always include a `Raises:` section in docstrings when a method can raise domain exceptions. This helps controllers know what errors to handle.
+
+### Exception Hierarchy
+
+```
+ApplicationError (base)
+    |
+    +-- HealthCheckError
+    |
+    +-- RefreshTokenError
+    |       |
+    |       +-- InvalidRefreshTokenError
+    |       |
+    |       +-- ExpiredRefreshTokenError
+    |
+    +-- ItemNotFoundError
+```
+
+Controllers then handle these exceptions and convert them to appropriate responses:
+
+```python
+class HealthController(Controller):
+    def health_check(self, request: HttpRequest) -> HealthCheckResponseSchema:
+        try:
+            self._health_service.check_system_health()
+        except HealthCheckError as e:
+            raise HttpError(
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                message="Service is unavailable",
+            ) from e
+
+        return HealthCheckResponseSchema(status="ok")
+```
+
+## Service Registration
+
+Services are registered in the IoC container as singletons:
+
+```python
+# ioc/registries/core.py
+from punq import Container, Scope
+from core.user.services import UserService
+from core.health.services import HealthService
+
+def _register_services(container: Container) -> None:
+    container.register(HealthService, scope=Scope.singleton)
+    container.register(UserService, scope=Scope.singleton)
 ```
 
 ## Acceptable Exceptions
 
-Direct model imports are acceptable only in:
+Direct model imports are acceptable ONLY in:
 
 | Location | Reason |
 |----------|--------|
-| Django Admin | Admin requires model registration |
+| `admin.py` | Django Admin requires model registration |
 | Migrations | Auto-generated by Django |
 | Tests | Creating test data with factories |
-| Services | Services are the ORM interface |
+| Services | Services encapsulate model access |
 
-## Data Flow
+## Summary
 
-```
-HTTP Request
-     │
-     ▼
-┌────────────────┐
-│   Controller   │  Validates input, calls service
-└───────┬────────┘
-        │
-        ▼
-┌────────────────┐
-│    Service     │  Business logic, ORM queries
-└───────┬────────┘
-        │
-        ▼
-┌────────────────┐
-│     Model      │  Data persistence
-└───────┬────────┘
-        │
-        ▼
-    Database
-```
+The Service Layer pattern provides:
 
-## Testing Benefits
+1. **Clear separation** between delivery and business logic
+2. **Reusable business logic** across HTTP, Celery, and Telegram
+3. **Testable architecture** through dependency injection
+4. **Maintainable code** with isolated concerns
+5. **Domain exceptions** for meaningful error handling
 
-With the service layer, testing is straightforward:
-
-```python
-def test_create_user(container: Container) -> None:
-    # Mock the service
-    mock_service = MagicMock(spec=UserService)
-    mock_service.create_user.return_value = User(id=1, email="test@example.com")
-
-    # Override in container
-    container.register(UserService, instance=mock_service)
-
-    # Test controller without touching database
-    test_client = container.resolve(TestClientFactory)()
-    response = test_client.post("/v1/users/", json={"email": "test@example.com"})
-
-    assert response.status_code == 200
-    mock_service.create_user.assert_called_once()
-```
-
-## Related Concepts
-
-- [IoC Container](ioc-container.md) - How services are injected
-- [Controller Pattern](controller-pattern.md) - How controllers use services
+Follow the Golden Rule: `Controller --> Service --> Model`, and your codebase will remain clean, testable, and maintainable as it grows.

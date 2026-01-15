@@ -1,83 +1,76 @@
 # Tutorial: Build a Todo List
 
-In this tutorial, you'll build a complete **Todo List** feature from scratch, learning the core patterns of the Modern API Template along the way.
+This hands-on tutorial guides you through building a complete **Todo List** feature using the Modern Django API Template. You will learn the core architectural patterns while creating a real, working feature.
 
 ## What You'll Build
 
-A fully-functional Todo List with:
+By the end of this tutorial, you will have built:
 
-- **Django model** - Store todos in the database
-- **Service layer** - Business logic for CRUD operations
-- **REST API** - HTTP endpoints with JWT authentication
-- **Admin panel** - Django admin for managing todos
-- **Background task** - Celery task to clean up old completed todos
-- **Observability** - Logfire/OpenTelemetry integration
-- **Tests** - Integration tests for API and Celery
+- **Todo Model** - A Django model to store todo items with user ownership
+- **TodoService** - A service layer encapsulating all database operations
+- **HTTP API** - RESTful endpoints for CRUD operations using Django Ninja
+- **Celery Task** - A background task to clean up completed todos
+- **Admin Interface** - Django admin for managing todos
+- **Tests** - Integration tests with IoC override capability
+
+## Architecture Overview
+
+The feature follows the template's layered architecture:
+
+```
+HTTP Request
+     |
+     v
++-----------------+
+|   Controller    |  <-- Handles HTTP, validation, auth
++-----------------+
+     |
+     v
++-----------------+
+|    Service      |  <-- Business logic, domain rules
++-----------------+
+     |
+     v
++-----------------+
+|     Model       |  <-- Data persistence (Django ORM)
++-----------------+
+```
+
+This separation ensures:
+
+- **Testability** - Each layer can be tested in isolation
+- **Maintainability** - Business logic stays independent of delivery mechanism
+- **Flexibility** - The same service works for HTTP, Celery, and Telegram bot
 
 ## Prerequisites
 
-Before starting this tutorial, you should:
+Before starting this tutorial, make sure you have:
 
-- Have the application [running locally](../getting-started/quick-start.md)
-- Understand the [project structure](../getting-started/project-structure.md)
-- Be familiar with Django and Python
+- [x] Completed the [Quick Start](../getting-started/quick-start.md) guide
+- [x] Development environment running (PostgreSQL, Redis)
+- [x] Understanding of Python type hints and Pydantic
 
 ## Tutorial Steps
 
-| Step | What You'll Learn |
-|------|-------------------|
-| [Step 1: Model & Service](01-model-and-service.md) | Create the Todo model and TodoService |
-| [Step 2: IoC Registration](02-ioc-registration.md) | Register the service in the IoC container |
-| [Step 3: HTTP API & Admin](03-http-api.md) | Build REST endpoints and admin panel |
-| [Step 4: Celery Tasks](04-celery-tasks.md) | Create a background cleanup task |
-| [Step 5: Observability](05-observability.md) | Set up Logfire for tracing |
-| [Step 6: Testing](06-testing.md) | Write integration tests |
-
-## Architecture Preview
-
-By the end of this tutorial, you'll have created:
-
-```
-src/
-├── core/
-│   └── todo/
-│       ├── __init__.py
-│       ├── apps.py            # Django app config
-│       ├── models.py          # Todo model
-│       └── services.py        # TodoService
-├── delivery/
-│   ├── http/
-│   │   └── todo/
-│   │       ├── __init__.py
-│   │       ├── controllers.py # TodoController
-│   │       └── admin.py       # TodoAdmin
-│   └── tasks/
-│       └── tasks/
-│           └── todo_cleanup.py # TodoCleanupTaskController
-└── ioc/
-    └── registries/
-        ├── core.py            # + TodoService registration
-        └── delivery.py        # + TodoController registration
-```
-
-## The Golden Rule
-
-Throughout this tutorial, remember the **golden rule**:
-
-```
-Controller → Service → Model
-
-✅ Controller imports Service
-✅ Service imports Model
-❌ Controller imports Model (NEVER)
-```
-
-This separation ensures your code is testable, maintainable, and follows best practices.
+| Step | Title | What You'll Learn |
+|------|-------|-------------------|
+| [Step 1](01-model-and-service.md) | Model & Service | Django models, service layer pattern, domain exceptions |
+| [Step 2](02-ioc-registration.md) | IoC Registration | Dependency injection with punq, container configuration |
+| [Step 3](03-http-api.md) | HTTP API & Admin | Controllers, Pydantic schemas, rate limiting, admin |
+| [Step 4](04-celery-tasks.md) | Celery Tasks | Task controllers, background jobs, task registry |
+| [Step 5](05-observability.md) | Observability | Structured logging, metrics, health checks |
+| [Step 6](06-testing.md) | Testing | Integration tests, IoC overrides, test factories |
 
 ## Time Estimate
 
-This tutorial takes approximately 30-45 minutes to complete if you're coding along. Feel free to skip ahead if you're just reading.
+The complete tutorial takes approximately **2-3 hours** to complete. Each step builds on the previous one, so we recommend completing them in order.
 
-## Let's Begin!
+## Getting Help
 
-Ready? Start with [Step 1: Model & Service](01-model-and-service.md).
+If you encounter issues:
+
+1. Check that all services are running: `docker compose ps`
+2. Review logs: `docker compose logs -f`
+3. Ensure environment variables are set correctly in `.env`
+
+Let's get started with [Step 1: Model & Service](01-model-and-service.md)!
