@@ -329,7 +329,7 @@ Create `.vscode/launch.json`:
       "name": "Django: Runserver",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/manage.py",
+      "program": "${workspaceFolder}/src/manage.py",
       "args": ["runserver"],
       "django": true,
       "env": {
@@ -353,7 +353,7 @@ Create `.vscode/launch.json`:
 ### PyCharm Debugging
 
 1. Create a Django Server run configuration
-2. Set the script to `manage.py`
+2. Set the script to `src/manage.py`
 3. Set parameters to `runserver`
 4. Enable Django support in the configuration
 

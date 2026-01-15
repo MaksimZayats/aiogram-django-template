@@ -30,8 +30,15 @@ All configuration is managed through environment variables using Pydantic Settin
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `REDIS_URL` | Yes | - | Redis connection string |
-| `REDIS_PASSWORD` | No | - | Redis password (used in Docker Compose) |
+| `REDIS_PASSWORD` | No | - | Redis password (interpolated into `REDIS_URL` in Docker Compose) |
 | `CACHE_DEFAULT_TIMEOUT` | No | `300` | Default cache timeout in seconds |
+
+!!! info "REDIS_PASSWORD Usage"
+    In Docker Compose, `REDIS_PASSWORD` is interpolated into `REDIS_URL`:
+    ```
+    REDIS_URL: "redis://default:${REDIS_PASSWORD}@redis:6379/0"
+    ```
+    Set `REDIS_PASSWORD` in your `.env` file and Docker Compose will automatically construct the complete Redis URL.
 
 ## JWT Authentication
 

@@ -369,7 +369,7 @@ from delivery.http.todo.controllers import TodoController  # Add this import
 
 Then update the `NinjaAPIFactory` class:
 
-```python title="src/delivery/http/factories.py" hl_lines="8 12 33-36"
+```python title="src/delivery/http/factories.py" hl_lines="8 14 39-42"
 class NinjaAPIFactory:
     def __init__(
         self,

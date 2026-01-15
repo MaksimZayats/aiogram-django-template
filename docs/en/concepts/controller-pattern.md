@@ -316,6 +316,10 @@ class CommandsController(AsyncController):
             Command(commands=["start"]),
         )
         registry.message.register(
+            self.handle_id_command,
+            Command(commands=["id"]),
+        )
+        registry.message.register(
             self.handle_health_check_command,
             Command(commands=["health"]),
         )
@@ -325,19 +329,31 @@ class CommandsController(AsyncController):
             return
         await message.answer("Hello! This is a bot.")
 
+    async def handle_id_command(self, message: Message) -> None:
+        if message.from_user is None:
+            return
+        await message.answer(
+            f"User Id: <b>{message.from_user.id}</b>\nChat Id: <b>{message.chat.id}</b>",
+        )
+
     async def handle_health_check_command(self, message: Message) -> None:
         if message.from_user is None:
             return
 
         try:
+            # Use sync_to_async to run synchronous service methods in async context
+            # thread_sensitive=False allows running in the threadpool (recommended for I/O)
             await sync_to_async(
                 self._health_service.check_system_health,
                 thread_sensitive=False,
             )()
-            await message.answer("The system is healthy.")
+            await message.answer("✅ The system is healthy.")
         except HealthCheckError as e:
-            await message.answer(f"Health check failed: {e}")
+            await message.answer(f"❌ Health check failed: {e}")
 ```
+
+!!! tip "Using sync_to_async"
+    When calling synchronous services from async handlers, use `sync_to_async()` from `asgiref.sync`. Set `thread_sensitive=False` for I/O-bound operations (read-only database queries, external APIs) to run in the threadpool. Use `thread_sensitive=True` (default) only when the code must run in the main thread.
 
 ## Controller Registration in IoC
 

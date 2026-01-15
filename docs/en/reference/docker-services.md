@@ -153,6 +153,10 @@ Connection pooler for PostgreSQL.
 | Min Pool Size | 5 |
 | Server Lifetime | 3600s |
 | Server Idle Timeout | 600s |
+| Auth Type | scram-sha-256 |
+
+!!! info "Authentication"
+    PgBouncer is configured with `AUTH_TYPE: scram-sha-256` to match PostgreSQL's authentication method. This ensures secure password hashing between PgBouncer and PostgreSQL. Both services must use the same authentication method for connections to succeed.
 
 ### redis
 

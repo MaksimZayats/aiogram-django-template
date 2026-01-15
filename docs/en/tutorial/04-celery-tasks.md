@@ -23,7 +23,7 @@ In this step, we will create a background task that automatically cleans up comp
 
 First, add a new task name to the `TaskName` enum. This provides a centralized registry of all task names and prevents typos.
 
-```python title="src/delivery/tasks/registry.py" hl_lines="6 12-14"
+```python title="src/delivery/tasks/registry.py" hl_lines="10 15 23-25"
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
@@ -61,11 +61,9 @@ class TasksRegistry(BaseTasksRegistry):
 Create the task controller that implements the cleanup logic. Notice how the controller receives `TodoService` through dependency injection.
 
 ```python title="src/delivery/tasks/tasks/todo_cleanup.py"
-from datetime import timedelta
 from typing import TypedDict
 
 from celery import Celery
-from django.utils import timezone
 
 from core.todo.services import TodoService
 from delivery.tasks.registry import TaskName
@@ -85,8 +83,7 @@ class TodoCleanupTaskController(Controller):
 
     def cleanup(self) -> TodoCleanupResult:
         """Delete completed todos older than 7 days."""
-        cutoff_date = timezone.now() - timedelta(days=7)
-        deleted_count = self._todo_service.delete_completed_before(cutoff_date)
+        deleted_count = self._todo_service.delete_completed_todos_older_than(days=7)
 
         return TodoCleanupResult(deleted_count=deleted_count)
 ```
@@ -96,46 +93,24 @@ class TodoCleanupTaskController(Controller):
 
 ---
 
-## Step 4.3: Add the Service Method
+## Step 4.3: Using the Service Method
 
-Add the `delete_completed_before` method to your `TodoService`.
+The `TodoService` already has the `delete_completed_todos_older_than` method we need (from Step 1). The task controller simply calls this existing method:
 
-```python title="src/core/todo/services.py" hl_lines="4 26-30"
-from datetime import datetime
-
-from django.db import transaction
-from django.db.models import QuerySet
-
-from core.todo.models import Todo
-
-
-class TodoNotFoundError(Exception):
-    """Raised when a todo is not found."""
-
-
-class TodoService:
-    def get_todo_by_id(self, todo_id: int, user_id: int) -> Todo:
-        try:
-            return Todo.objects.get(id=todo_id, user_id=user_id)
-        except Todo.DoesNotExist as e:
-            raise TodoNotFoundError(f"Todo {todo_id} not found") from e
-
-    def list_todos_for_user(self, user_id: int) -> QuerySet[Todo]:
-        return Todo.objects.filter(user_id=user_id)
-
-    @transaction.atomic
-    def create_todo(self, title: str, user_id: int, description: str = "") -> Todo:
-        return Todo.objects.create(title=title, description=description, user_id=user_id)
-
-    @transaction.atomic
-    def delete_completed_before(self, cutoff_date: datetime) -> int:
-        """Delete all completed todos before the cutoff date."""
-        deleted, _ = Todo.objects.filter(
-            is_completed=True,
-            updated_at__lt=cutoff_date,
-        ).delete()
-        return deleted
+```python
+# This method already exists in TodoService from Step 1
+def delete_completed_todos_older_than(self, days: int) -> int:
+    """Delete completed todos older than the specified number of days."""
+    cutoff = timezone.now() - timezone.timedelta(days=days)
+    deleted_count, _ = Todo.objects.filter(
+        is_completed=True,
+        completed_at__lt=cutoff,
+    ).delete()
+    return deleted_count
 ```
+
+!!! tip "Service Layer Benefit"
+    Because we defined this method in Step 1, we can reuse it here. The service layer provides a clean interface that both HTTP controllers and Celery tasks can use.
 
 ---
 

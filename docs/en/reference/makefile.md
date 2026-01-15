@@ -44,7 +44,7 @@ All development commands are available through the Makefile.
 ### make dev
 
 ```bash
-DJANGO_DEBUG=true uv run manage.py runserver
+DJANGO_DEBUG=true uv run src/manage.py runserver
 ```
 
 Starts the Django development server on `http://127.0.0.1:8000`.

@@ -89,7 +89,7 @@ This ensures:
 
 ## Requirements
 
-- Python 3.12+
+- Python 3.14+
 - PostgreSQL (or SQLite for development)
 - Redis (for Celery and caching)
 - Docker & Docker Compose (recommended)

@@ -134,8 +134,6 @@ class TestTasksRegistryFactory(ContainerBasedFactory):
 class TestTodoFactory(ContainerBasedFactory):
     """Factory for creating test Todo instances."""
 
-    __test__ = False  # Prevent pytest from collecting this as a test class
-
     def __call__(
         self,
         user: User,
@@ -157,9 +155,6 @@ class TestTodoFactory(ContainerBasedFactory):
 
         return todo
 ```
-
-!!! warning "`__test__ = False` is Required"
-    Without `__test__ = False`, pytest will attempt to collect factory classes as test cases, causing errors.
 
 ---
 
@@ -291,7 +286,7 @@ class TestCreateTodo:
             },
         )
 
-        assert response.status_code == HTTPStatus.CREATED
+        assert response.status_code == HTTPStatus.OK
         data = response.json()
         assert data["title"] == "Buy groceries"
         assert data["description"] == "Milk, eggs, bread"
@@ -349,8 +344,8 @@ class TestListTodos:
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["title"] == "User1 Todo"
+        assert data["count"] == 1
+        assert data["items"][0]["title"] == "User1 Todo"
 
     @pytest.mark.django_db(transaction=True)
     def test_list_todos_empty(
@@ -363,7 +358,9 @@ class TestListTodos:
         response = test_client.get("/v1/todos/")
 
         assert response.status_code == HTTPStatus.OK
-        assert response.json() == []
+        data = response.json()
+        assert data["count"] == 0
+        assert data["items"] == []
 
 
 class TestGetTodo:
@@ -414,9 +411,9 @@ class TestGetTodo:
         assert response.status_code == HTTPStatus.NOT_FOUND
 
 
-class TestUpdateTodo:
+class TestCompleteTodo:
     @pytest.mark.django_db(transaction=True)
-    def test_update_todo_success(
+    def test_complete_todo_success(
         self,
         test_client_factory: TestClientFactory,
         user: User,
@@ -424,34 +421,24 @@ class TestUpdateTodo:
     ) -> None:
         test_client = test_client_factory(auth_for_user=user)
 
-        response = test_client.patch(
-            f"/v1/todos/{todo.id}",
-            json={"is_completed": True},
-        )
+        response = test_client.post(f"/v1/todos/{todo.id}/complete")
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
         assert data["is_completed"] is True
+        assert data["completed_at"] is not None
 
     @pytest.mark.django_db(transaction=True)
-    def test_update_todo_partial(
+    def test_complete_todo_not_found(
         self,
         test_client_factory: TestClientFactory,
         user: User,
-        todo: Todo,
     ) -> None:
         test_client = test_client_factory(auth_for_user=user)
-        original_description = todo.description
 
-        response = test_client.patch(
-            f"/v1/todos/{todo.id}",
-            json={"title": "Updated Title"},
-        )
+        response = test_client.post("/v1/todos/99999/complete")
 
-        assert response.status_code == HTTPStatus.OK
-        data = response.json()
-        assert data["title"] == "Updated Title"
-        assert data["description"] == original_description  # Unchanged
+        assert response.status_code == HTTPStatus.NOT_FOUND
 
 
 class TestDeleteTodo:
@@ -515,16 +502,15 @@ class TestTodoCleanupTask:
     ) -> None:
         # Create an old completed todo (should be deleted)
         old_todo = todo_factory(user=user, title="Old Todo", is_completed=True)
-        old_todo.updated_at = timezone.now() - timedelta(days=10)
-        old_todo.save(update_fields=["updated_at"])
+        old_todo.completed_at = timezone.now() - timedelta(days=10)
+        old_todo.save(update_fields=["completed_at"])
 
         # Create a recent completed todo (should NOT be deleted)
         recent_todo = todo_factory(user=user, title="Recent Todo", is_completed=True)
 
         # Create an old incomplete todo (should NOT be deleted)
+        # Note: incomplete todos don't have completed_at set
         incomplete_todo = todo_factory(user=user, title="Incomplete Todo")
-        incomplete_todo.updated_at = timezone.now() - timedelta(days=10)
-        incomplete_todo.save(update_fields=["updated_at"])
 
         registry = tasks_registry_factory()
 

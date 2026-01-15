@@ -168,7 +168,13 @@ class TasksRegistryFactory:
 
 ### Step 6: (Optional) Add to Beat Schedule
 
-For periodic tasks, edit the `_configure_beat_schedule` method in `src/delivery/tasks/factories.py`:
+For periodic tasks, first import `crontab` at the top of `src/delivery/tasks/factories.py`:
+
+```python
+from celery.schedules import crontab
+```
+
+Then edit the `_configure_beat_schedule` method:
 
 ```python
 def _configure_beat_schedule(self, celery_app: Celery) -> None:
@@ -187,12 +193,6 @@ def _configure_beat_schedule(self, celery_app: Celery) -> None:
             ],
         },
     }
-```
-
-Import crontab at the top:
-
-```python
-from celery.schedules import crontab
 ```
 
 ## Calling the Task

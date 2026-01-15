@@ -129,7 +129,7 @@ Expected response:
 ### Create a User
 
 ```bash
-curl -X POST http://localhost:8000/v1/users/ \
+curl -X POST http://localhost:8000/api/v1/users/ \
   -H "Content-Type: application/json" \
   -d '{
     "username": "testuser",
@@ -147,33 +147,3 @@ Now that the project is running:
 1. **[Project Structure](project-structure.md)** - Understand how the codebase is organized
 2. **[Development Environment](development-environment.md)** - Configure your IDE for the best experience
 3. **[Tutorial: Build a Todo List](../tutorial/index.md)** - Learn by building a complete feature
-
-## Troubleshooting
-
-### Port Already in Use
-
-If port 8000 is busy, the development server will fail to start. Find and stop the conflicting process:
-
-```bash
-lsof -i :8000
-kill -9 <PID>
-```
-
-### Database Connection Failed
-
-Ensure PostgreSQL is running and healthy:
-
-```bash
-docker compose ps postgres
-docker compose logs postgres
-```
-
-### Missing Environment Variables
-
-If you see errors about missing configuration, ensure your `.env` file exists and contains all required variables:
-
-```bash
-cat .env
-```
-
-Compare with `.env.example` to identify any missing values.

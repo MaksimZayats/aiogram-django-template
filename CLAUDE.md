@@ -139,7 +139,7 @@ Direct model imports are acceptable ONLY in:
 
 ### Entry Points
 
-1. **HTTP API**: `manage.py` → `delivery/http/api.py` (Django-Ninja)
+1. **HTTP API**: `src/manage.py` → `delivery/http/api.py` (Django-Ninja)
 2. **Telegram Bot**: `delivery/bot/__main__.py` (aiogram polling)
 3. **Celery Worker**: `delivery/tasks/app.py`
 

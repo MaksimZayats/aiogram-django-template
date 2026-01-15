@@ -10,7 +10,7 @@ In this step, you will create the foundation for the Todo List feature: the Djan
 | Create | `src/core/todo/apps.py` |
 | Create | `src/core/todo/models.py` |
 | Create | `src/core/todo/services.py` |
-| Modify | `src/core/configs/django.py` |
+| Modify | `src/core/configs/core.py` |
 
 ## Step 1.1: Create the Django App Structure
 
@@ -40,16 +40,31 @@ class TodoConfig(AppConfig):
 
 ## Step 1.3: Register the App
 
-Add the new app to Django's `INSTALLED_APPS`. Open `src/core/configs/django.py` and add `"core.todo"` to the list of installed apps.
+Add the new app to Django's installed apps. Open `src/core/configs/core.py` and add `"core.todo.apps.TodoConfig"` to the `installed_apps` tuple in `ApplicationSettings`:
 
-The exact location depends on your configuration, but you need to ensure the app is registered. You can verify by checking that no import errors occur when running:
+```python title="src/core/configs/core.py"
+class ApplicationSettings(BaseSettings):
+    # ... other fields ...
+    installed_apps: tuple[str, ...] = (
+        "django.contrib.admin",
+        "django.contrib.auth",
+        "django.contrib.contenttypes",
+        "django.contrib.sessions",
+        "django.contrib.messages",
+        "django.contrib.staticfiles",
+        "core.user.apps.UserConfig",
+        "core.todo.apps.TodoConfig",  # Add this line
+    )
+```
+
+Verify by checking that no import errors occur when running:
 
 ```bash
 python src/manage.py check
 ```
 
-!!! note "Settings Adapter"
-    The template uses `PydanticSettingsAdapter` to configure Django from Pydantic settings classes. Add `"core.todo"` to the `INSTALLED_APPS` list that gets adapted to Django settings.
+!!! note "Pydantic Settings"
+    The template uses Pydantic `BaseSettings` for configuration. The `installed_apps` field is a tuple that gets adapted to Django's `INSTALLED_APPS` via `PydanticSettingsAdapter` in `src/core/configs/django.py`.
 
 ## Step 1.4: Create the Todo Model
 

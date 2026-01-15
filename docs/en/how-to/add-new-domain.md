@@ -32,21 +32,27 @@ class ProductsConfig(AppConfig):
     label = "products"
 ```
 
-### Step 3: Add to INSTALLED_APPS
+### Step 3: Add to Installed Apps
 
-Edit `src/core/configs/core.py` and add the new app to the installed apps list:
+Edit `src/core/configs/core.py` and add the new app to the `installed_apps` tuple in `ApplicationSettings`:
 
 ```python
 class ApplicationSettings(BaseSettings):
     # ... existing fields ...
-
-    @property
-    def installed_apps(self) -> list[str]:
-        return [
-            # ... existing apps ...
-            "core.products",
-        ]
+    installed_apps: tuple[str, ...] = (
+        "django.contrib.admin",
+        "django.contrib.auth",
+        "django.contrib.contenttypes",
+        "django.contrib.sessions",
+        "django.contrib.messages",
+        "django.contrib.staticfiles",
+        "core.user.apps.UserConfig",
+        "core.products.apps.ProductsConfig",  # Add this line
+    )
 ```
+
+!!! note "Pydantic Settings"
+    The `installed_apps` is a Pydantic field that gets adapted to Django's `INSTALLED_APPS` via `PydanticSettingsAdapter`.
 
 ### Step 4: Create the Domain Model
 

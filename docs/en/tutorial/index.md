@@ -61,10 +61,6 @@ Before starting this tutorial, make sure you have:
 | [Step 5](05-observability.md) | Observability | Structured logging, metrics, health checks |
 | [Step 6](06-testing.md) | Testing | Integration tests, IoC overrides, test factories |
 
-## Time Estimate
-
-The complete tutorial takes approximately **2-3 hours** to complete. Each step builds on the previous one, so we recommend completing them in order.
-
 ## Getting Help
 
 If you encounter issues:
