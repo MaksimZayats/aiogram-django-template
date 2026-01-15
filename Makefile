@@ -24,13 +24,25 @@ test:
 	uv run pytest tests/
 
 celery-dev:
-	OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES uv run celery -A delivery.tasks.app worker --loglevel=DEBUG
+	OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES uv run watchmedo auto-restart \
+		--directory=src \
+		--pattern='*.py' \
+		--recursive \
+		-- celery -A delivery.tasks.app worker --loglevel=DEBUG
 
 celery-beat-dev:
-	uv run celery -A delivery.tasks.app beat --loglevel=DEBUG
+	uv run watchmedo auto-restart \
+		--directory=src \
+		--pattern='*.py' \
+		--recursive \
+		-- celery -A delivery.tasks.app beat --loglevel=DEBUG
 
 bot-dev:
-	uv run python -m delivery.bot
+	uv run watchmedo auto-restart \
+		--directory=src \
+		--pattern='*.py' \
+		--recursive \
+		-- python -m delivery.bot
 
 .PHONY: docs docs-build
 docs:
