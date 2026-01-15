@@ -152,15 +152,33 @@ uv run ruff check .
 !!! tip "Editor Integration"
     With the Ruff VS Code extension, formatting happens automatically on save. This is the recommended workflow.
 
-## Pre-commit Hooks
+## Pre-commit Hooks with Prek
 
-The project includes pre-commit hooks for automated quality checks.
+This project uses [prek](https://github.com/j178/prek), a Rust-based drop-in replacement for pre-commit that runs significantly faster while using less disk space. Prek is fully compatible with standard `.pre-commit-config.yaml` files and requires no configuration changes.
+
+### Why Prek?
+
+- **Speed**: 10x faster than pre-commit due to parallel hook execution and Rust implementation
+- **No Python dependency**: A single binary with no runtime requirements
+- **Full compatibility**: Works with existing `.pre-commit-config.yaml` without modifications
+- **Built-in hooks**: Native Rust implementations of common hooks (check-yaml, check-json, etc.)
 
 ### Installation
 
+Prek is included in the project's dev dependencies. Install it along with other dependencies:
+
 ```bash
-uv run pre-commit install
+uv sync --locked --all-extras --dev
 ```
+
+Then install the git hooks in your repository:
+
+```bash
+uv run prek install
+```
+
+!!! tip "Migrating from pre-commit"
+    If you previously had pre-commit installed, use `uv run prek install -f` to force reinstallation and overwrite existing hooks.
 
 ### Configuration
 
@@ -182,6 +200,8 @@ repos:
       - id: uv-lock
 ```
 
+The `builtin` repository uses prek's native Rust implementations, which are faster than their Python equivalents.
+
 ### What the Hooks Do
 
 | Hook | Purpose |
@@ -198,8 +218,30 @@ repos:
 Run hooks on all files:
 
 ```bash
-uv run pre-commit run --all-files
+uv run prek run --all-files
 ```
+
+Run specific hooks:
+
+```bash
+uv run prek run check-yaml check-json
+```
+
+Run on files changed since last commit:
+
+```bash
+uv run prek run --last-commit
+```
+
+### Useful Commands
+
+| Command | Description |
+|---------|-------------|
+| `uv run prek run --all-files` | Run all hooks on entire codebase |
+| `uv run prek run --last-commit` | Run on files changed in last commit |
+| `uv run prek list` | List all available hooks |
+| `uv run prek autoupdate` | Update hook versions to latest |
+| `uv run prek validate-config` | Validate configuration file |
 
 ## Testing
 
