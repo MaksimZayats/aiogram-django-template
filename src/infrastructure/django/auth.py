@@ -10,10 +10,10 @@ from ninja.security import HttpBearer
 from infrastructure.jwt.services import JWTService
 
 
-class AuthenticatedHttpRequest(HttpRequest):
+class AuthenticatedHttpRequest[UserT: AbstractBaseUser = AbstractBaseUser](HttpRequest):
     jwt_payload: dict[str, Any]
-    auth: AbstractBaseUser
-    user: AbstractBaseUser  # type: ignore[bad-override, assignment]
+    auth: UserT
+    user: UserT  # type: ignore[bad-override, assignment]
 
 
 class JWTAuth(HttpBearer):

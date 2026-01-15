@@ -65,6 +65,24 @@ This typed request provides:
 - `request.auth` - The authenticated user (same as `user`)
 - `request.jwt_payload` - The decoded JWT payload dictionary
 
+#### Using a Custom User Model
+
+`AuthenticatedHttpRequest` is a generic class that defaults to `AbstractBaseUser`. If you have a custom user model, you can specify it as a type parameter for better type safety:
+
+```python
+from core.user.models import User
+from infrastructure.django.auth import AuthenticatedHttpRequest
+
+
+def get_current_user(
+    self,
+    request: AuthenticatedHttpRequest[User],
+) -> UserSchema:
+    # request.user is now typed as User, not AbstractBaseUser
+    # IDE autocompletion and type checking work with your custom fields
+    return UserSchema.model_validate(request.user, from_attributes=True)
+```
+
 ## Rate Limiting
 
 ### Available Throttle Classes
