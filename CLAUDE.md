@@ -33,6 +33,17 @@ make lint      # ruff, ty, pyrefly, mypy
 make test      # pytest with 80% coverage requirement
 ```
 
+## Python Version
+
+**Minimum Required:** Python 3.14+
+
+This project leverages Python 3.14 features including:
+- Deferred evaluation of annotations (PEP 649)
+- Template string literals (PEP 750) - available for custom string processing
+- Improved type inference and static analysis support
+
+All code must be compatible with `mypy --strict` mode.
+
 ## Architecture Overview
 
 This is a Django + aiogram + Celery application using **punq** for dependency injection.
@@ -152,11 +163,9 @@ The container is configured in `src/ioc/container.py`:
 ```python
 def get_container() -> Container:
     container = Container()
-    _register_services(container)      # JWTService, RefreshSessionService
-    _register_http(container)          # JWTAuth, NinjaAPI
-    _register_controllers(container)   # HTTP controllers
-    _register_celery(container)        # Task controllers
-    _register_bot(container)           # Telegram bot controllers
+    register_core(container)           # Settings, models, services
+    register_infrastructure(container)  # JWT, auth, refresh sessions
+    register_delivery(container)        # HTTP, bot, Celery controllers
     return container
 ```
 
@@ -266,11 +275,10 @@ container.register(
 
 Test factories in `tests/integration/factories.py` enable isolated testing with IoC override capability:
 
-- **`NinjaAPIFactory`** - Creates API instances with unique URL namespaces per test
-- **`TestClientFactory`** - Wraps API factory to create test clients
-- **`UserFactory`** - Creates test users
-- **`CeleryAppFactory`** - Creates Celery apps with container
-- **`CeleryWorkerFactory`** - Manages test worker lifecycle
+- **`TestClientFactory`** - Creates test clients with optional authentication
+- **`TestUserFactory`** - Creates test users
+- **`TestCeleryWorkerFactory`** - Manages test worker lifecycle
+- **`TestTasksRegistryFactory`** - Creates task registry instances
 
 ### Per-Test Container Isolation
 
@@ -347,6 +355,42 @@ Settings classes are registered in IoC and injected into services.
 Tests use `.env.test` file loaded in `tests/conftest.py`. Required services:
 - PostgreSQL (or SQLite for unit tests)
 - Redis (for Celery tests)
+
+## Code Quality & Best Practices
+
+### Mandatory Requirements
+
+All new code MUST adhere to these requirements:
+
+1. **Follow Existing Patterns** - All new code MUST follow the exact patterns established in this codebase. Study existing implementations before writing new code. Do not introduce new architectural patterns without discussion.
+
+2. **Type Safety** - All code must pass `mypy --strict`. Use precise type hints, avoid `Any` where possible. Leverage Python 3.14's improved type inference.
+
+3. **Industry Best Practices** - Do not reinvent the wheel. Use established patterns:
+   - Dependency injection via IoC container (punq)
+   - Service layer for all database operations
+   - Pydantic for validation and serialization
+   - Factory pattern for testability
+   - Domain exceptions for error handling
+
+4. **Testing** - Maintain 80%+ code coverage. Use provided test factories. Write both unit and integration tests.
+
+5. **Code Review Checklist**:
+   - Does the code follow the Controller → Service → Model pattern?
+   - Are all dependencies injected via IoC container?
+   - Are there proper type hints on all functions?
+   - Are domain exceptions used instead of generic ones?
+   - Is the code tested with appropriate coverage?
+
+### Code Style
+
+- Run `make format` before committing (ruff format + fix)
+- Run `make lint` to verify (ruff, ty, pyrefly, mypy)
+- Prefer explicit over implicit
+- Keep functions focused and small
+- Use domain exceptions, not generic ones
+- Follow PEP 8 naming conventions
+- Write docstrings for public APIs using Google style
 
 ## Code Style Guidelines
 
