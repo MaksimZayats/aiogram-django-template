@@ -11,14 +11,14 @@ featuring dependency injection, type-safe configuration, and comprehensive obser
 - **Dependency Injection** — [punq](https://github.com/bobthemighty/punq) IoC container
 - **Type-Safe Config** — [Pydantic Settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) with
   validation
-- **Observability** — [Logfire](https://logfire.pydantic.dev/) (OpenTelemetry) integration
+- **Observability** — [Logfire](https://logfire.pydantic.dev/docs/) (OpenTelemetry) integration
 - **Production Ready** — Docker Compose with PostgreSQL, PgBouncer, Redis, MinIO
 
 ## Prerequisites
 
 Before getting started, ensure you have installed:
 
-- **uv** — Fast Python package manager ([Install uv](https://docs.astral.sh/uv/getting-started/installation/))
+- **uv** — Blazingly fast Python package manager ([Install uv](https://docs.astral.sh/uv/getting-started/installation/))
 - **Docker & Docker Compose** — For infrastructure
   services ([Install Docker](https://docs.docker.com/get-started/get-docker/))
 
@@ -127,7 +127,7 @@ Full documentation is available at [template.zayats.dev](https://template.zayats
 | Validation      | Pydantic 2.x      | [docs.pydantic.dev](https://docs.pydantic.dev/latest/)                                     |
 | Settings        | Pydantic Settings | [docs.pydantic.dev/settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) |
 | IoC Container   | punq              | [github.com/bobthemighty/punq](https://github.com/bobthemighty/punq)                       |
-| Observability   | Logfire           | [logfire.pydantic.dev](https://logfire.pydantic.dev/)                                      |
+| Observability   | Logfire           | [Logfire docs](https://logfire.pydantic.dev/docs/)                                         |
 | Package Manager | uv                | [docs.astral.sh/uv](https://docs.astral.sh/uv/)                                            |
 
 ## License
