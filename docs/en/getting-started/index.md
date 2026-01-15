@@ -1,48 +1,27 @@
 # Getting Started
 
-Welcome to the Modern Django template! This section will help you get up and running quickly.
+This section helps you set up and understand the Modern API Template.
+
+## In This Section
+
+| Guide | Description |
+|-------|-------------|
+| [Quick Start](quick-start.md) | Get the application running in 5 minutes |
+| [Project Structure](project-structure.md) | Understand the directory layout and module organization |
+| [Development Environment](development-environment.md) | Configure your IDE and development tools |
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed:
+Before you begin, ensure you have:
 
-- **Python 3.14+** — The template uses modern Python features
-- **uv** — Fast Python package manager ([install uv](https://docs.astral.sh/uv/getting-started/installation/))
-- **Docker & Docker Compose** — For running infrastructure services
-
-## What's Covered
-
-<div class="grid cards" markdown>
-
--   **Quick Start**
-
-    ---
-
-    Get the application running in 5 minutes with minimal setup.
-
-    [→ Quick Start](quick-start.md)
-
--   **Development Environment**
-
-    ---
-
-    Complete setup for local development including IDE configuration.
-
-    [→ Development Environment](development-environment.md)
-
--   **Project Structure**
-
-    ---
-
-    Understand the directory layout and module organization.
-
-    [→ Project Structure](project-structure.md)
-
-</div>
+- **Python 3.12+** - Required for modern type hints and performance
+- **uv** - Fast Python package manager ([installation](https://docs.astral.sh/uv/getting-started/installation/))
+- **Docker & Docker Compose** - For running PostgreSQL, Redis, and MinIO
+- **Git** - For version control
 
 ## Recommended Path
 
-1. **Start with [Quick Start](quick-start.md)** to verify everything works
-2. **Read [Project Structure](project-structure.md)** to understand the codebase layout
-3. **Follow a [Tutorial](../tutorials/index.md)** to add your first feature
-4. **Study [Core Concepts](../concepts/index.md)** to understand the architecture
+1. Start with [Quick Start](quick-start.md) to get the application running
+2. Read [Project Structure](project-structure.md) to understand where things live
+3. Set up your [Development Environment](development-environment.md) for a productive workflow
+4. Continue to the [Tutorial](../tutorial/index.md) to build your first feature

@@ -1,197 +1,123 @@
 # Controller Pattern
 
-The Controller pattern provides a consistent interface for handling requests across HTTP, Telegram bot, and Celery task contexts.
+Controllers are the entry points for external requests. They handle HTTP requests, Celery tasks, and Telegram bot commands.
 
-## Base Controllers
+## Two Base Classes
 
-Two abstract base classes are defined in `src/infrastructure/delivery/controllers.py`:
+The template provides two base controller classes:
 
-### Sync Controller
+| Class | Use Case | Methods |
+|-------|----------|---------|
+| `Controller` | HTTP API, Celery tasks | Sync methods |
+| `AsyncController` | Telegram bot | Async methods |
 
-For synchronous handlers (HTTP API, Celery tasks):
+## Controller Base Class
 
 ```python
+# src/infrastructure/delivery/controllers.py
 from abc import ABC, abstractmethod
 from typing import Any
 
 
 class Controller(ABC):
-    def __new__(cls, *_args: Any, **_kwargs: Any) -> Self:
-        self = super().__new__(cls)
-        _wrap_methods(self)
-        return self
-
     @abstractmethod
-    def register(self, registry: Any) -> None: ...
+    def register(self, registry: Any) -> None:
+        """Register routes/tasks with the framework."""
+        ...
 
     def handle_exception(self, exception: Exception) -> Any:
+        """Override to handle exceptions."""
         raise exception
 ```
 
-### Async Controller
+Key features:
 
-For asynchronous handlers (Telegram bot):
+- **Abstract `register()`** - Each controller defines how it integrates with its framework
+- **Exception wrapping** - All public methods are auto-wrapped with exception handling
+- **Override `handle_exception()`** - Custom error responses
 
-```python
-class AsyncController(ABC):
-    def __new__(cls, *_args: Any, **_kwargs: Any) -> Self:
-        self = super().__new__(cls)
-        _wrap_async_methods(self)
-        return self
-
-    @abstractmethod
-    def register(self, registry: Any) -> None: ...
-
-    async def handle_exception(self, exception: Exception) -> Any:
-        raise exception
-```
-
-## Key Features
-
-### 1. Automatic Exception Wrapping
-
-When a controller is instantiated, all public methods are wrapped with exception handling.
-
-**Sync controllers** wrap regular methods:
+## HTTP Controller
 
 ```python
-def _wrap_methods(controller: Controller) -> None:
-    for attr_name in dir(controller):
-        attr = getattr(controller, attr_name)
-        if (
-            callable(attr)
-            and not attr_name.startswith("_")
-            and attr_name not in ("register", "handle_exception")
-        ):
-            setattr(
-                controller,
-                attr_name,
-                _wrap_route(attr, controller=controller),
-            )
-```
+# src/delivery/http/user/controllers.py
+from http import HTTPStatus
+from typing import Any
 
-**Async controllers** wrap coroutine functions:
-
-```python
-def _wrap_async_methods(controller: AsyncController) -> None:
-    for attr_name in dir(controller):
-        attr = getattr(controller, attr_name)
-        if (
-            inspect.iscoroutinefunction(attr)
-            and not attr_name.startswith("_")
-            and attr_name not in ("register", "handle_exception")
-        ):
-            setattr(
-                controller,
-                attr_name,
-                _wrap_async_route(attr, controller=controller),
-            )
-```
-
-Every public method is wrapped to catch exceptions and route them to `handle_exception()`.
-
-### 2. Custom Exception Handling
-
-Override `handle_exception()` to convert domain exceptions to appropriate responses:
-
-```python
-class UserTokenController(Controller):
-    def handle_exception(self, exception: Exception) -> NoReturn:
-        if isinstance(exception, InvalidRefreshTokenError):
-            raise HttpError(
-                status_code=HTTPStatus.UNAUTHORIZED,
-                message="Invalid refresh token",
-            ) from exception
-
-        if isinstance(exception, ExpiredRefreshTokenError):
-            raise HttpError(
-                status_code=HTTPStatus.UNAUTHORIZED,
-                message="Refresh token expired or revoked",
-            ) from exception
-
-        # Re-raise unhandled exceptions
-        raise exception
-```
-
-### 3. Registry-Based Route Registration
-
-The `register()` method connects controller methods to their respective frameworks:
-
-**HTTP (Django-Ninja Router):**
-
-```python
-class UserController(Controller):
-    def register(self, registry: Router) -> None:
-        registry.add_api_operation(
-            path="/v1/users/",
-            methods=["POST"],
-            view_func=self.create_user,
-            auth=None,
-        )
-
-        registry.add_api_operation(
-            path="/v1/users/me",
-            methods=["GET"],
-            view_func=self.get_current_user,
-            auth=self._auth,
-        )
-```
-
-**Celery:**
-
-```python
-class PingTaskController(Controller):
-    def register(self, registry: Celery) -> None:
-        registry.task(name=TaskName.PING)(self.ping)
-```
-
-## HTTP Controllers
-
-HTTP controllers receive Django-Ninja `Router` as their registry:
-
-```python
-from django.http import HttpRequest
 from ninja import Router
-from pydantic import BaseModel
+from ninja.errors import HttpError
+from ninja.throttling import AuthRateThrottle
 
+from core.user.services import UserService, UserNotFoundError
 from infrastructure.delivery.controllers import Controller
-from infrastructure.django.auth import JWTAuth
-
-
-class UserSchema(BaseModel):
-    id: int
-    username: str
-    email: str
+from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuth
 
 
 class UserController(Controller):
-    def __init__(self, auth: JWTAuth) -> None:
-        self._auth = auth
+    def __init__(
+        self,
+        jwt_auth: JWTAuth,
+        user_service: UserService,
+    ) -> None:
+        self._jwt_auth = jwt_auth
+        self._user_service = user_service
 
     def register(self, registry: Router) -> None:
         registry.add_api_operation(
             path="/v1/users/me",
             methods=["GET"],
             view_func=self.get_current_user,
-            auth=self._auth,
+            auth=self._jwt_auth,
+            throttle=AuthRateThrottle(rate="30/min"),
         )
 
-    def get_current_user(self, request: HttpRequest) -> UserSchema:
+    def handle_exception(self, exception: Exception) -> Any:
+        if isinstance(exception, UserNotFoundError):
+            raise HttpError(HTTPStatus.NOT_FOUND, "User not found") from exception
+        return super().handle_exception(exception)
+
+    def get_current_user(
+        self,
+        request: AuthenticatedHttpRequest,
+    ) -> UserSchema:
         return UserSchema.model_validate(request.user, from_attributes=True)
 ```
 
-Key points:
+### Registration with Router
 
-- Use `add_api_operation()` for explicit route registration
-- Pass `auth` parameter for authentication requirements
-- Use Pydantic models for request/response schemas
-
-## Celery Task Controllers
-
-Task controllers receive `Celery` app as their registry:
+HTTP controllers register with a Django Ninja `Router`:
 
 ```python
-from typing import TypedDict
+def register(self, registry: Router) -> None:
+    registry.add_api_operation(
+        path="/v1/users/me",
+        methods=["GET"],
+        view_func=self.get_current_user,
+        auth=self._jwt_auth,
+        throttle=AuthRateThrottle(rate="30/min"),
+    )
+```
+
+### Rate Limiting
+
+Django Ninja provides built-in throttling:
+
+```python
+from ninja.throttling import AnonRateThrottle, AuthRateThrottle
+
+# Anonymous users - rate limit by IP
+throttle=AnonRateThrottle(rate="10/min")
+
+# Authenticated users - rate limit by user ID
+throttle=AuthRateThrottle(rate="30/min")
+```
+
+Rate formats: `"30/min"`, `"5/hour"`, `"1000/day"`
+
+## Celery Task Controller
+
+```python
+# src/delivery/tasks/tasks/ping.py
+from typing import Literal, TypedDict
 
 from celery import Celery
 
@@ -200,7 +126,7 @@ from infrastructure.delivery.controllers import Controller
 
 
 class PingResult(TypedDict):
-    result: str
+    result: Literal["pong"]
 
 
 class PingTaskController(Controller):
@@ -211,17 +137,29 @@ class PingTaskController(Controller):
         return PingResult(result="pong")
 ```
 
-Key points:
+### Task Registration
 
-- Use `registry.task()` to register as Celery task
-- Task name should be defined in `TaskName` enum
-- Return typed dict for type-safe results
-
-## Telegram Bot Controllers
-
-Bot controllers extend `AsyncController` and receive an aiogram `Router` as their registry:
+Celery controllers register tasks with the Celery app:
 
 ```python
+def register(self, registry: Celery) -> None:
+    registry.task(name=TaskName.PING)(self.ping)
+```
+
+### Typed Results
+
+Use `TypedDict` for type-safe task results:
+
+```python
+class TodoCleanupResult(TypedDict):
+    status: Literal["success"]
+    deleted_count: int
+```
+
+## Async Controller (Telegram Bot)
+
+```python
+# src/delivery/bot/controllers/commands.py
 from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
@@ -235,140 +173,163 @@ class CommandsController(AsyncController):
             self.handle_start_command,
             Command(commands=["start"]),
         )
-        registry.message.register(
-            self.handle_id_command,
-            Command(commands=["id"]),
-        )
 
     async def handle_start_command(self, message: Message) -> None:
         if message.from_user is None:
             return
         await message.answer("Hello! This is a bot.")
-
-    async def handle_id_command(self, message: Message) -> None:
-        if message.from_user is None:
-            return
-        await message.answer(
-            f"User Id: <b>{message.from_user.id}</b>\n"
-            f"Chat Id: <b>{message.chat.id}</b>",
-        )
 ```
 
-Key points:
+### Async Registration
 
-- Extend `AsyncController` for async handlers
-- Use `registry.message.register()` to register handlers with filters
-- All handler methods must be `async`
-- Controllers are injected into `DispatcherFactory` via IoC container
-
-## Dependency Injection
-
-Controllers declare dependencies in `__init__`. **Services should be injected via the IoC container, not models:**
+Bot controllers register with an aiogram `Router`:
 
 ```python
-class UserTokenController(Controller):
+def register(self, registry: Router) -> None:
+    registry.message.register(
+        self.handle_start_command,
+        Command(commands=["start"]),
+    )
+```
+
+## Exception Handling
+
+The base classes auto-wrap public methods with exception handling:
+
+```python
+class Controller(ABC):
+    def __new__(cls, *args, **kwargs):
+        instance = super().__new__(cls)
+        _wrap_methods(instance)  # Auto-wrap all methods
+        return instance
+```
+
+This means exceptions are caught and passed to `handle_exception()`:
+
+```python
+class TodoController(Controller):
+    def handle_exception(self, exception: Exception) -> Any:
+        if isinstance(exception, TodoNotFoundError):
+            raise HttpError(HTTPStatus.NOT_FOUND, "Todo not found") from exception
+        if isinstance(exception, TodoAccessDeniedError):
+            raise HttpError(HTTPStatus.FORBIDDEN, "Access denied") from exception
+        return super().handle_exception(exception)
+
+    def get_todo(self, request, todo_id: int) -> TodoSchema:
+        # If TodoNotFoundError is raised, handle_exception() is called
+        todo = self._todo_service.get_todo_by_id(todo_id, request.user)
+        return TodoSchema.model_validate(todo, from_attributes=True)
+```
+
+## IoC Registration
+
+Controllers are registered in `src/ioc/registries/delivery.py`:
+
+```python
+from punq import Container, Scope
+
+from delivery.http.user.controllers import UserController
+from delivery.http.todo.controllers import TodoController
+
+
+def _register_http_controllers(container: Container) -> None:
+    container.register(UserController, scope=Scope.singleton)
+    container.register(TodoController, scope=Scope.singleton)
+```
+
+## Factory Integration
+
+Factories inject controllers and call `register()`:
+
+```python
+# src/delivery/http/factories.py
+class NinjaAPIFactory:
     def __init__(
         self,
-        user_service: UserService,           # ✅ Business logic service
-        jwt_service: JWTService,             # ✅ Infrastructure service
-        refresh_token_service: RefreshSessionService,
-        jwt_auth: JWTAuth,
+        user_controller: UserController,
+        todo_controller: TodoController,
     ) -> None:
-        self._user_service = user_service
-        self._jwt_service = jwt_service
-        self._refresh_token_service = refresh_token_service
-        self._jwt_auth = jwt_auth
+        self._user_controller = user_controller
+        self._todo_controller = todo_controller
+
+    def __call__(self) -> NinjaAPI:
+        ninja_api = NinjaAPI()
+
+        user_router = Router(tags=["user"])
+        ninja_api.add_router("/", user_router)
+        self._user_controller.register(registry=user_router)
+
+        todo_router = Router(tags=["todo"])
+        ninja_api.add_router("/", todo_router)
+        self._todo_controller.register(registry=todo_router)
+
+        return ninja_api
 ```
-
-The IoC container resolves these dependencies automatically when the controller is created. See [Service Layer Architecture](service-layer.md) for how services encapsulate model access.
-
-## Testing Controllers
-
-Controllers are easily testable because dependencies are injectable:
-
-```python
-def test_user_controller():
-    # Mock dependencies
-    mock_auth = MagicMock(spec=JWTAuth)
-
-    # Create controller with mocks
-    controller = UserController(auth=mock_auth)
-
-    # Test methods directly
-    # ...
-```
-
-See [Mocking IoC Dependencies](../testing/mocking-ioc.md) for integration testing patterns.
 
 ## Best Practices
 
-### 1. Use Services for Data Access
-
-**Controllers must NEVER import or access Django models directly.** All database operations must go through services:
+### 1. Keep Controllers Thin
 
 ```python
-# ✅ Correct: Inject and use services
-class UserController(Controller):
-    def __init__(self, user_service: UserService) -> None:
-        self._user_service = user_service
+# ✅ GOOD - Controller delegates to service
+def create_todo(self, request, body) -> TodoSchema:
+    todo = self._todo_service.create_todo(
+        user=request.user,
+        title=body.title,
+    )
+    return TodoSchema.model_validate(todo, from_attributes=True)
 
-    def get_user(self, request: HttpRequest, user_id: int) -> UserSchema:
-        user = self._user_service.get_user_by_id(user_id)
-        return UserSchema.model_validate(user, from_attributes=True)
-
-
-# ❌ Wrong: Direct model access
-class UserController(Controller):
-    def get_user(self, request: HttpRequest, user_id: int) -> UserSchema:
-        user = User.objects.get(id=user_id)  # Never do this!
-        return UserSchema.model_validate(user, from_attributes=True)
+# ❌ BAD - Business logic in controller
+def create_todo(self, request, body) -> TodoSchema:
+    if Todo.objects.filter(user=request.user, title=body.title).exists():
+        raise HttpError(409, "Todo exists")
+    todo = Todo.objects.create(user=request.user, title=body.title)
+    return TodoSchema.model_validate(todo, from_attributes=True)
 ```
 
-See [Service Layer Architecture](service-layer.md) for detailed guidance.
-
-### 2. Single Responsibility
-
-Each controller should handle one resource or feature area:
+### 2. Use Domain Exceptions
 
 ```python
-# Good: Focused on user tokens
-class UserTokenController(Controller): ...
+# Service raises domain exception
+class TodoService:
+    def get_todo_by_id(self, todo_id: int, user: User) -> Todo:
+        try:
+            todo = Todo.objects.get(id=todo_id)
+        except Todo.DoesNotExist as e:
+            raise TodoNotFoundError(todo_id) from e
+        return todo
 
-# Good: Focused on user CRUD
-class UserController(Controller): ...
-
-# Avoid: Mixed responsibilities
-class UserAndTokenController(Controller): ...
+# Controller converts to HTTP error
+class TodoController(Controller):
+    def handle_exception(self, exception: Exception) -> Any:
+        if isinstance(exception, TodoNotFoundError):
+            raise HttpError(HTTPStatus.NOT_FOUND, "Todo not found") from exception
+        return super().handle_exception(exception)
 ```
 
-### 2. Explicit Error Handling
+### 3. Co-locate Schemas
 
-Handle known exceptions explicitly:
+Keep Pydantic schemas in the same file as the controller:
 
 ```python
-def handle_exception(self, exception: Exception) -> NoReturn:
-    if isinstance(exception, InvalidRefreshTokenError):
-        raise HttpError(status_code=401, message="Invalid token")
+# src/delivery/http/todo/controllers.py
+from pydantic import BaseModel
 
-    # Always re-raise unknown exceptions
-    raise exception
+class CreateTodoRequestSchema(BaseModel):
+    title: str
+    description: str = ""
+
+class TodoSchema(BaseModel):
+    id: int
+    title: str
+    # ...
+
+class TodoController(Controller):
+    # ...
 ```
 
-### 3. Type-Safe Schemas
+## Related Concepts
 
-Use Pydantic models for all request/response schemas:
-
-```python
-class CreateUserSchema(BaseModel):
-    email: EmailStr
-    username: Annotated[str, Len(max_length=150)]
-    password: Annotated[str, Len(max_length=128)]
-```
-
-## Related Topics
-
-- [Service Layer Architecture](service-layer.md) — How controllers interact with business logic
-- [HTTP Controllers](../http/controllers.md) — HTTP-specific patterns
-- [Task Controllers](../celery/task-controllers.md) — Celery-specific patterns
-- [Bot Handlers](../bot/handlers.md) — Telegram bot controller patterns
-- [IoC Container](ioc-container.md) — Dependency resolution
+- [Service Layer](service-layer.md) - What controllers call
+- [Factory Pattern](factory-pattern.md) - How controllers are registered
+- [IoC Container](ioc-container.md) - How controllers are instantiated

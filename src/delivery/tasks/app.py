@@ -1,10 +1,9 @@
 from typing import Any
 
-from celery import Celery
 from celery.signals import beat_init, worker_init
 
 from core.configs.infrastructure import configure_infrastructure
-from delivery.tasks.registry import TasksRegistry
+from delivery.tasks.factories import CeleryAppFactory, TasksRegistryFactory
 from ioc.container import get_container
 
 
@@ -19,6 +18,10 @@ def _beat_init(*_args: Any, **_kwargs: Any) -> None:
 
 
 _container = get_container()
-_registry = _container.resolve(TasksRegistry)
+_registry_factory = _container.resolve(TasksRegistryFactory)
+_app_factory = _container.resolve(CeleryAppFactory)
 
-app = _container.resolve(Celery)
+# Register tasks
+_registry = _registry_factory()
+
+app = _app_factory()

@@ -1,12 +1,11 @@
 from django.contrib.admin import AdminSite
 from django.contrib.admin.sites import site as default_site
 from django.contrib.admin.views.decorators import staff_member_required
+from django.urls import URLResolver, path
 from ninja import NinjaAPI, Router
 
 from core.configs.core import ApplicationSettings
-from core.user.models import User
 from delivery.http.health.controllers import HealthController
-from delivery.http.user.admin import UserAdmin
 from delivery.http.user.controllers import UserController, UserTokenController
 from infrastructure.settings.types import Environment
 
@@ -52,6 +51,25 @@ class NinjaAPIFactory:
 
 class AdminSiteFactory:
     def __call__(self) -> AdminSite:
-        default_site.register(User, admin_class=UserAdmin)
+        from delivery.http.user import admin as _user_admin  # noqa: F401, PLC0415
 
         return default_site
+
+
+class URLPatternsFactory:
+    def __init__(
+        self,
+        api_factory: NinjaAPIFactory,
+        admin_site_factory: AdminSiteFactory,
+    ) -> None:
+        self._api_factory = api_factory
+        self._admin_site_factory = admin_site_factory
+
+    def __call__(self) -> list[URLResolver]:
+        api = self._api_factory()
+        admin_site = self._admin_site_factory()
+
+        return [
+            path("admin/", admin_site.urls),
+            path("api/", api.urls),
+        ]

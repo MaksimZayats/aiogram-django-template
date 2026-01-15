@@ -66,64 +66,34 @@ nav:
   - Home: index.md
   - Getting Started:
     - getting-started/index.md
-    - Quick Start (5 minutes): getting-started/quick-start.md
-    - Development Environment: getting-started/development-environment.md
+    - Quick Start: getting-started/quick-start.md
     - Project Structure: getting-started/project-structure.md
-  - Tutorials:
-    - tutorials/index.md
-    - Your First API Endpoint: tutorials/first-api-endpoint.md
-    - Your First Bot Command: tutorials/first-bot-command.md
-    - Your First Celery Task: tutorials/first-celery-task.md
-  - Core Concepts:
+    - Development Environment: getting-started/development-environment.md
+  - "Tutorial: Build a Todo List":
+    - tutorial/index.md
+    - "Step 1: Model & Service": tutorial/01-model-and-service.md
+    - "Step 2: IoC Registration": tutorial/02-ioc-registration.md
+    - "Step 3: HTTP API & Admin": tutorial/03-http-api.md
+    - "Step 4: Celery Tasks": tutorial/04-celery-tasks.md
+    - "Step 5: Observability": tutorial/05-observability.md
+    - "Step 6: Testing": tutorial/06-testing.md
+  - Concepts:
     - concepts/index.md
-    - Service Layer Architecture: concepts/service-layer.md
-    - IoC Container (punq): concepts/ioc-container.md
+    - Service Layer: concepts/service-layer.md
+    - IoC Container: concepts/ioc-container.md
     - Controller Pattern: concepts/controller-pattern.md
-    - Pydantic Settings: concepts/pydantic-settings.md
     - Factory Pattern: concepts/factory-pattern.md
-  - Configuration:
-    - configuration/index.md
-    - Environment Variables: configuration/environment-variables.md
-    - Django Settings Adapter: configuration/django-adapter.md
-    - Production Configuration: configuration/production.md
-  - HTTP API:
-    - http/index.md
-    - Controllers: http/controllers.md
-    - JWT Authentication: http/jwt-authentication.md
-    - Refresh Tokens: http/refresh-tokens.md
-    - Rate Limiting: http/rate-limiting.md
-    - Error Handling: http/error-handling.md
-  - Telegram Bot:
-    - bot/index.md
-    - Bot & Dispatcher Factories: bot/factories.md
-    - Handlers: bot/handlers.md
-  - Celery Tasks:
-    - celery/index.md
-    - Task Controllers: celery/task-controllers.md
-    - Task Registry: celery/task-registry.md
-    - Beat Scheduler: celery/beat-scheduler.md
-  - Testing:
-    - testing/index.md
-    - Test Factories: testing/test-factories.md
-    - HTTP API Tests: testing/http-tests.md
-    - Celery Task Tests: testing/celery-tests.md
-    - Mocking IoC Dependencies: testing/mocking-ioc.md
-    - Django Settings Overrides: testing/django-settings.md
-  - Observability:
-    - observability/index.md
-    - Logging: observability/logging.md
-    - Logfire (OpenTelemetry): observability/logfire.md
-    - Instrumented Libraries: observability/instrumented-libraries.md
-    - Sensitive Data Scrubbing: observability/scrubbing.md
-  - Deployment:
-    - deployment/index.md
-    - Docker Compose: deployment/docker-compose.md
-    - Production Checklist: deployment/production-checklist.md
-    - CI/CD: deployment/ci-cd.md
+    - Pydantic Settings: concepts/pydantic-settings.md
+  - How-To Guides:
+    - how-to/index.md
+    - Add a New Domain: how-to/add-new-domain.md
+    - Custom Exception Handling: how-to/custom-exception-handling.md
+    - Override IoC in Tests: how-to/override-ioc-in-tests.md
+    - Add Celery Task: how-to/add-celery-task.md
+    - Secure Endpoints: how-to/secure-endpoints.md
+    - Configure Observability: how-to/configure-observability.md
   - Reference:
     - reference/index.md
     - Environment Variables: reference/environment-variables.md
     - Makefile Commands: reference/makefile.md
     - Docker Services: reference/docker-services.md
-    - External Links: reference/external-links.md
-  - Contributing: contributing.md

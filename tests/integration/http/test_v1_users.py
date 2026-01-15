@@ -1,7 +1,6 @@
 from http import HTTPStatus
 
 import pytest
-from punq import Container
 
 from core.user.models import User
 from delivery.http.user.controllers import TokenResponseSchema, UserSchema
@@ -84,7 +83,6 @@ def test_jwt_token_generation_for_invalid_password(
 def test_jwt_token_refresh_revoke_flow(
     test_client_factory: TestClientFactory,
     user: User,
-    container: Container,
 ) -> None:
     test_client = test_client_factory()
 
@@ -118,7 +116,6 @@ def test_jwt_token_refresh_revoke_flow(
 def test_auth_for_user(
     test_client_factory: TestClientFactory,
     user: User,
-    container: Container,
 ) -> None:
     test_client = test_client_factory(auth_for_user=user)
 

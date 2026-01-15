@@ -1,155 +1,280 @@
 # Makefile Commands
 
-Available make commands for development.
+Reference for all available Make targets.
 
 ## Development
 
-| Command | Description |
-|---------|-------------|
-| `make dev` | Start Django development server |
-| `make celery-dev` | Start Celery worker with debug logging |
-| `make celery-beat-dev` | Start Celery Beat scheduler |
-| `make bot-dev` | Start Telegram bot |
+### `make dev`
 
-### Usage
+Start the Django development server with auto-reload.
 
 ```bash
-# Start API server (http://localhost:8000)
 make dev
+# Equivalent to: uv run python src/manage.py runserver
+```
 
-# In another terminal, start Celery worker
+Access at [http://localhost:8000](http://localhost:8000)
+
+### `make celery-dev`
+
+Start Celery worker with auto-reload for development.
+
+```bash
 make celery-dev
+# Equivalent to: uv run celery -A delivery.tasks.app worker --loglevel=info
+```
 
-# In another terminal, start Beat scheduler
-make celery-beat-dev
+### `make shell`
+
+Open Django interactive shell.
+
+```bash
+make shell
+# Equivalent to: uv run python src/manage.py shell
 ```
 
 ## Database
 
-| Command | Description |
-|---------|-------------|
-| `make makemigrations` | Create new database migrations |
-| `make migrate` | Apply database migrations |
-| `make collectstatic` | Collect static files |
+### `make migrate`
 
-### Usage
+Apply pending database migrations.
 
 ```bash
-# After model changes
-make makemigrations
-
-# Apply migrations
 make migrate
+# Equivalent to: uv run python src/manage.py migrate
+```
+
+### `make makemigrations`
+
+Create new migration files for model changes.
+
+```bash
+make makemigrations
+# Equivalent to: uv run python src/manage.py makemigrations
+```
+
+### `make showmigrations`
+
+Show all migrations and their status.
+
+```bash
+make showmigrations
+# Equivalent to: uv run python src/manage.py showmigrations
 ```
 
 ## Code Quality
 
-| Command | Description |
-|---------|-------------|
-| `make format` | Format code with ruff |
-| `make lint` | Run all linters |
-| `make test` | Run tests with coverage |
+### `make format`
 
-### Usage
+Format code with ruff (auto-fix issues).
 
 ```bash
-# Format code
 make format
+# Equivalent to: uv run ruff format src tests && uv run ruff check src tests --fix
+```
 
-# Check code quality
+### `make lint`
+
+Run all linters without auto-fixing.
+
+```bash
 make lint
+# Runs: ruff, ty, pyrefly, mypy
+```
 
-# Run tests
+### `make check`
+
+Run all quality checks (format check + lint).
+
+```bash
+make check
+```
+
+## Testing
+
+### `make test`
+
+Run the full test suite with coverage.
+
+```bash
+make test
+# Equivalent to: uv run pytest --cov=src --cov-report=term-missing --cov-fail-under=80
+```
+
+### `make test-fast`
+
+Run tests without coverage (faster).
+
+```bash
+make test-fast
+# Equivalent to: uv run pytest
+```
+
+### `make test-verbose`
+
+Run tests with verbose output.
+
+```bash
+make test-verbose
+# Equivalent to: uv run pytest -v
+```
+
+## Docker
+
+### `make docker-up`
+
+Start all Docker services.
+
+```bash
+make docker-up
+# Equivalent to: docker compose up -d
+```
+
+### `make docker-down`
+
+Stop all Docker services.
+
+```bash
+make docker-down
+# Equivalent to: docker compose down
+```
+
+### `make docker-logs`
+
+View logs from Docker services.
+
+```bash
+make docker-logs
+# Equivalent to: docker compose logs -f
+```
+
+### `make docker-build`
+
+Build Docker images.
+
+```bash
+make docker-build
+# Equivalent to: docker compose build
+```
+
+## Dependencies
+
+### `make install`
+
+Install all dependencies.
+
+```bash
+make install
+# Equivalent to: uv sync --locked --all-extras --dev
+```
+
+### `make update`
+
+Update dependencies to latest compatible versions.
+
+```bash
+make update
+# Equivalent to: uv sync --all-extras --dev
+```
+
+### `make lock`
+
+Regenerate lock file.
+
+```bash
+make lock
+# Equivalent to: uv lock
+```
+
+## Cleaning
+
+### `make clean`
+
+Remove build artifacts and cache files.
+
+```bash
+make clean
+# Removes: __pycache__, .pytest_cache, .mypy_cache, .ruff_cache, etc.
+```
+
+### `make clean-docker`
+
+Remove Docker volumes and orphan containers.
+
+```bash
+make clean-docker
+# Equivalent to: docker compose down -v --remove-orphans
+```
+
+## Help
+
+### `make help`
+
+Show available targets with descriptions.
+
+```bash
+make help
+```
+
+## Common Workflows
+
+### Starting Fresh
+
+```bash
+# Clone and setup
+git clone https://github.com/MaksimZayats/modern-django-template.git
+cd modern-django-template
+make install
+cp .env.example .env
+
+# Start services
+make docker-up
+make migrate
+
+# Run application
+make dev  # Terminal 1
+make celery-dev  # Terminal 2
+```
+
+### Before Committing
+
+```bash
+# Format and check
+make format
+make lint
 make test
 ```
 
-## Documentation
-
-| Command | Description |
-|---------|-------------|
-| `make docs` | Serve documentation locally |
-| `make docs-build` | Build documentation |
-
-### Usage
+### After Model Changes
 
 ```bash
-# Serve docs at http://localhost:8000
-make docs
-
-# Build static site
-make docs-build
+make makemigrations
+make migrate
 ```
 
-## Command Details
+### Full Reset
 
-### make dev
-
-```makefile
-dev:
-	DJANGO_DEBUG=true uv run manage.py runserver
+```bash
+make clean
+make clean-docker
+make docker-up
+make migrate
 ```
 
-Starts Django development server with debug mode enabled.
+## Environment-Specific Commands
 
-### make celery-dev
+Some commands respect environment variables:
 
-```makefile
-celery-dev:
-	OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES uv run celery -A delivery.tasks.app worker --loglevel=DEBUG
+```bash
+# Use specific settings
+DJANGO_SETTINGS_MODULE=core.configs.production make migrate
+
+# Override database
+DATABASE_URL=postgres://... make migrate
 ```
 
-Starts Celery worker with:
+## Related
 
-- macOS fork safety workaround
-- Debug log level
-
-### make format
-
-```makefile
-format:
-	uv run ruff format .
-	uv run ruff check --fix-only .
-```
-
-Runs:
-
-1. Ruff formatter
-2. Ruff auto-fixes
-
-### make lint
-
-```makefile
-lint:
-	uv run ruff check .
-	uv run ty check .
-	uv run pyrefly check src/
-	uv run mypy src/ tests/
-```
-
-Runs:
-
-1. Ruff linter
-2. ty type checker
-3. pyrefly checker
-4. mypy type checker
-
-### make test
-
-```makefile
-test:
-	uv run pytest tests/
-```
-
-Runs pytest with coverage requirements.
-
-## Adding Custom Commands
-
-Add to `Makefile`:
-
-```makefile
-# Custom command
-my-command:
-	uv run python my_script.py
-
-.PHONY: my-command
-```
+- [Environment Variables](environment-variables.md) - Configuration options
+- [Docker Services](docker-services.md) - Container details
+- [Quick Start](../getting-started/quick-start.md) - Getting started guide

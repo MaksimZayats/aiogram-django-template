@@ -1,278 +1,259 @@
 # Development Environment
 
-Complete setup for local development.
+Configure your IDE and development tools for an optimal workflow.
 
-## Package Manager (uv)
-
-This project uses [uv](https://docs.astral.sh/uv/) for dependency management. Install it:
-
-```bash
-# macOS/Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-### Common Commands
-
-```bash
-# Install all dependencies
-uv sync --locked --all-extras --dev
-
-# Add a new dependency
-uv add package-name
-
-# Add a dev dependency
-uv add --dev package-name
-
-# Update lockfile
-uv lock
-```
-
-## Infrastructure Services
-
-The application requires PostgreSQL, Redis, and MinIO. Use Docker Compose for local development.
-
-!!! tip "COMPOSE_FILE"
-    The `.env.example` includes `COMPOSE_FILE=docker-compose.yaml:docker-compose.local.yaml` which automatically configures Docker Compose for local development. Copy it to `.env` before running commands.
-
-```bash
-# Start PostgreSQL, Redis, and MinIO
-docker compose up -d postgres redis minio
-
-# Create MinIO buckets, run migrations, and collect static files
-docker compose up minio-create-buckets migrations collectstatic
-
-# View logs
-docker compose logs -f postgres redis minio
-
-# Stop services
-docker compose down
-
-# Stop and remove volumes (reset data)
-docker compose down -v
-```
-
-### Service Ports
-
-| Service | Port | Description |
-|---------|------|-------------|
-| PostgreSQL | 5432 | Database |
-| Redis | 6379 | Cache/Broker |
-| MinIO API | 9000 | S3-compatible storage |
-| MinIO Console | 9001 | Web UI |
-
-## Running the Application
-
-### HTTP API
-
-```bash
-make dev
-```
-
-The server runs at `http://localhost:8000` with hot reload enabled.
-
-### Celery Worker
-
-```bash
-make celery-dev
-```
-
-Runs with debug logging and auto-restart on file changes.
-
-### Celery Beat (Scheduler)
-
-```bash
-make celery-beat-dev
-```
-
-### Telegram Bot
-
-```bash
-make bot-dev
-```
-
-Requires `TELEGRAM_BOT_TOKEN` in `.env`.
-
-## Code Quality
-
-### Formatting
-
-```bash
-make format
-```
-
-Uses [Ruff](https://docs.astral.sh/ruff/) for formatting and import sorting.
-
-### Linting
-
-```bash
-make lint
-```
-
-Runs multiple linters:
-
-- **ruff** — Fast Python linter
-- **ty** — Type checker
-- **pyrefly** — Type checker
-- **mypy** — Type checker
-
-**Why three type checkers?** Each tool has different strengths:
-
-- **ty** — Extremely fast, catches common type errors quickly during development
-- **pyrefly** — Meta's type checker with unique inference capabilities for complex patterns
-- **mypy** — The ecosystem standard with the most mature plugin support (e.g., Django stubs)
-
-Running all three ensures comprehensive coverage. Since ty and pyrefly are very fast, the performance overhead is minimal.
-
-### Testing
-
-```bash
-make test
-```
-
-Runs pytest with 80% coverage requirement.
-
-### Pre-commit Hooks (prek)
-
-This project uses [prek](https://prek.j178.dev/) instead of the standard `pre-commit` tool. Prek is a Rust-based reimplementation that offers significant advantages:
-
-- **10x faster execution** — Native Rust implementation eliminates Python interpreter overhead
-- **Zero external dependencies** — Built-in hooks require no environment setup or network access
-- **Drop-in compatibility** — Uses the same `.pre-commit-config.yaml` format
-
-Install prek and set up hooks:
-
-```bash
-# Install prek (included in dev dependencies)
-uv sync --locked --all-extras --dev
-
-# Install git hooks
-prek install
-
-# Run hooks manually on all files
-prek run --all-files
-```
-
-#### Built-in Hooks
-
-The project uses `repo: builtin` for maximum performance. These hooks run entirely in Rust without spawning external processes:
-
-```yaml
-repos:
-  - repo: builtin
-    hooks:
-      - id: check-yaml
-      - id: check-json
-      - id: check-toml
-      - id: end-of-file-fixer
-      - id: check-added-large-files
-```
-
-See the [prek documentation](https://prek.j178.dev/builtin) for all available built-in hooks.
-
-## IDE Configuration
+## IDE Setup
 
 ### VS Code
 
-Recommended extensions:
+Install recommended extensions:
 
-- Python (Microsoft)
-- Ruff
-- Pylance
+```bash
+# Install extensions
+code --install-extension ms-python.python
+code --install-extension ms-python.vscode-pylance
+code --install-extension charliermarsh.ruff
+```
 
-Settings (`.vscode/settings.json`):
+Create `.vscode/settings.json`:
 
 ```json
 {
     "python.defaultInterpreterPath": ".venv/bin/python",
-    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.typeCheckingMode": "strict",
+    "python.analysis.extraPaths": ["src"],
     "[python]": {
         "editor.defaultFormatter": "charliermarsh.ruff",
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
-            "source.organizeImports": "explicit"
+            "source.fixAll.ruff": "explicit",
+            "source.organizeImports.ruff": "explicit"
         }
-    }
+    },
+    "ruff.lint.args": ["--config=pyproject.toml"],
+    "ruff.format.args": ["--config=pyproject.toml"]
 }
 ```
 
 ### PyCharm
 
-1. Set interpreter to `.venv/bin/python`
-2. Enable Ruff plugin
-3. Configure Ruff as the formatter:
-   - Settings → Tools → Ruff → Enable "Format on save"
+1. **Set Python interpreter**: Settings → Project → Python Interpreter → Select `.venv/bin/python`
+2. **Mark `src` as Sources Root**: Right-click `src/` → Mark Directory as → Sources Root
+3. **Enable Ruff**: Install the Ruff plugin from the marketplace
+4. **Configure Django**: Settings → Languages & Frameworks → Django → Enable Django Support
 
-## Database Operations
+## Code Quality Tools
 
-### Create Migrations
+The project uses several tools for code quality:
+
+| Tool | Purpose | Command |
+|------|---------|---------|
+| **ruff** | Linting & formatting | `make format`, `make lint` |
+| **mypy** | Static type checking | `make lint` |
+| **ty** | Type checker | `make lint` |
+| **pytest** | Testing | `make test` |
+
+### Running Quality Checks
 
 ```bash
-make makemigrations
+# Format code (auto-fix)
+make format
+
+# Run all linters
+make lint
+
+# Run tests with coverage
+make test
 ```
 
-### Apply Migrations
+### Pre-commit Hooks (Optional)
+
+Install pre-commit to run checks automatically:
 
 ```bash
-make migrate
+# Install pre-commit
+uv pip install pre-commit
+
+# Create .pre-commit-config.yaml
+cat > .pre-commit-config.yaml << 'EOF'
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+EOF
+
+# Install hooks
+pre-commit install
 ```
+
+## Database Tools
+
+### pgAdmin (Optional)
+
+For visual database management:
+
+```bash
+# Add to docker-compose.yml
+docker compose up -d pgadmin
+```
+
+Access at [http://localhost:5050](http://localhost:5050)
 
 ### Django Shell
 
+Interactive Python shell with Django context:
+
 ```bash
-uv run manage.py shell
+uv run python src/manage.py shell
 ```
 
-### Create Superuser
+Example usage:
+
+```python
+from core.user.models import User
+User.objects.all()
+```
+
+## Testing Workflow
+
+### Running Tests
 
 ```bash
-uv run manage.py createsuperuser
+# Run all tests
+make test
+
+# Run specific test file
+uv run pytest tests/integration/http/test_v1_users.py -v
+
+# Run specific test
+uv run pytest tests/integration/http/test_v1_users.py::test_create_user -v
+
+# Run with coverage report
+uv run pytest --cov=src --cov-report=html
+```
+
+### Debugging Tests
+
+In VS Code, create `.vscode/launch.json`:
+
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": ["-v", "${file}"],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
+        },
+        {
+            "name": "Debug Django Server",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/manage.py",
+            "args": ["runserver", "--noreload"],
+            "django": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
+        }
+    ]
+}
 ```
 
 ## Environment Variables
 
-The application uses `.env` for local development. See [Environment Variables Reference](../reference/environment-variables.md) for all options.
+### Local Development
+
+The `.env` file is used for local development. Key variables:
+
+```bash
+# Django
+DJANGO_DEBUG=true
+DJANGO_SECRET_KEY=your-secret-key
+
+# Database
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/app
+
+# Redis
+REDIS_URL=redis://localhost:6379
+
+# JWT
+JWT_SECRET_KEY=your-jwt-secret
+
+# Logfire (optional)
+LOGFIRE_ENABLED=false
+```
 
 ### Test Environment
 
-Tests use `.env.test` which is automatically loaded by pytest:
+Tests use `.env.test` which is loaded automatically:
 
 ```bash
-# .env.test
-DATABASE_URL="postgres://postgres:test@localhost:5432/test_db"
+# Minimal test configuration
+DJANGO_DEBUG=true
+DJANGO_SECRET_KEY=test-secret-key
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/test_app
+REDIS_URL=redis://localhost:6379
+JWT_SECRET_KEY=test-jwt-secret
 ```
 
-## Troubleshooting
+## Common Development Tasks
 
-### Database Connection Failed
-
-```
-django.db.utils.OperationalError: could not connect to server
-```
-
-Ensure PostgreSQL is running:
+### Database Operations
 
 ```bash
-docker compose ps postgres
-docker compose logs postgres
+# Create migrations
+make makemigrations
+
+# Apply migrations
+make migrate
+
+# Create superuser
+uv run python src/manage.py createsuperuser
+
+# Reset database (dangerous!)
+docker compose down -v postgres
+docker compose up -d postgres
+make migrate
 ```
 
-### Redis Connection Failed
-
-```
-redis.exceptions.ConnectionError: Error connecting to localhost:6379
-```
-
-Ensure Redis is running:
+### Celery Operations
 
 ```bash
-docker compose ps redis
-docker compose logs redis
+# Start worker with auto-reload
+make celery-dev
+
+# Start beat scheduler
+uv run celery -A delivery.tasks.app beat --loglevel=info
+
+# Monitor tasks
+uv run celery -A delivery.tasks.app flower
 ```
 
-### Import Errors After Adding Dependencies
-
-Restart your IDE's Python language server or run:
+### API Development
 
 ```bash
-uv sync --locked --all-extras --dev
+# Start server with auto-reload
+make dev
+
+# Access API docs
+open http://localhost:8000/docs
+
+# Access admin
+open http://localhost:8000/admin
 ```
+
+## Next Steps
+
+- [Quick Start](quick-start.md) - Run the application
+- [Project Structure](project-structure.md) - Understand the codebase
+- [Tutorial](../tutorial/index.md) - Build your first feature

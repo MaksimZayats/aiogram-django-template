@@ -1,98 +1,101 @@
 # Modern API Template
 
-A production-ready template for building modern Python applications with **Django**, **aiogram**, and **Celery** — featuring dependency injection, type-safe configuration, and comprehensive observability.
+A production-ready Django + aiogram + Celery application template with dependency injection, designed for building scalable APIs and background task processing.
 
-## Why This Template?
+## Key Features
 
-Building production applications requires more than just framework boilerplate. This template provides:
-
-- **Clean Architecture** — Separation of concerns with IoC container (punq) for dependency injection
-- **Type Safety** — Pydantic settings with environment variable validation
-- **Multiple Interfaces** — HTTP API (Django-Ninja), Telegram bot (aiogram), background tasks (Celery)
-- **Production Ready** — Docker Compose deployment, connection pooling (PgBouncer), object storage (MinIO)
-- **Observable** — Logfire/OpenTelemetry integration with automatic instrumentation
-- **Testable** — Test factories with per-test IoC container isolation
+- **Service Layer Architecture** - Clean separation between controllers and business logic
+- **Dependency Injection** - Testable, loosely-coupled components using punq
+- **Modern HTTP API** - Django Ninja with automatic OpenAPI documentation
+- **Background Tasks** - Celery with Redis broker and typed task registry
+- **Telegram Bot Ready** - aiogram integration with async controller pattern
+- **Observability** - Logfire/OpenTelemetry integration for tracing and logging
+- **Type Safety** - Full type hints with mypy strict mode
 
 ## Quick Links
 
 <div class="grid cards" markdown>
 
--   **Getting Started**
+-   :material-rocket-launch: **Getting Started**
 
     ---
 
-    Set up your development environment in 5 minutes
+    Set up your development environment and run the template in 5 minutes
 
-    [→ Quick Start](getting-started/quick-start.md)
+    [:octicons-arrow-right-24: Quick Start](getting-started/quick-start.md)
 
--   **Tutorials**
+-   :material-school: **Tutorial**
+
+    ---
+
+    Build a complete Todo List feature from scratch
+
+    [:octicons-arrow-right-24: Start Tutorial](tutorial/index.md)
+
+-   :material-lightbulb: **Concepts**
+
+    ---
+
+    Understand the architectural patterns used in this template
+
+    [:octicons-arrow-right-24: Learn Concepts](concepts/index.md)
+
+-   :material-book-open-variant: **How-To Guides**
 
     ---
 
     Step-by-step guides for common tasks
 
-    [→ Your First API Endpoint](tutorials/first-api-endpoint.md)
-
--   **Core Concepts**
-
-    ---
-
-    Understand the architectural patterns
-
-    [→ IoC Container](concepts/ioc-container.md)
-
--   **Deployment**
-
-    ---
-
-    Deploy to production with Docker Compose
-
-    [→ Docker Compose](deployment/docker-compose.md)
+    [:octicons-arrow-right-24: Browse Guides](how-to/index.md)
 
 </div>
-
-## Features at a Glance
-
-| Feature | Technology | Description |
-|---------|------------|-------------|
-| HTTP API | Django-Ninja | Fast, type-safe REST API with automatic OpenAPI docs |
-| Telegram Bot | aiogram | Async bot framework with handlers and commands |
-| Background Tasks | Celery | Distributed task queue with beat scheduler |
-| Dependency Injection | punq | Lightweight IoC container with automatic resolution |
-| Configuration | Pydantic Settings | Type-safe config with environment variable support |
-| Database | PostgreSQL + PgBouncer | Connection pooling for high concurrency |
-| Object Storage | MinIO (S3-compatible) | Static files and media storage |
-| Observability | Logfire | OpenTelemetry-based tracing and logging |
 
 ## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Entry Points                           │
-├─────────────────┬─────────────────┬────────────────────────┤
-│   HTTP API      │  Telegram Bot   │    Celery Worker       │
-│  (Django-Ninja) │   (aiogram)     │                        │
-└────────┬────────┴────────┬────────┴───────────┬────────────┘
-         │                 │                    │
-         └─────────────────┼────────────────────┘
-                           │
-                    ┌──────▼──────┐
-                    │     IoC     │
-                    │  Container  │
-                    └──────┬──────┘
-                           │
-         ┌─────────────────┼─────────────────┐
-         │                 │                 │
-    ┌────▼────┐      ┌────▼────┐      ┌────▼────┐
-    │ Services│      │ Settings│      │ Infra   │
-    │ (core/) │      │(Pydantic)│     │(logging)│
-    └─────────┘      └─────────┘      └─────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                        Entry Points                              │
+├───────────────┬───────────────────────┬─────────────────────────┤
+│   HTTP API    │     Celery Worker     │     Telegram Bot        │
+│ (Django Ninja)│                       │      (aiogram)          │
+├───────────────┴───────────────────────┴─────────────────────────┤
+│                     Controllers (delivery/)                      │
+│              HTTP Controllers │ Task Controllers                 │
+├─────────────────────────────────────────────────────────────────┤
+│                      Services (core/)                            │
+│              Business Logic │ Database Operations                │
+├─────────────────────────────────────────────────────────────────┤
+│                    IoC Container (ioc/)                          │
+│                   Dependency Resolution                          │
+├─────────────────────────────────────────────────────────────────┤
+│                   Infrastructure (infrastructure/)               │
+│              JWT │ Settings │ Base Classes                       │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-All entry points share the same IoC container, ensuring consistent dependency resolution across HTTP, bot, and background task contexts.
+## The Golden Rule
 
-## Getting Help
+Controllers **never** access models directly. All database operations go through services:
 
-- **Documentation** — You're reading it!
-- **Issues** — [GitHub Issues](https://github.com/MaksimZayats/modern-django-template/issues)
-- **Discussions** — [GitHub Discussions](https://github.com/MaksimZayats/modern-django-template/discussions)
+```
+Controller → Service → Model
+```
+
+This ensures:
+
+- **Testability** - Mock services in tests instead of patching ORM calls
+- **Reusability** - Services can be shared across HTTP, Celery, and Bot controllers
+- **Maintainability** - Business logic stays in one place
+
+## Requirements
+
+- Python 3.12+
+- PostgreSQL (or SQLite for development)
+- Redis (for Celery and caching)
+- Docker & Docker Compose (recommended)
+
+## Next Steps
+
+1. **New to the template?** Start with the [Quick Start](getting-started/quick-start.md) guide
+2. **Want to understand the architecture?** Read the [Concepts](concepts/index.md) section
+3. **Ready to build?** Follow the [Tutorial](tutorial/index.md) to create a complete feature

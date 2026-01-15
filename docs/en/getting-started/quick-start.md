@@ -1,84 +1,75 @@
 # Quick Start
 
-Get the application running in 5 minutes.
+Get the Modern API Template running in 5 minutes.
 
-## 1. Clone the Repository
+## 1. Clone and Install
 
 ```bash
+# Clone the repository
 git clone https://github.com/MaksimZayats/modern-django-template.git
 cd modern-django-template
-```
 
-## 2. Install Dependencies
-
-```bash
+# Install dependencies with uv
 uv sync --locked --all-extras --dev
 ```
 
-This installs all dependencies including development tools (ruff, mypy, pytest).
-
-## 3. Configure Environment
-
-Copy the example environment file:
+## 2. Configure Environment
 
 ```bash
+# Copy example environment file
 cp .env.example .env
 ```
 
-The default configuration works for local development. Key variables:
+The `.env.example` file contains sensible defaults for local development. Key variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DJANGO_DEBUG` | `true` | Enable debug mode |
+| `DJANGO_SECRET_KEY` | Generated | Django secret key |
+| `DATABASE_URL` | `postgres://...` | PostgreSQL connection |
+| `REDIS_URL` | `redis://localhost:6379` | Redis connection |
+
+## 3. Start Infrastructure
 
 ```bash
-DJANGO_SECRET_KEY=example-django-secret-key
-JWT_SECRET_KEY=example-jwt-secret
-DATABASE_URL="postgres://postgres:example-postgres-password@localhost:5432/postgres"
-REDIS_URL="redis://default:example-redis-password@localhost:6379/0"
-```
-
-!!! warning "Production"
-    Generate secure secrets for production. Never use example values.
-
-## 4. Start Infrastructure
-
-Start PostgreSQL, Redis, and MinIO:
-
-```bash
+# Start PostgreSQL, Redis, and MinIO
 docker compose up -d postgres redis minio
-```
 
-!!! tip "COMPOSE_FILE"
-    The `.env.example` includes `COMPOSE_FILE=docker-compose.yaml:docker-compose.local.yaml` which automatically configures Docker Compose for local development. See [`.env.example`](https://github.com/MaksimZayats/modern-django-template/blob/main/.env.example) for reference.
-
-Verify services are running:
-
-```bash
-docker compose ps
-```
-
-## 5. Initialize Application
-
-Create MinIO buckets, run migrations, and collect static files:
-
-```bash
+# Create MinIO buckets, run migrations, collect static files
 docker compose up minio-create-buckets migrations collectstatic
 ```
 
-!!! note "Manual Migrations"
-    You can also run migrations manually using `make makemigrations` and `make migrate`.
+!!! tip "What's Running"
+    - **PostgreSQL** on port 5432 - Main database
+    - **Redis** on port 6379 - Cache and Celery broker
+    - **MinIO** on port 9000 - S3-compatible storage (admin UI on 9001)
 
-## 6. Start the Development Server
+## 4. Run the Application
 
-```bash
-make dev
-```
+Open two terminal windows:
 
-The API is now available at `http://localhost:8000`.
+=== "Terminal 1: HTTP API"
 
-## 7. Verify It Works
+    ```bash
+    make dev
+    ```
+
+    The API will be available at [http://localhost:8000](http://localhost:8000)
+
+=== "Terminal 2: Celery Worker"
+
+    ```bash
+    make celery-dev
+    ```
+
+    The worker will process background tasks
+
+## 5. Verify It Works
 
 ### Check the Health Endpoint
 
 ```bash
-curl http://localhost:8000/api/v1/health
+curl http://localhost:8000/v1/health
 ```
 
 Expected response:
@@ -89,30 +80,56 @@ Expected response:
 
 ### Browse the API Documentation
 
-Open `http://localhost:8000/api/docs` in your browser to see the interactive OpenAPI documentation.
+Open [http://localhost:8000/docs](http://localhost:8000/docs) in your browser to see the interactive OpenAPI documentation.
 
-## Optional: Start Celery Worker
+### Access Django Admin
 
-In a separate terminal:
+Open [http://localhost:8000/admin](http://localhost:8000/admin) (requires creating a superuser first):
 
 ```bash
-make celery-dev
+uv run python src/manage.py createsuperuser
 ```
 
-## Optional: Start Telegram Bot
+## What's Next?
 
-1. Get a bot token from [@BotFather](https://t.me/BotFather)
-2. Add to `.env`:
-   ```bash
-   TELEGRAM_BOT_TOKEN=your-bot-token
-   ```
-3. Start the bot:
-   ```bash
-   make bot-dev
-   ```
+Now that you have the application running:
 
-## Next Steps
+1. **Understand the structure** - Read [Project Structure](project-structure.md)
+2. **Build a feature** - Follow the [Tutorial](../tutorial/index.md)
+3. **Learn the patterns** - Explore the [Concepts](../concepts/index.md)
 
-- [Development Environment](development-environment.md) — Complete IDE setup
-- [Project Structure](project-structure.md) — Understand the codebase
-- [Your First API Endpoint](../tutorials/first-api-endpoint.md) — Add a new endpoint
+## Troubleshooting
+
+### Port Already in Use
+
+```bash
+# Find and kill the process
+lsof -i :8000
+kill -9 <PID>
+```
+
+### Database Connection Failed
+
+Ensure PostgreSQL is running:
+
+```bash
+docker compose ps postgres
+# Should show "running"
+```
+
+### Redis Connection Failed
+
+Ensure Redis is running:
+
+```bash
+docker compose ps redis
+# Should show "running"
+```
+
+### Migrations Not Applied
+
+Run migrations manually:
+
+```bash
+make migrate
+```

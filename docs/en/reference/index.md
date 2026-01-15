@@ -1,41 +1,51 @@
 # Reference
 
-Quick lookup tables and reference documentation.
+Technical reference documentation for configuration and tooling.
 
-## Contents
+## In This Section
 
-<div class="grid cards" markdown>
+| Reference | Description |
+|-----------|-------------|
+| [Environment Variables](environment-variables.md) | Complete list of configuration options |
+| [Makefile Commands](makefile.md) | Development command reference |
+| [Docker Services](docker-services.md) | Container configuration details |
 
--   **Environment Variables**
+## Quick Reference
 
-    ---
+### Required Environment Variables
 
-    Complete reference of all environment variables.
+These must be set in production:
 
-    [→ Environment Variables](environment-variables.md)
+| Variable | Description |
+|----------|-------------|
+| `DJANGO_SECRET_KEY` | Django secret key (generate with `python -c "import secrets; print(secrets.token_urlsafe(50))"`) |
+| `JWT_SECRET_KEY` | JWT signing key (generate separately) |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `REDIS_URL` | Redis connection string |
 
--   **Makefile Commands**
+### Common Commands
 
-    ---
+```bash
+# Development
+make dev              # Start HTTP server
+make celery-dev       # Start Celery worker
+make migrate          # Apply migrations
+make test             # Run tests
 
-    Available make commands for development.
+# Code Quality
+make format           # Format code
+make lint             # Run linters
+```
 
-    [→ Makefile](makefile.md)
+### Docker Services
 
--   **Docker Services**
+```bash
+# Start infrastructure
+docker compose up -d postgres redis minio
 
-    ---
+# Run setup tasks
+docker compose up minio-create-buckets migrations collectstatic
 
-    Docker Compose service configuration details.
-
-    [→ Docker Services](docker-services.md)
-
--   **External Links**
-
-    ---
-
-    Links to external documentation and resources.
-
-    [→ External Links](external-links.md)
-
-</div>
+# Stop everything
+docker compose down
+```

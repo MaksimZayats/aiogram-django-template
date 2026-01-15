@@ -52,19 +52,20 @@ class CeleryAppFactory:
 class TasksRegistryFactory:
     def __init__(
         self,
-        celery_app: Celery,
+        celery_app_factory: CeleryAppFactory,
         ping_controller: PingTaskController,
     ) -> None:
         self._instance: TasksRegistry | None = None
-        self._celery_app = celery_app
+        self._celery_app_factory = celery_app_factory
         self._ping_controller = ping_controller
 
     def __call__(self) -> TasksRegistry:
         if self._instance is not None:
             return self._instance
 
-        registry = TasksRegistry(app=self._celery_app)
-        self._ping_controller.register(self._celery_app)
+        celery_app = self._celery_app_factory()
+        registry = TasksRegistry(app=celery_app)
+        self._ping_controller.register(celery_app)
 
         self._instance = registry
         return self._instance
