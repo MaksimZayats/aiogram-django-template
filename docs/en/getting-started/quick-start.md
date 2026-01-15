@@ -1,23 +1,23 @@
 # Quick Start
 
-Get the application running in 5 minutes.
+Get the Modern Django API Template running locally in under 5 minutes.
 
-## 1. Clone the Repository
+## Prerequisites
+
+Ensure you have installed:
+
+- Python 3.14 or higher
+- Docker and Docker Compose
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) package manager
+
+## Step 1: Clone the Repository
 
 ```bash
 git clone https://github.com/MaksimZayats/modern-django-template.git
 cd modern-django-template
 ```
 
-## 2. Install Dependencies
-
-```bash
-uv sync --locked --all-extras --dev
-```
-
-This installs all dependencies including development tools (ruff, mypy, pytest).
-
-## 3. Configure Environment
+## Step 2: Configure Environment
 
 Copy the example environment file:
 
@@ -25,19 +25,12 @@ Copy the example environment file:
 cp .env.example .env
 ```
 
-The default configuration works for local development. Key variables:
+The `.env.example` file contains sensible defaults for local development. You can customize these values later as needed.
 
-```bash
-DJANGO_SECRET_KEY=example-django-secret-key
-JWT_SECRET_KEY=example-jwt-secret
-DATABASE_URL="postgres://postgres:example-postgres-password@localhost:5432/postgres"
-REDIS_URL="redis://default:example-redis-password@localhost:6379/0"
-```
+!!! note "Environment Variables"
+    The `.env` file includes the `COMPOSE_FILE` setting that combines the base Docker Compose configuration with local development overrides. This enables features like hot-reload for development.
 
-!!! warning "Production"
-    Generate secure secrets for production. Never use example values.
-
-## 4. Start Infrastructure
+## Step 3: Start Infrastructure Services
 
 Start PostgreSQL, Redis, and MinIO:
 
@@ -45,53 +38,58 @@ Start PostgreSQL, Redis, and MinIO:
 docker compose up -d postgres redis minio
 ```
 
-!!! tip "COMPOSE_FILE"
-    The `.env.example` includes `COMPOSE_FILE=docker-compose.yaml:docker-compose.local.yaml` which automatically configures Docker Compose for local development. See [`.env.example`](https://github.com/MaksimZayats/modern-django-template/blob/main/.env.example) for reference.
+!!! info "What Each Service Does"
+    - **PostgreSQL** - Primary database for storing application data
+    - **Redis** - Caching layer and Celery message broker
+    - **MinIO** - S3-compatible object storage for static files and media
 
-Verify services are running:
+## Step 4: Initialize the Database
 
-```bash
-docker compose ps
-```
-
-## 5. Initialize Application
-
-Create MinIO buckets, run migrations, and collect static files:
+Create MinIO buckets, run database migrations, and collect static files:
 
 ```bash
 docker compose up minio-create-buckets migrations collectstatic
 ```
 
-!!! note "Manual Migrations"
-    You can also run migrations manually using `make makemigrations` and `make migrate`.
+This runs one-time setup tasks:
 
-## 6. Start the Development Server
+1. Creates `public` and `protected` buckets in MinIO
+2. Applies Django database migrations
+3. Collects static files to MinIO
+
+## Step 5: Install Python Dependencies
+
+```bash
+uv sync --locked --all-extras --dev
+```
+
+This installs all dependencies from the lockfile, including development tools.
+
+## Step 6: Run the Development Server
 
 ```bash
 make dev
 ```
 
-The API is now available at `http://localhost:8000`.
+!!! success "You're Ready!"
+    The API is now running at [http://localhost:8000](http://localhost:8000)
 
-## 7. Verify It Works
+## Explore the API
 
-### Check the Health Endpoint
+Open the interactive API documentation:
 
-```bash
-curl http://localhost:8000/v1/health
-```
+- **Swagger UI**: [http://localhost:8000/api/docs](http://localhost:8000/api/docs)
 
-Expected response:
+The documentation is auto-generated from your code and includes:
 
-```json
-{"status": "ok"}
-```
+- All available endpoints
+- Request/response schemas
+- Authentication requirements
+- Try-it-out functionality
 
-### Browse the API Documentation
+## Running Additional Services
 
-Open `http://localhost:8000/docs` in your browser to see the interactive OpenAPI documentation.
-
-## Optional: Start Celery Worker
+### Celery Worker (Background Tasks)
 
 In a separate terminal:
 
@@ -99,20 +97,53 @@ In a separate terminal:
 make celery-dev
 ```
 
-## Optional: Start Telegram Bot
+### Celery Beat (Scheduled Tasks)
 
-1. Get a bot token from [@BotFather](https://t.me/BotFather)
-2. Add to `.env`:
-   ```bash
-   TELEGRAM_BOT_TOKEN=your-bot-token
-   ```
-3. Start the bot:
-   ```bash
-   make bot-dev
-   ```
+In another terminal:
+
+```bash
+make celery-beat-dev
+```
+
+### Telegram Bot
+
+If you have configured a bot token in `.env`:
+
+```bash
+make bot-dev
+```
+
+## Verify Everything Works
+
+### Health Check
+
+```bash
+curl http://localhost:8000/api/v1/health
+```
+
+Expected response:
+```json
+{"status": "ok"}
+```
+
+### Create a User
+
+```bash
+curl -X POST http://localhost:8000/api/v1/users/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "email": "test@example.com",
+    "first_name": "Test",
+    "last_name": "User",
+    "password": "SecurePass123!"
+  }'
+```
 
 ## Next Steps
 
-- [Development Environment](development-environment.md) — Complete IDE setup
-- [Project Structure](project-structure.md) — Understand the codebase
-- [Your First API Endpoint](../tutorials/first-api-endpoint.md) — Add a new endpoint
+Now that the project is running:
+
+1. **[Project Structure](project-structure.md)** - Understand how the codebase is organized
+2. **[Development Environment](development-environment.md)** - Configure your IDE for the best experience
+3. **[Tutorial: Build a Todo List](../tutorial/index.md)** - Learn by building a complete feature

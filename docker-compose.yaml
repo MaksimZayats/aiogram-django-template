@@ -79,13 +79,13 @@ services:
 
   migrations:
     <<: *common
-    command: python manage.py migrate --noinput
+    command: python src/manage.py migrate --noinput
     depends_on:
       - pgbouncer
 
   collectstatic:
     <<: *common
-    command: python manage.py collectstatic --noinput
+    command: python src/manage.py collectstatic --noinput
     depends_on:
       - pgbouncer
       - minio-create-buckets

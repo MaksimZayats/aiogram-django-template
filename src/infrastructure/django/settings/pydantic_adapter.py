@@ -8,8 +8,6 @@ logger = logging.getLogger(__name__)
 
 
 class PydanticSettingsAdapter:
-    # NOTE TO AI: this class will adapt pydantic settings to django settings
-    # accept multiple pydantic settings and set them to django settings
     def adapt(
         self,
         *settings: BaseSettings,

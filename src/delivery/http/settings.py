@@ -72,17 +72,20 @@ class TemplateSettings(BaseSettings):
 class AuthSettings(BaseSettings):
     auth_user_model: str = "user.User"
     authentication_backends: tuple[str, ...] = ("django.contrib.auth.backends.ModelBackend",)
-    password_validators: tuple[dict[str, str], ...] = (
-        {
-            "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-        },
-        {
-            "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-        },
-        {
-            "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-        },
-        {
-            "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-        },
+    password_validators: tuple[dict[str, str], ...] = Field(
+        default=(
+            {
+                "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+            },
+            {
+                "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+            },
+            {
+                "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+            },
+            {
+                "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+            },
+        ),
+        alias="auth_password_validators",
     )

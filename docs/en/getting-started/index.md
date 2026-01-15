@@ -1,48 +1,41 @@
 # Getting Started
 
-Welcome to the Modern Django template! This section will help you get up and running quickly.
+Welcome to the Modern Django API Template. This section will help you get up and running quickly.
+
+## What You Will Learn
+
+This guide covers everything you need to start developing with the template:
+
+| Guide | Description | Time |
+|-------|-------------|------|
+| [Quick Start](quick-start.md) | Get the project running in 5 minutes | 5 min |
+| [Project Structure](project-structure.md) | Understand the codebase organization | 10 min |
+| [Development Environment](development-environment.md) | Configure your IDE and tooling | 15 min |
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed:
+Before you begin, ensure you have:
 
-- **Python 3.14+** — The template uses modern Python features
-- **uv** — Fast Python package manager ([install uv](https://docs.astral.sh/uv/getting-started/installation/))
-- **Docker & Docker Compose** — For running infrastructure services
+- **Python 3.14+** - The template uses modern Python features
+- **Docker & Docker Compose** - For running infrastructure services
+- **uv** - Fast Python package manager ([installation guide](https://docs.astral.sh/uv/getting-started/installation/))
 
-## What's Covered
+!!! tip "New to uv?"
+    uv is a fast Python package installer and resolver written in Rust. It replaces pip, pip-tools, and virtualenv with a single, fast tool. Install it with:
+    ```bash
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    ```
 
-<div class="grid cards" markdown>
+## Quick Overview
 
--   **Quick Start**
+The template provides a production-ready foundation for building APIs with:
 
-    ---
+- **Django Ninja** - Fast, async-ready HTTP API framework
+- **Celery** - Distributed task queue for background jobs
+- **aiogram** - Telegram bot framework (optional)
+- **punq** - Lightweight dependency injection container
+- **PostgreSQL + Redis + MinIO** - Battle-tested infrastructure stack
 
-    Get the application running in 5 minutes with minimal setup.
+## Next Steps
 
-    [→ Quick Start](quick-start.md)
-
--   **Development Environment**
-
-    ---
-
-    Complete setup for local development including IDE configuration.
-
-    [→ Development Environment](development-environment.md)
-
--   **Project Structure**
-
-    ---
-
-    Understand the directory layout and module organization.
-
-    [→ Project Structure](project-structure.md)
-
-</div>
-
-## Recommended Path
-
-1. **Start with [Quick Start](quick-start.md)** to verify everything works
-2. **Read [Project Structure](project-structure.md)** to understand the codebase layout
-3. **Follow a [Tutorial](../tutorials/index.md)** to add your first feature
-4. **Study [Core Concepts](../concepts/index.md)** to understand the architecture
+Ready to dive in? Start with the [Quick Start](quick-start.md) guide to get the project running locally.

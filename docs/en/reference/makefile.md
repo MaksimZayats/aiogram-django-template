@@ -1,155 +1,125 @@
 # Makefile Commands
 
-Available make commands for development.
+All development commands are available through the Makefile.
 
-## Development
+## Development Server
 
 | Command | Description |
 |---------|-------------|
-| `make dev` | Start Django development server |
-| `make celery-dev` | Start Celery worker with debug logging |
-| `make celery-beat-dev` | Start Celery Beat scheduler |
-| `make bot-dev` | Start Telegram bot |
-
-### Usage
-
-```bash
-# Start API server (http://localhost:8000)
-make dev
-
-# In another terminal, start Celery worker
-make celery-dev
-
-# In another terminal, start Beat scheduler
-make celery-beat-dev
-```
+| `make dev` | Run Django development server with `DJANGO_DEBUG=true` |
+| `make celery-dev` | Run Celery worker with DEBUG logging |
+| `make celery-beat-dev` | Run Celery beat scheduler with DEBUG logging |
+| `make bot-dev` | Run Telegram bot in polling mode |
 
 ## Database
 
 | Command | Description |
 |---------|-------------|
 | `make makemigrations` | Create new database migrations |
-| `make migrate` | Apply database migrations |
-| `make collectstatic` | Collect static files |
+| `make migrate` | Apply pending database migrations |
 
-### Usage
+## Static Files
 
-```bash
-# After model changes
-make makemigrations
-
-# Apply migrations
-make migrate
-```
+| Command | Description |
+|---------|-------------|
+| `make collectstatic` | Collect static files to storage backend |
 
 ## Code Quality
 
 | Command | Description |
 |---------|-------------|
-| `make format` | Format code with ruff |
-| `make lint` | Run all linters |
-| `make test` | Run tests with coverage |
-
-### Usage
-
-```bash
-# Format code
-make format
-
-# Check code quality
-make lint
-
-# Run tests
-make test
-```
+| `make format` | Format code with ruff and apply auto-fixes |
+| `make lint` | Run all linters: ruff, ty, pyrefly, mypy |
+| `make test` | Run pytest test suite |
 
 ## Documentation
 
 | Command | Description |
 |---------|-------------|
-| `make docs` | Serve documentation locally |
-| `make docs-build` | Build documentation |
-
-### Usage
-
-```bash
-# Serve docs at http://localhost:8000
-make docs
-
-# Build static site
-make docs-build
-```
+| `make docs` | Serve documentation locally with live reload |
+| `make docs-build` | Build documentation for deployment |
 
 ## Command Details
 
 ### make dev
 
-```makefile
-dev:
-	DJANGO_DEBUG=true uv run manage.py runserver
+```bash
+DJANGO_DEBUG=true uv run src/manage.py runserver
 ```
 
-Starts Django development server with debug mode enabled.
+Starts the Django development server on `http://127.0.0.1:8000`.
 
 ### make celery-dev
 
-```makefile
-celery-dev:
-	OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES uv run celery -A delivery.tasks.app worker --loglevel=DEBUG
+```bash
+OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES uv run celery -A delivery.tasks.app worker --loglevel=DEBUG
 ```
 
-Starts Celery worker with:
+The `OBJC_DISABLE_INITIALIZE_FORK_SAFETY` flag is required on macOS.
 
-- macOS fork safety workaround
-- Debug log level
+### make celery-beat-dev
+
+```bash
+uv run celery -A delivery.tasks.app beat --loglevel=DEBUG
+```
+
+Runs the periodic task scheduler.
+
+### make bot-dev
+
+```bash
+uv run python -m delivery.bot
+```
+
+Runs the Telegram bot in long-polling mode. Requires `TELEGRAM_BOT_TOKEN`.
 
 ### make format
 
-```makefile
-format:
-	uv run ruff format .
-	uv run ruff check --fix-only .
+```bash
+uv run ruff format .
+uv run ruff check --fix-only .
 ```
 
-Runs:
-
-1. Ruff formatter
-2. Ruff auto-fixes
+Formats code and applies safe auto-fixes.
 
 ### make lint
 
-```makefile
-lint:
-	uv run ruff check .
-	uv run ty check .
-	uv run pyrefly check src/
-	uv run mypy src/ tests/
+```bash
+uv run ruff check .
+uv run ty check .
+uv run pyrefly check src/
+uv run mypy src/ tests/
 ```
 
-Runs:
+Runs the complete linting pipeline:
 
-1. Ruff linter
-2. ty type checker
-3. pyrefly checker
-4. mypy type checker
+| Tool | Purpose |
+|------|---------|
+| ruff | Fast Python linter |
+| ty | Type linter |
+| pyrefly | Additional static analysis |
+| mypy | Type checker |
 
 ### make test
 
-```makefile
-test:
-	uv run pytest tests/
+```bash
+uv run pytest tests/
 ```
 
-Runs pytest with coverage requirements.
+Runs the test suite. Configure coverage requirements in `pyproject.toml`.
 
-## Adding Custom Commands
+### make docs
 
-Add to `Makefile`:
-
-```makefile
-# Custom command
-my-command:
-	uv run python my_script.py
-
-.PHONY: my-command
+```bash
+uv run mkdocs serve --livereload -f docs/mkdocs.yml
 ```
+
+Serves documentation at `http://127.0.0.1:8000` with auto-reload.
+
+### make docs-build
+
+```bash
+uv run mkdocs build -f docs/mkdocs.yml
+```
+
+Builds static documentation to `docs/site/`.

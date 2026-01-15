@@ -43,6 +43,7 @@ ignore = [
     "S101",  # Use of assert detected
     "PT003",
     "ARG001",
+    "PLR2004",
 ]
 
 [lint.flake8-tidy-imports]

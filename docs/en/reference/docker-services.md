@@ -1,242 +1,238 @@
-# Docker Services Reference
+# Docker Services
 
-Docker Compose service configuration details.
+The application uses Docker Compose for containerized deployment.
 
-## Application Services
+## Service Overview
 
-### API (HTTP)
+| Service | Image | Purpose | Ports |
+|---------|-------|---------|-------|
+| `api` | `base:local` | Django Ninja HTTP API | 8009:8000 |
+| `celery-worker` | `base:local` | Background task processing | - |
+| `celery-beat` | `base:local` | Periodic task scheduler | - |
+| `bot` | `base:local` | Telegram bot | - |
+| `migrations` | `base:local` | Database migrations (run-once) | - |
+| `collectstatic` | `base:local` | Static file collection (run-once) | - |
+| `postgres` | `postgres:18-alpine` | Primary database | 5432* |
+| `pgbouncer` | `edoburu/pgbouncer` | Connection pooling | - |
+| `redis` | `redis:latest` | Celery broker and cache | 6379* |
+| `minio` | `minio/minio` | S3-compatible storage | 9000, 9001 |
+| `minio-create-buckets` | `minio/mc` | Bucket initialization (run-once) | - |
 
-```yaml
-api:
-  image: base:local
-  ports:
-    - "8009:8000"
-  command:
-    - gunicorn
-    - delivery.http.app:wsgi
-    - --workers=4
-    - --bind=0.0.0.0
-    - --timeout=120
-  depends_on:
-    - pgbouncer
-    - migrations
-    - collectstatic
-    - celery-worker
-  restart: always
+*Ports exposed only in local development configuration.
+
+## Compose Files
+
+| File | Purpose |
+|------|---------|
+| `docker-compose.yaml` | Production configuration |
+| `docker-compose.local.yaml` | Local development overrides |
+
+For local development, use both files:
+
+```bash
+export COMPOSE_FILE=docker-compose.yaml:docker-compose.local.yaml
 ```
 
-| Setting | Value | Description |
-|---------|-------|-------------|
-| Port | 8009 (external), 8000 (internal) | HTTP port |
-| Workers | 4 | Gunicorn worker processes |
-| Timeout | 120s | Request timeout |
+Or set in `.env`:
 
-### Celery Worker
-
-```yaml
-celery-worker:
-  image: base:local
-  command:
-    - celery
-    - --app=delivery.tasks.app
-    - worker
-    - --loglevel=${LOGGING_LEVEL:-INFO}
-    - --concurrency=4
-  depends_on:
-    - pgbouncer
-    - migrations
-    - redis
-  restart: always
+```bash
+COMPOSE_FILE=docker-compose.yaml:docker-compose.local.yaml
 ```
 
-| Setting | Value | Description |
-|---------|-------|-------------|
-| Concurrency | 4 | Worker processes |
-| Log Level | INFO (default) | Celery log level |
+## Common Operations
 
-### Celery Beat
+### Start Infrastructure
 
-```yaml
-celery-beat:
-  image: base:local
-  command:
-    - celery
-    - --app=delivery.tasks.app
-    - beat
-    - --loglevel=${LOGGING_LEVEL:-INFO}
-  depends_on:
-    - pgbouncer
-    - migrations
-    - redis
-  restart: always
+```bash
+# Start all infrastructure services
+docker compose up -d postgres redis minio
+
+# Initialize (migrations, buckets, static files)
+docker compose up minio-create-buckets migrations collectstatic
 ```
 
-!!! warning "Single Instance"
-    Only run one Beat instance to avoid duplicate scheduled tasks.
+### Start Application
 
-### Telegram Bot
+```bash
+# Start all services
+docker compose up -d
 
-```yaml
-bot:
-  image: base:local
-  command: python -m delivery.bot
-  depends_on:
-    - pgbouncer
-    - migrations
-  restart: always
+# Start specific service
+docker compose up -d api
+docker compose up -d celery-worker
+docker compose up -d bot
 ```
 
-## Infrastructure Services
+### View Logs
 
-### PostgreSQL
+```bash
+# All services
+docker compose logs -f
 
-```yaml
-postgres:
-  image: postgres:18-alpine
-  environment:
-    POSTGRES_USER: ${POSTGRES_USER}
-    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    POSTGRES_DB: ${POSTGRES_DB}
-    POSTGRES_HOST_AUTH_METHOD: scram-sha-256
-    POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
-  volumes:
-    - postgres_data:/var/lib/postgresql
-  healthcheck:
-    test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-    interval: 10s
-    timeout: 5s
-    retries: 5
-    start_period: 10s
+# Specific service
+docker compose logs -f api
+docker compose logs -f celery-worker
 ```
 
-| Setting | Value | Description |
-|---------|-------|-------------|
-| Image | postgres:18-alpine | PostgreSQL 18 |
-| Auth | scram-sha-256 | Secure authentication |
-| Volume | postgres_data | Persistent storage |
+### Stop Services
 
-### PgBouncer
+```bash
+# Stop all
+docker compose down
 
-```yaml
-pgbouncer:
-  image: edoburu/pgbouncer:latest
-  environment:
-    DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-    POOL_MODE: transaction
-    MAX_CLIENT_CONN: 200
-    DEFAULT_POOL_SIZE: 25
-    MIN_POOL_SIZE: 5
-    RESERVE_POOL_SIZE: 5
-    RESERVE_POOL_TIMEOUT: 3
-    SERVER_RESET_QUERY: DISCARD ALL
-    SERVER_LIFETIME: 3600
-    SERVER_IDLE_TIMEOUT: 600
-    LOG_CONNECTIONS: 0
-    LOG_DISCONNECTIONS: 0
-    LOG_POOLER_ERRORS: 1
-    AUTH_TYPE: scram-sha-256
-  depends_on:
-    postgres:
-      condition: service_healthy
+# Stop and remove volumes
+docker compose down -v
 ```
 
-| Setting | Value | Description |
-|---------|-------|-------------|
-| Pool Mode | transaction | Connection pooling mode |
-| Max Clients | 200 | Maximum client connections |
-| Default Pool | 25 | Default pool size per user/db |
-| Server Lifetime | 3600s | Connection max age |
+### Rebuild
 
-### Redis
+```bash
+# Rebuild base image
+docker compose build base
 
-```yaml
-redis:
-  image: redis:latest
-  volumes:
-    - redis_data:/data
+# Rebuild and restart
+docker compose up -d --build api
 ```
 
-| Setting | Value | Description |
-|---------|-------|-------------|
-| Image | redis:latest | Latest Redis |
-| Volume | redis_data | Persistent storage |
+## Service Details
 
-### MinIO
+### api
 
-```yaml
-minio:
-  image: minio/minio:latest
-  ports:
-    - "9000:9000"
-    - "9001:9001"
-  environment:
-    MINIO_ROOT_USER: ${AWS_S3_ACCESS_KEY_ID}
-    MINIO_ROOT_PASSWORD: ${AWS_S3_SECRET_ACCESS_KEY}
-  volumes:
-    - minio_data:/data
-  command: server /data --console-address ":9001"
-  healthcheck:
-    test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-    interval: 2s
-    timeout: 10s
-    retries: 5
+Django Ninja HTTP API served by Gunicorn.
+
+| Setting | Value |
+|---------|-------|
+| Workers | 4 |
+| Timeout | 120s |
+| Bind | 0.0.0.0:8000 |
+
+Production command:
+
+```bash
+gunicorn delivery.http.app:wsgi --workers=4 --bind=0.0.0.0 --timeout=120
 ```
 
-| Setting | Value | Description |
-|---------|-------|-------------|
-| API Port | 9000 | S3 API endpoint |
-| Console Port | 9001 | Web UI |
-| Volume | minio_data | Persistent storage |
+Local development uses Django's runserver with volume mounts.
 
-### MinIO Bucket Setup
+### celery-worker
 
-```yaml
-minio-create-buckets:
-  image: minio/mc
-  depends_on:
-    minio:
-      condition: service_healthy
-  entrypoint: >
-    /bin/sh -c "
-    /usr/bin/mc alias set my-minio http://minio:9000 ... ;
-    /usr/bin/mc mb my-minio/${AWS_S3_PROTECTED_BUCKET_NAME:-protected};
-    mc anonymous set none my-minio/${AWS_S3_PROTECTED_BUCKET_NAME:-protected};
-    /usr/bin/mc mb my-minio/${AWS_S3_PUBLIC_BUCKET_NAME:-public};
-    mc anonymous set public my-minio/${AWS_S3_PUBLIC_BUCKET_NAME:-public};
-    exit 0;
-    "
-```
+Background task processor.
+
+| Setting | Production | Local |
+|---------|------------|-------|
+| Concurrency | 4 | 2 |
+| Log Level | `${LOGGING_LEVEL:-INFO}` | `${LOGGING_LEVEL:-INFO}` |
+| Auto-reload | No | Yes (watchmedo) |
+
+### celery-beat
+
+Periodic task scheduler for scheduled jobs.
+
+### bot
+
+Telegram bot running in long-polling mode.
+
+### postgres
+
+PostgreSQL 18 database.
+
+| Setting | Value |
+|---------|-------|
+| Auth Method | scram-sha-256 |
+| Volume | `postgres_data` |
+
+### pgbouncer
+
+Connection pooler for PostgreSQL.
+
+| Setting | Value |
+|---------|-------|
+| Pool Mode | transaction |
+| Max Client Connections | 200 |
+| Default Pool Size | 25 |
+| Min Pool Size | 5 |
+| Server Lifetime | 3600s |
+| Server Idle Timeout | 600s |
+| Auth Type | scram-sha-256 |
+
+!!! info "Authentication"
+    PgBouncer is configured with `AUTH_TYPE: scram-sha-256` to match PostgreSQL's authentication method. This ensures secure password hashing between PgBouncer and PostgreSQL. Both services must use the same authentication method for connections to succeed.
+
+### redis
+
+Redis for Celery broker and Django cache.
+
+| Setting | Value |
+|---------|-------|
+| Volume | `redis_data` |
+
+### minio
+
+S3-compatible object storage.
+
+| Port | Purpose |
+|------|---------|
+| 9000 | API endpoint |
+| 9001 | Web console |
+
+### minio-create-buckets
+
+Initializes storage buckets on first run:
+
+| Bucket | Access |
+|--------|--------|
+| `protected` | Private |
+| `public` | Public read |
+
+## Networking
+
+All services connect via the `main` bridge network. Internal DNS resolves service names:
+
+| Service | Internal Hostname |
+|---------|-------------------|
+| PostgreSQL | `postgres:5432` |
+| PgBouncer | `pgbouncer:5432` |
+| Redis | `redis:6379` |
+| MinIO | `minio:9000` |
+
+Application services connect to PgBouncer (not directly to PostgreSQL) for connection pooling.
 
 ## Volumes
 
-```yaml
-volumes:
-  postgres_data:
-    driver: local
-  redis_data:
-    driver: local
-  minio_data:
-    driver: local
+| Volume | Purpose |
+|--------|---------|
+| `postgres_data` | PostgreSQL data |
+| `redis_data` | Redis persistence |
+| `minio_data` | Object storage |
+
+## Health Checks
+
+| Service | Check | Interval |
+|---------|-------|----------|
+| postgres | `pg_isready` | 10s |
+| pgbouncer | `pg_isready` | 10s |
+| minio | HTTP `/minio/health/live` | 2s |
+
+## Dependencies
+
 ```
+api
+  -> pgbouncer -> postgres
+  -> migrations -> pgbouncer
+  -> collectstatic -> minio-create-buckets -> minio
+  -> celery-worker -> redis
 
-## Networks
+celery-worker
+  -> pgbouncer
+  -> migrations
+  -> redis
 
-```yaml
-networks:
-  main:
-    driver: bridge
+celery-beat
+  -> pgbouncer
+  -> migrations
+  -> redis
+
+bot
+  -> pgbouncer
+  -> migrations
 ```
-
-All services are on the `main` bridge network for internal communication.
-
-## Local Development Overrides
-
-`docker-compose.local.yaml`:
-
-| Service | Override |
-|---------|----------|
-| API | Use runserver instead of gunicorn, mount source |
-| Celery Worker | Add watchmedo auto-restart |
-| PostgreSQL | Expose port 5432 |
-| Redis | Expose port 6379 |
-| MinIO | Ports already exposed |

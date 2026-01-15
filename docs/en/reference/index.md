@@ -1,41 +1,11 @@
 # Reference
 
-Quick lookup tables and reference documentation.
+Technical reference documentation for the Modern Django API Template.
 
 ## Contents
 
-<div class="grid cards" markdown>
-
--   **Environment Variables**
-
-    ---
-
-    Complete reference of all environment variables.
-
-    [→ Environment Variables](environment-variables.md)
-
--   **Makefile Commands**
-
-    ---
-
-    Available make commands for development.
-
-    [→ Makefile](makefile.md)
-
--   **Docker Services**
-
-    ---
-
-    Docker Compose service configuration details.
-
-    [→ Docker Services](docker-services.md)
-
--   **External Links**
-
-    ---
-
-    Links to external documentation and resources.
-
-    [→ External Links](external-links.md)
-
-</div>
+| Page | Description |
+|------|-------------|
+| [Environment Variables](environment-variables.md) | Complete list of configuration options |
+| [Makefile Commands](makefile.md) | Development and build commands |
+| [Docker Services](docker-services.md) | Container configuration and operations |

@@ -4,7 +4,7 @@ services:
       - ./src:/app/src:ro
     command:
       - python
-      - manage.py
+      - src/manage.py
       - runserver
       - 0.0.0.0:8000
 

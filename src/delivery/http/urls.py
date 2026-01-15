@@ -1,9 +1,7 @@
-from django.contrib import admin
-from django.urls import path
+from delivery.http.factories import URLPatternsFactory
+from ioc.container import get_container
 
-from delivery.http.api import api
+_container = get_container()
+_urlpatterns_factory = _container.resolve(URLPatternsFactory)
 
-urlpatterns = [
-    path("admin/", admin.site.urls),
-    path("api/", api.urls),
-]
+urlpatterns = _urlpatterns_factory()

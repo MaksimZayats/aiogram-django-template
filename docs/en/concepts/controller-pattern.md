@@ -1,102 +1,165 @@
 # Controller Pattern
 
-The Controller pattern provides a consistent interface for handling requests across HTTP, Telegram bot, and Celery task contexts.
+Controllers are the entry points for handling requests in this template. They provide a unified interface for HTTP endpoints, Celery tasks, and Telegram bot handlers while automatically handling exceptions.
 
-## Base Controllers
+## Two Base Classes
 
-Two abstract base classes are defined in `src/infrastructure/delivery/controllers.py`:
+The template provides two abstract base classes depending on whether your handlers are synchronous or asynchronous:
 
-### Sync Controller
+### Controller (Synchronous)
 
-For synchronous handlers (HTTP API, Celery tasks):
+Used for HTTP endpoints and Celery tasks:
 
 ```python
-from abc import ABC, abstractmethod
-from typing import Any
+from infrastructure.delivery.controllers import Controller
 
+class HealthController(Controller):
+    def __init__(self, health_service: HealthService) -> None:
+        self._health_service = health_service
 
+    def register(self, registry: Router) -> None:
+        registry.add_api_operation(
+            path="/v1/health",
+            methods=["GET"],
+            view_func=self.health_check,
+            response=HealthCheckResponseSchema,
+            auth=None,
+        )
+
+    def health_check(self, request: HttpRequest) -> HealthCheckResponseSchema:
+        self._health_service.check_system_health()
+        return HealthCheckResponseSchema(status="ok")
+```
+
+### AsyncController (Asynchronous)
+
+Used for Telegram bot handlers:
+
+```python
+from infrastructure.delivery.controllers import AsyncController
+
+class CommandsController(AsyncController):
+    def __init__(self, health_service: HealthService) -> None:
+        self._health_service = health_service
+
+    def register(self, registry: Router) -> None:
+        registry.message.register(
+            self.handle_start_command,
+            Command(commands=["start"]),
+        )
+
+    async def handle_start_command(self, message: Message) -> None:
+        await message.answer("Hello! This is a bot.")
+```
+
+## Automatic Exception Wrapping
+
+Both base classes use `__new__` to automatically wrap all public methods with exception handling:
+
+```python
 class Controller(ABC):
     def __new__(cls, *_args: Any, **_kwargs: Any) -> Self:
         self = super().__new__(cls)
-        _wrap_methods(self)
+        _wrap_methods(self)  # Wraps all public methods
         return self
-
-    @abstractmethod
-    def register(self, registry: Any) -> None: ...
-
-    def handle_exception(self, exception: Exception) -> Any:
-        raise exception
 ```
 
-### Async Controller
-
-For asynchronous handlers (Telegram bot):
+This means every handler method is automatically wrapped in a try-except block that calls `handle_exception()`:
 
 ```python
-class AsyncController(ABC):
-    def __new__(cls, *_args: Any, **_kwargs: Any) -> Self:
-        self = super().__new__(cls)
-        _wrap_async_methods(self)
-        return self
+# What you write:
+def health_check(self, request: HttpRequest) -> HealthCheckResponseSchema:
+    self._health_service.check_system_health()
+    return HealthCheckResponseSchema(status="ok")
 
-    @abstractmethod
-    def register(self, registry: Any) -> None: ...
-
-    async def handle_exception(self, exception: Exception) -> Any:
-        raise exception
+# What actually executes:
+def health_check(self, request: HttpRequest) -> HealthCheckResponseSchema:
+    try:
+        self._health_service.check_system_health()
+        return HealthCheckResponseSchema(status="ok")
+    except Exception as e:
+        return self.handle_exception(e)
 ```
 
-## Key Features
+## The register() Method
 
-### 1. Automatic Exception Wrapping
+Every controller must implement `register()`. This method connects the controller's handlers to the appropriate framework registry:
 
-When a controller is instantiated, all public methods are wrapped with exception handling.
+```
++----------------+     +----------------+     +----------------+
+|   Controller   |---->|    register()  |---->|    Registry    |
++----------------+     +----------------+     +----------------+
+                              |
+                              v
+                       Connects handlers
+                       to framework
+```
 
-**Sync controllers** wrap regular methods:
+### HTTP Controllers
+
+Register handlers with a Django-Ninja Router:
 
 ```python
-def _wrap_methods(controller: Controller) -> None:
-    for attr_name in dir(controller):
-        attr = getattr(controller, attr_name)
-        if (
-            callable(attr)
-            and not attr_name.startswith("_")
-            and attr_name not in ("register", "handle_exception")
-        ):
-            setattr(
-                controller,
-                attr_name,
-                _wrap_route(attr, controller=controller),
-            )
+class UserController(Controller):
+    def register(self, registry: Router) -> None:
+        registry.add_api_operation(
+            path="/v1/users/",
+            methods=["POST"],
+            view_func=self.create_user,
+            response=UserSchema,
+            auth=None,
+            throttle=AnonRateThrottle(rate="30/min"),
+        )
+
+        registry.add_api_operation(
+            path="/v1/users/me",
+            methods=["GET"],
+            view_func=self.get_current_user,
+            response=UserSchema,
+            auth=self._jwt_auth,
+            throttle=AuthRateThrottle(rate="30/min"),
+        )
 ```
 
-**Async controllers** wrap coroutine functions:
+### Celery Task Controllers
+
+Register handlers with a Celery app:
 
 ```python
-def _wrap_async_methods(controller: AsyncController) -> None:
-    for attr_name in dir(controller):
-        attr = getattr(controller, attr_name)
-        if (
-            inspect.iscoroutinefunction(attr)
-            and not attr_name.startswith("_")
-            and attr_name not in ("register", "handle_exception")
-        ):
-            setattr(
-                controller,
-                attr_name,
-                _wrap_async_route(attr, controller=controller),
-            )
+from delivery.tasks.registry import TaskName
+
+class PingTaskController(Controller):
+    def register(self, registry: Celery) -> None:
+        registry.task(name=TaskName.PING)(self.ping)
+
+    def ping(self) -> PingResult:
+        return PingResult(result="pong")
 ```
 
-Every public method is wrapped to catch exceptions and route them to `handle_exception()`.
+### Bot Controllers
 
-### 2. Custom Exception Handling
+Register handlers with an aiogram Router:
 
-Override `handle_exception()` to convert domain exceptions to appropriate responses:
+```python
+class CommandsController(AsyncController):
+    def register(self, registry: Router) -> None:
+        registry.message.register(
+            self.handle_start_command,
+            Command(commands=["start"]),
+        )
+        registry.message.register(
+            self.handle_id_command,
+            Command(commands=["id"]),
+        )
+```
+
+## Custom Exception Handling
+
+Override `handle_exception()` to convert domain exceptions into appropriate responses:
 
 ```python
 class UserTokenController(Controller):
-    def handle_exception(self, exception: Exception) -> NoReturn:
+    def handle_exception(self, exception: Exception) -> Any:
         if isinstance(exception, InvalidRefreshTokenError):
             raise HttpError(
                 status_code=HTTPStatus.UNAUTHORIZED,
@@ -109,100 +172,135 @@ class UserTokenController(Controller):
                 message="Refresh token expired or revoked",
             ) from exception
 
-        # Re-raise unhandled exceptions
-        raise exception
+        # Re-raise unknown exceptions
+        return super().handle_exception(exception)
 ```
 
-### 3. Registry-Based Route Registration
+!!! tip "Always Call Super"
+    End your `handle_exception()` method by calling `super().handle_exception(exception)` to re-raise unhandled exceptions.
 
-The `register()` method connects controller methods to their respective frameworks:
+### Async Exception Handling
 
-**HTTP (Django-Ninja Router):**
+For `AsyncController`, the method is async:
 
 ```python
-class UserController(Controller):
+class CommandsController(AsyncController):
+    async def handle_exception(self, exception: Exception) -> Any:
+        if isinstance(exception, HealthCheckError):
+            # Log and notify user
+            logger.error("Health check failed", exc_info=exception)
+            return None  # Swallow the exception
+
+        return await super().handle_exception(exception)
+```
+
+## Controller Structure
+
+A typical controller follows this structure:
+
+```python
+class ItemController(Controller):
+    # 1. Dependencies injected via __init__
+    def __init__(
+        self,
+        jwt_auth: JWTAuth,
+        item_service: ItemService,
+    ) -> None:
+        self._jwt_auth = jwt_auth
+        self._item_service = item_service
+
+    # 2. Registration connects handlers to framework
     def register(self, registry: Router) -> None:
         registry.add_api_operation(
-            path="/v1/users/",
-            methods=["POST"],
-            view_func=self.create_user,
+            path="/v1/items",
+            methods=["GET"],
+            view_func=self.list_items,
+            response=list[ItemSchema],
+            auth=self._jwt_auth,
+        )
+        registry.add_api_operation(
+            path="/v1/items/{item_id}",
+            methods=["GET"],
+            view_func=self.get_item,
+            response=ItemSchema,
+            auth=self._jwt_auth,
+        )
+
+    # 3. Handler methods implement business logic calls
+    def list_items(self, request: AuthenticatedHttpRequest) -> list[ItemSchema]:
+        items = self._item_service.list_items()
+        return [ItemSchema.model_validate(item, from_attributes=True) for item in items]
+
+    def get_item(
+        self,
+        request: AuthenticatedHttpRequest,
+        item_id: int,
+    ) -> ItemSchema:
+        item = self._item_service.get_item_by_id(item_id)
+        return ItemSchema.model_validate(item, from_attributes=True)
+
+    # 4. Exception handling converts domain errors to responses
+    def handle_exception(self, exception: Exception) -> Any:
+        if isinstance(exception, ItemNotFoundError):
+            raise HttpError(
+                status_code=HTTPStatus.NOT_FOUND,
+                message=str(exception),
+            ) from exception
+
+        return super().handle_exception(exception)
+```
+
+## Method Wrapping Details
+
+The wrapping logic excludes certain methods:
+
+```python
+_CONTROLLER_METHODS_EXCLUDE = ("register", "handle_exception")
+```
+
+Only public methods (not starting with `_`) that are not in the exclusion list get wrapped:
+
+| Method | Wrapped? |
+|--------|----------|
+| `health_check` | Yes |
+| `create_user` | Yes |
+| `register` | No (excluded) |
+| `handle_exception` | No (excluded) |
+| `_private_method` | No (private) |
+
+## Real-World Examples
+
+### HTTP Health Check Controller
+
+```python
+class HealthController(Controller):
+    def __init__(self, health_service: HealthService) -> None:
+        self._health_service = health_service
+
+    def register(self, registry: Router) -> None:
+        registry.add_api_operation(
+            path="/v1/health",
+            methods=["GET"],
+            view_func=self.health_check,
+            response=HealthCheckResponseSchema,
             auth=None,
         )
 
-        registry.add_api_operation(
-            path="/v1/users/me",
-            methods=["GET"],
-            view_func=self.get_current_user,
-            auth=self._auth,
-        )
+    def health_check(self, request: HttpRequest) -> HealthCheckResponseSchema:
+        try:
+            self._health_service.check_system_health()
+        except HealthCheckError as e:
+            raise HttpError(
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                message="Service is unavailable",
+            ) from e
+
+        return HealthCheckResponseSchema(status="ok")
 ```
 
-**Celery:**
+### Celery Ping Task Controller
 
 ```python
-class PingTaskController(Controller):
-    def register(self, registry: Celery) -> None:
-        registry.task(name=TaskName.PING)(self.ping)
-```
-
-## HTTP Controllers
-
-HTTP controllers receive Django-Ninja `Router` as their registry:
-
-```python
-from django.http import HttpRequest
-from ninja import Router
-from pydantic import BaseModel
-
-from infrastructure.delivery.controllers import Controller
-from infrastructure.django.auth import JWTAuth
-
-
-class UserSchema(BaseModel):
-    id: int
-    username: str
-    email: str
-
-
-class UserController(Controller):
-    def __init__(self, auth: JWTAuth) -> None:
-        self._auth = auth
-
-    def register(self, registry: Router) -> None:
-        registry.add_api_operation(
-            path="/v1/users/me",
-            methods=["GET"],
-            view_func=self.get_current_user,
-            auth=self._auth,
-        )
-
-    def get_current_user(self, request: HttpRequest) -> UserSchema:
-        return UserSchema.model_validate(request.user, from_attributes=True)
-```
-
-Key points:
-
-- Use `add_api_operation()` for explicit route registration
-- Pass `auth` parameter for authentication requirements
-- Use Pydantic models for request/response schemas
-
-## Celery Task Controllers
-
-Task controllers receive `Celery` app as their registry:
-
-```python
-from typing import TypedDict
-
-from celery import Celery
-
-from delivery.tasks.registry import TaskName
-from infrastructure.delivery.controllers import Controller
-
-
-class PingResult(TypedDict):
-    result: str
-
-
 class PingTaskController(Controller):
     def register(self, registry: Celery) -> None:
         registry.task(name=TaskName.PING)(self.ping)
@@ -211,25 +309,13 @@ class PingTaskController(Controller):
         return PingResult(result="pong")
 ```
 
-Key points:
-
-- Use `registry.task()` to register as Celery task
-- Task name should be defined in `TaskName` enum
-- Return typed dict for type-safe results
-
-## Telegram Bot Controllers
-
-Bot controllers extend `AsyncController` and receive an aiogram `Router` as their registry:
+### Bot Commands Controller
 
 ```python
-from aiogram import Router
-from aiogram.filters import Command
-from aiogram.types import Message
-
-from infrastructure.delivery.controllers import AsyncController
-
-
 class CommandsController(AsyncController):
+    def __init__(self, health_service: HealthService) -> None:
+        self._health_service = health_service
+
     def register(self, registry: Router) -> None:
         registry.message.register(
             self.handle_start_command,
@@ -238,6 +324,10 @@ class CommandsController(AsyncController):
         registry.message.register(
             self.handle_id_command,
             Command(commands=["id"]),
+        )
+        registry.message.register(
+            self.handle_health_check_command,
+            Command(commands=["health"]),
         )
 
     async def handle_start_command(self, message: Message) -> None:
@@ -249,99 +339,57 @@ class CommandsController(AsyncController):
         if message.from_user is None:
             return
         await message.answer(
-            f"User Id: <b>{message.from_user.id}</b>\n"
-            f"Chat Id: <b>{message.chat.id}</b>",
+            f"User Id: <b>{message.from_user.id}</b>\nChat Id: <b>{message.chat.id}</b>",
         )
+
+    async def handle_health_check_command(self, message: Message) -> None:
+        if message.from_user is None:
+            return
+
+        try:
+            # Use sync_to_async to run synchronous service methods in async context
+            # thread_sensitive=False allows running in the threadpool (recommended for I/O)
+            await sync_to_async(
+                self._health_service.check_system_health,
+                thread_sensitive=False,
+            )()
+            await message.answer("✅ The system is healthy.")
+        except HealthCheckError as e:
+            await message.answer(f"❌ Health check failed: {e}")
 ```
 
-Key points:
+!!! tip "Using sync_to_async"
+    When calling synchronous services from async handlers, use `sync_to_async()` from `asgiref.sync`. Set `thread_sensitive=False` for I/O-bound operations (read-only database queries, external APIs) to run in the threadpool. Use `thread_sensitive=True` (default) only when the code must run in the main thread.
 
-- Extend `AsyncController` for async handlers
-- Use `registry.message.register()` to register handlers with filters
-- All handler methods must be `async`
-- Controllers are injected into `DispatcherFactory` via IoC container
+## Controller Registration in IoC
 
-## Dependency Injection
-
-Controllers declare dependencies in `__init__`:
+Controllers are registered as singletons:
 
 ```python
-class UserTokenController(Controller):
-    def __init__(
-        self,
-        jwt_service: JWTService,
-        refresh_token_service: RefreshSessionService,
-        jwt_auth: JWTAuth,
-    ) -> None:
-        self._jwt_service = jwt_service
-        self._refresh_token_service = refresh_token_service
-        self._jwt_auth = jwt_auth
+# ioc/registries/delivery.py
+def _register_http_controllers(container: Container) -> None:
+    container.register(HealthController, scope=Scope.singleton)
+    container.register(UserController, scope=Scope.singleton)
+    container.register(UserTokenController, scope=Scope.singleton)
+
+def _register_celery_controllers(container: Container) -> None:
+    container.register(PingTaskController, scope=Scope.singleton)
+
+def _register_bot_controllers(container: Container) -> None:
+    container.register(LifecycleEventsController, scope=Scope.singleton)
+    container.register(CommandsController, scope=Scope.singleton)
 ```
 
-The IoC container resolves these dependencies automatically when the controller is created.
+## Summary
 
-## Testing Controllers
+The Controller pattern provides:
 
-Controllers are easily testable because dependencies are injectable:
+| Feature | Benefit |
+|---------|---------|
+| Automatic exception wrapping | Consistent error handling without boilerplate |
+| Abstract `register()` | Unified interface across frameworks |
+| Sync and async variants | Support for all entry points |
+| Dependency injection | Loose coupling, testability |
+| `handle_exception()` override | Customizable error responses |
 
-```python
-def test_user_controller():
-    # Mock dependencies
-    mock_auth = MagicMock(spec=JWTAuth)
-
-    # Create controller with mocks
-    controller = UserController(auth=mock_auth)
-
-    # Test methods directly
-    # ...
-```
-
-See [Mocking IoC Dependencies](../testing/mocking-ioc.md) for integration testing patterns.
-
-## Best Practices
-
-### 1. Single Responsibility
-
-Each controller should handle one resource or feature area:
-
-```python
-# Good: Focused on user tokens
-class UserTokenController(Controller): ...
-
-# Good: Focused on user CRUD
-class UserController(Controller): ...
-
-# Avoid: Mixed responsibilities
-class UserAndTokenController(Controller): ...
-```
-
-### 2. Explicit Error Handling
-
-Handle known exceptions explicitly:
-
-```python
-def handle_exception(self, exception: Exception) -> NoReturn:
-    if isinstance(exception, InvalidRefreshTokenError):
-        raise HttpError(status_code=401, message="Invalid token")
-
-    # Always re-raise unknown exceptions
-    raise exception
-```
-
-### 3. Type-Safe Schemas
-
-Use Pydantic models for all request/response schemas:
-
-```python
-class CreateUserSchema(BaseModel):
-    email: EmailStr
-    username: Annotated[str, Len(max_length=150)]
-    password: Annotated[str, Len(max_length=128)]
-```
-
-## Related Topics
-
-- [HTTP Controllers](../http/controllers.md) — HTTP-specific patterns
-- [Task Controllers](../celery/task-controllers.md) — Celery-specific patterns
-- [Bot Handlers](../bot/handlers.md) — Telegram bot controller patterns
-- [IoC Container](ioc-container.md) — Dependency resolution
+Controllers serve as the bridge between external frameworks and your application's services. They handle framework-specific concerns while delegating business logic to the service layer.

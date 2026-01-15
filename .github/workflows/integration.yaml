@@ -1,4 +1,4 @@
-name: Integration Test
+name: Integration Health Check
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   pull_request: { }
 
 jobs:
-  integration-test:
+  integration-health-check:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -16,7 +16,7 @@ jobs:
             compose-file: docker-compose.yaml
           - name: local
             compose-file: docker-compose.yaml:docker-compose.local.yaml
-    name: integration-test (${{ matrix.name }})
+    name: integration-health-check (${{ matrix.name }})
     env:
       COMPOSE_FILE: ${{ matrix.compose-file }}
     steps:
