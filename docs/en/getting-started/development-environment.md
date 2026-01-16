@@ -66,7 +66,7 @@ PyCharm provides built-in support for most features.
    - Go to `Settings` > `Languages & Frameworks` > `Django`
    - Enable Django support
    - Set Django project root to the repository root
-   - Set Settings to `core.configs.django`
+   - Set Settings to `configs.django`
 
 4. **Configure Ruff**
    - Go to `Settings` > `Tools` > `Ruff`
@@ -264,7 +264,7 @@ Tests are configured in `pyproject.toml`:
 ```toml
 [tool.pytest.ini_options]
 minversion = "9.0"
-DJANGO_SETTINGS_MODULE = "core.configs.django"
+DJANGO_SETTINGS_MODULE = "configs.django"
 addopts = "--exitfirst -vv --cov=src --cov-report=html --cov-fail-under=80"
 testpaths = ["tests"]
 ```
@@ -343,7 +343,7 @@ Create `.vscode/launch.json`:
       "module": "pytest",
       "args": ["${file}", "-vv"],
       "env": {
-        "DJANGO_SETTINGS_MODULE": "core.configs.django"
+        "DJANGO_SETTINGS_MODULE": "configs.django"
       }
     }
   ]

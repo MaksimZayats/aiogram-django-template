@@ -1,6 +1,6 @@
 # Factory Pattern
 
-Factories encapsulate complex object construction, especially when objects require configuration, caching, or composition of multiple dependencies. This pattern is essential for creating framework-specific objects like Django-Ninja APIs, Celery apps, and aiogram dispatchers.
+Factories encapsulate complex object construction, especially when objects require configuration, caching, or composition of multiple dependencies. This pattern is essential for creating framework-specific objects like Django-Ninja APIs and Celery apps.
 
 ## Why Factories?
 

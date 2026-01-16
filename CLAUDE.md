@@ -46,12 +46,12 @@ All code must be compatible with `mypy --strict` mode.
 
 ## Architecture Overview
 
-This is a Django + aiogram + Celery application using **punq** for dependency injection.
+This is a Django + Celery application using **punq** for dependency injection.
 
 ### Module Structure
 
 - **`core/`** - Business logic, domain models, and **services**. All database operations are encapsulated in services.
-- **`delivery/`** - External interfaces (HTTP API, Telegram bot, Celery tasks). **Controllers NEVER access models directly.**
+- **`delivery/`** - External interfaces (HTTP API, Celery tasks). **Controllers NEVER access models directly.**
 - **`infrastructure/`** - Cross-cutting concerns (JWT, auth, settings adapters, controller base classes).
 - **`ioc/`** - Dependency injection container configuration.
 - **`delivery/tasks/`** - Celery task definitions using controller pattern.
@@ -151,8 +151,7 @@ Direct model imports are acceptable ONLY in:
 ### Entry Points
 
 1. **HTTP API**: `src/manage.py` → `delivery/http/api.py` (Django-Ninja)
-2. **Telegram Bot**: `delivery/bot/__main__.py` (aiogram polling)
-3. **Celery Worker**: `delivery/tasks/app.py`
+2. **Celery Worker**: `delivery/tasks/app.py`
 
 All entry points share the same IoC container for consistent dependency resolution.
 
@@ -190,9 +189,9 @@ controller = container.resolve(UserController)
 
 ## Controller Pattern
 
-Controllers are defined in `infrastructure/delivery/controllers.py`. There are two base classes:
+Controllers are defined in `infrastructure/delivery/controllers.py`.
 
-### Sync Controller (HTTP API, Celery)
+### Controller (HTTP API, Celery)
 
 ```python
 class Controller(ABC):
@@ -203,20 +202,7 @@ class Controller(ABC):
         raise exception  # Override for custom error handling
 ```
 
-### Async Controller (Telegram Bot)
-
-For async handlers (like aiogram), use `AsyncController`:
-
-```python
-class AsyncController(ABC):
-    @abstractmethod
-    def register(self, registry: Any) -> None: ...
-
-    async def handle_exception(self, exception: Exception) -> Any:
-        raise exception  # Override for custom error handling
-```
-
-Both controllers auto-wrap public methods with exception handling. Override `handle_exception()` to customize error responses.
+Controllers auto-wrap public methods with exception handling. Override `handle_exception()` to customize error responses.
 
 ### HTTP Controller Registration
 
@@ -272,32 +258,6 @@ Permission denied returns `403 Forbidden` (not 401 - user is authenticated but n
 class PingTaskController(Controller):
     def register(self, registry: Celery) -> None:
         registry.task(name=TaskName.PING)(self.ping)
-```
-
-### Telegram Bot Controller Registration
-
-```python
-class CommandsController(AsyncController):
-    def register(self, registry: Router) -> None:
-        registry.message.register(
-            self.handle_start_command,
-            Command(commands=["start"]),
-        )
-
-    async def handle_start_command(self, message: Message) -> None:
-        await message.answer("Hello!")
-```
-
-Bot controllers are registered in the IoC container and injected into `DispatcherFactory`:
-
-```python
-container.register(CommandsController, scope=Scope.singleton)
-container.register(DispatcherFactory, scope=Scope.singleton)
-container.register(
-    Dispatcher,
-    factory=lambda: container.resolve(DispatcherFactory)(),
-    scope=Scope.singleton,
-)
 ```
 
 ## Testing Architecture
@@ -376,7 +336,6 @@ Uses Pydantic BaseSettings with environment variable prefixes:
 - `DJANGO_` - Django settings (SECRET_KEY, DEBUG)
 - `JWT_` - JWT configuration (SECRET_KEY, algorithm, expiry)
 - `AWS_S3_` - S3/MinIO storage
-- `TELEGRAM_BOT_` - Bot token
 - `CELERY_` - Celery settings
 
 Settings classes are registered in IoC and injected into services.

@@ -1,6 +1,13 @@
-from django.core.wsgi import get_wsgi_application
+from typing import TYPE_CHECKING, cast
 
-from core.configs.infrastructure import configure_infrastructure
+from ioc.container import ContainerFactory
 
-configure_infrastructure(service_name="http")
-wsgi = get_wsgi_application()
+if TYPE_CHECKING:
+    from delivery.http.factories import FastAPIFactory
+
+_container_factory = ContainerFactory()
+_container = _container_factory()
+
+_api_factory = cast("FastAPIFactory", _container.resolve("FastAPIFactory"))
+
+app = _api_factory(include_admin=True)

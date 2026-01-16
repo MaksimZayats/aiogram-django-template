@@ -1,7 +1,6 @@
 from celery import Celery
 
-from core.configs.core import RedisSettings
-from core.configs.django import application_settings
+from configs.core import ApplicationSettings, RedisSettings
 from delivery.tasks.registry import TaskName, TasksRegistry
 from delivery.tasks.settings import CelerySettings
 from delivery.tasks.tasks.ping import PingTaskController
@@ -10,11 +9,13 @@ from delivery.tasks.tasks.ping import PingTaskController
 class CeleryAppFactory:
     def __init__(
         self,
-        settings: CelerySettings,
+        application_settings: ApplicationSettings,
+        celery_settings: CelerySettings,
         redis_settings: RedisSettings,
     ) -> None:
         self._instance: Celery | None = None
-        self._settings = settings
+        self._application_settings = application_settings
+        self._celery_settings = celery_settings
         self._redis_settings = redis_settings
 
     def __call__(self) -> Celery:
@@ -35,9 +36,9 @@ class CeleryAppFactory:
 
     def _configure_app(self, celery_app: Celery) -> None:
         celery_app.conf.update(
-            timezone=application_settings.time_zone,
+            timezone=self._application_settings.time_zone,
             enable_utc=True,
-            **self._settings.model_dump(),
+            **self._celery_settings.model_dump(),
         )
 
     def _configure_beat_schedule(self, celery_app: Celery) -> None:

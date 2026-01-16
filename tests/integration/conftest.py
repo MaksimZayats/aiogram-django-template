@@ -1,12 +1,7 @@
-from uuid import uuid7
-
 import pytest
-from django.contrib.auth.models import AbstractUser
-from punq import Container, Scope
-from pytest_django.fixtures import SettingsWrapper
+from punq import Container
 
-from core.user.models import User
-from ioc.container import get_container
+from ioc.container import ContainerFactory
 from tests.integration.factories import (
     TestCeleryWorkerFactory,
     TestClientFactory,
@@ -15,22 +10,10 @@ from tests.integration.factories import (
 )
 
 
-@pytest.fixture(scope="function", autouse=True)
-def _configure_settings(settings: SettingsWrapper) -> None:
-    settings.CACHES = {
-        "default": {
-            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-            "LOCATION": f"test-cache-{uuid7()}",
-        },
-    }
-
-
 @pytest.fixture(scope="function")
-def container(django_user_model: type[User]) -> Container:
-    container = get_container()
-    container.register(type[AbstractUser], instance=django_user_model, scope=Scope.singleton)
-
-    return container
+def container() -> Container:
+    container_factory = ContainerFactory()
+    return container_factory(configure_infrastructure=True)
 
 
 # region Factories

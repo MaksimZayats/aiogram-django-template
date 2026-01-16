@@ -4,11 +4,8 @@ import sys
 
 from django.core.management import execute_from_command_line
 
-from core.configs.infrastructure import configure_infrastructure
-
 
 def main() -> None:
-    configure_infrastructure(service_name="http")
     execute_from_command_line(sys.argv)
 
 

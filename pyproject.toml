@@ -3,7 +3,7 @@ name = "modern-django-template"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
-    "aiogram>=3.24.0",
+    "a2wsgi>=1.10.10",
     "annotated-types>=0.7.0",
     "boto3>=1.42.24",
     "cachetools>=6.2.4",
@@ -12,11 +12,9 @@ dependencies = [
     "colorlog>=6.10.1",
     "dj-database-url>=3.1.0",
     "django>6",
-    "django-cors-headers>=4.9.0",
-    "django-ninja>=1.5.2",
-    "django-redis>=6.0.0",
     "django-storages[s3]>=1.14.6",
     "django-stubs[compatible-mypy]>=5.2.8",
+    "fastapi>=0.128.0",
     "gunicorn>=23.0.0",
     "httpx>=0.28.1",
     "logfire[django, celery, requests, psycopg, httpx, redis]>=4.18.0",
@@ -27,11 +25,9 @@ dependencies = [
     "pyjwt>=2.10.1",
     "python-dotenv>=1.2.1",
     "redis>=7.1.0",
+    "uvicorn[standard]>=0.34.0",
     "watchdog[watchmedo]>=6.0.0",
 ]
-
-[project.scripts]
-configure = "scripts.configure:main"
 
 [dependency-groups]
 dev = [
@@ -61,7 +57,6 @@ namespace = true
 [tool.mypy]
 python_version = "3.14"
 strict = true
-mypy_path = "typings"
 plugins = ["mypy_django_plugin.main"]
 ignore_missing_imports = true
 local_partial_types = true
@@ -88,19 +83,43 @@ module = "api.*.migrations.*"
 disable_error_code = ["no-untyped-def"]
 
 [tool.django-stubs]
-django_settings_module = "core.configs.django"
-
-[tool.ty.environment]
-extra-paths = ["typings"]
+django_settings_module = "configs.django"
 
 [tool.ty.rules]
 unused-ignore-comment = "ignore"
 
-[tool.pyrefly]
-search_path = ["typings"]
-
 [tool.pytest.ini_options]
 minversion = "9.0"
-DJANGO_SETTINGS_MODULE = "core.configs.django"
 addopts = "--exitfirst -vv --cov=src --cov-report=html --cov-fail-under=80"
 testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+omit = [
+    # Entry points
+    "src/manage.py",
+    "src/delivery/bot/__main__.py",
+    "src/delivery/http/app.py",
+    "src/delivery/tasks/app.py",
+    # Django admin (requires manual testing)
+    "src/**/admin.py",
+    # Observability/telemetry (requires external services)
+    "src/infrastructure/otel/*",
+    # Celery event handlers (signal-based, hard to test in isolation)
+    "src/delivery/tasks/events.py",
+]
+
+[tool.coverage.report]
+exclude_also = [
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "@abstractmethod",
+    "if TYPE_CHECKING:",
+    "@overload",
+    "class .*\\bProtocol\\):",
+    "^\\s*pass$",
+    "^\\s*\\.\\.\\.$",
+]
+skip_empty = true

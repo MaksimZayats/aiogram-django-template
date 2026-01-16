@@ -1,16 +1,15 @@
-import uuid
 from abc import ABC, abstractmethod
 from contextlib import AbstractContextManager
 from typing import Any, cast
 
 from celery.contrib.testing import worker
 from celery.worker import WorkController
-from django.contrib.auth.models import AbstractUser
-from ninja.testing import TestClient
+from django.contrib.auth.base_user import AbstractBaseUser
+from fastapi.testclient import TestClient
 from punq import Container
 
 from core.user.models import User
-from delivery.http.factories import NinjaAPIFactory
+from delivery.http.factories import FastAPIFactory
 from delivery.tasks.factories import CeleryAppFactory, TasksRegistryFactory
 from delivery.tasks.registry import TasksRegistry
 from infrastructure.jwt.services import JWTService
@@ -39,7 +38,7 @@ class TestClientFactory(ContainerBasedFactory):
         headers: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> TestClient:
-        api_factory = self._container.resolve(NinjaAPIFactory)
+        api_factory = self._container.resolve(FastAPIFactory)
         jwt_service = self._container.resolve(JWTService)
 
         headers = headers or {}
@@ -48,9 +47,16 @@ class TestClientFactory(ContainerBasedFactory):
             token = jwt_service.issue_access_token(user_id=auth_for_user.pk)
             headers["Authorization"] = f"Bearer {token}"
 
+        app = api_factory(
+            include_admin=False,
+            add_trusted_hosts_middleware=False,
+            add_cors_middleware=False,
+        )
+
         return TestClient(
-            api_factory(urls_namespace=str(uuid.uuid7())),
+            app=app,
             headers=headers,
+            base_url="http://testserver/api",
             **kwargs,
         )
 
@@ -64,7 +70,7 @@ class TestUserFactory(ContainerBasedFactory):
     ) -> User:
         user_model = cast(
             type[User],
-            self._container.resolve(type[AbstractUser]),  # type: ignore[arg-type, invalid-argument-type]
+            self._container.resolve(type[AbstractBaseUser]),  # type: ignore[arg-type, invalid-argument-type]
         )
 
         return user_model.objects.create_user(

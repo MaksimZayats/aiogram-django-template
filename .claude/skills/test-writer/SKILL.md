@@ -6,7 +6,7 @@ version: 1.0.0
 
 # Test Writer Skill
 
-This skill guides you through writing tests for the aiogram-django-template codebase using the established test patterns with IoC container overrides and test factories.
+This skill guides you through writing tests for this codebase using the established test patterns with IoC container overrides and test factories.
 
 ## Quick Reference: Test Locations
 

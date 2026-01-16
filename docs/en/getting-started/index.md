@@ -32,7 +32,6 @@ The template provides a production-ready foundation for building APIs with:
 
 - **Django Ninja** - Fast, async-ready HTTP API framework
 - **Celery** - Distributed task queue for background jobs
-- **aiogram** - Telegram bot framework (optional)
 - **punq** - Lightweight dependency injection container
 - **PostgreSQL + Redis + MinIO** - Battle-tested infrastructure stack
 

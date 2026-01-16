@@ -2,9 +2,7 @@ import logging
 from http import HTTPStatus
 from typing import Literal
 
-from django.http import HttpRequest
-from ninja import Router
-from ninja.errors import HttpError
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from core.health.services import HealthCheckError, HealthService
@@ -24,25 +22,20 @@ class HealthController(Controller):
     ) -> None:
         self._health_service = health_service
 
-    def register(self, registry: Router) -> None:
-        registry.add_api_operation(
+    def register(self, registry: APIRouter) -> None:
+        registry.add_api_route(
             path="/v1/health",
+            endpoint=self.health_check,
             methods=["GET"],
-            view_func=self.health_check,
-            response=HealthCheckResponseSchema,
-            auth=None,
         )
 
-    def health_check(
-        self,
-        request: HttpRequest,
-    ) -> HealthCheckResponseSchema:
+    def health_check(self) -> HealthCheckResponseSchema:
         try:
             self._health_service.check_system_health()
         except HealthCheckError as e:
-            raise HttpError(
+            raise HTTPException(
                 status_code=HTTPStatus.SERVICE_UNAVAILABLE,
-                message="Service is unavailable",
+                detail="Service is unavailable",
             ) from e
 
         return HealthCheckResponseSchema(status="ok")

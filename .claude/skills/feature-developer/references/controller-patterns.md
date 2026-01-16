@@ -1,6 +1,6 @@
 # Controller Patterns Reference
 
-This reference provides complete examples for all three controller types: HTTP API, Celery tasks, and Telegram bot handlers.
+This reference provides complete examples for controller types: HTTP API and Celery tasks.
 
 ## Contents
 
@@ -13,10 +13,6 @@ This reference provides complete examples for all three controller types: HTTP A
   - [Register Task Name](#register-task-name)
   - [Register Task in IoC](#register-task-in-ioc)
   - [Update CeleryAppFactory](#update-celeryappfactory)
-- [Telegram Bot Controller (aiogram)](#telegram-bot-controller-aiogram)
-  - [Command Handler](#command-handler)
-  - [Register Bot Controller in IoC](#register-bot-controller-in-ioc)
-  - [Update DispatcherFactory](#update-dispatcherfactory)
 - [Exception Handling Patterns](#exception-handling-patterns)
 
 ## HTTP Controller (Django Ninja)
@@ -307,88 +303,6 @@ class CeleryAppFactory:
         return app
 ```
 
-## Telegram Bot Controller (aiogram)
-
-### Command Handler
-
-```python
-# src/delivery/bot/controllers/<handler>.py
-from typing import Any
-
-from aiogram import Router
-from aiogram.filters import Command
-from aiogram.types import Message
-
-from core.<domain>.services import <Domain>Service
-from infrastructure.delivery.controllers import AsyncController
-
-
-class <Domain>BotController(AsyncController):
-    def __init__(
-        self,
-        <domain>_service: <Domain>Service,
-    ) -> None:
-        self._<domain>_service = <domain>_service
-
-    def register(self, registry: Router) -> None:
-        registry.message.register(
-            self.handle_<command>_command,
-            Command(commands=["<command>"]),
-        )
-
-    async def handle_<command>_command(self, message: Message) -> None:
-        # Use sync_to_async for synchronous service calls
-        from asgiref.sync import sync_to_async
-
-        result = await sync_to_async(
-            self._<domain>_service.some_operation,
-            thread_sensitive=False,  # I/O-bound, safe in threadpool
-        )()
-
-        await message.answer(f"Result: {result}")
-
-    async def handle_exception(self, exception: Exception) -> Any:
-        if isinstance(exception, <Domain>Error):
-            # Log and optionally notify user
-            return None
-        return await super().handle_exception(exception)
-```
-
-### Register Bot Controller in IoC
-
-```python
-# src/ioc/registries/delivery.py
-from delivery.bot.controllers.<handler> import <Domain>BotController
-
-
-def _register_bot_controllers(container: Container) -> None:
-    # ... existing registrations
-    container.register(<Domain>BotController, scope=Scope.singleton)
-```
-
-### Update DispatcherFactory
-
-```python
-# src/delivery/bot/dispatcher_factory.py
-class DispatcherFactory:
-    def __init__(
-        self,
-        # ... existing dependencies
-        <domain>_controller: <Domain>BotController,
-    ) -> None:
-        # ... existing assignments
-        self._<domain>_controller = <domain>_controller
-
-    def __call__(self) -> Dispatcher:
-        # ... existing code
-
-        <domain>_router = Router(name="<domain>")
-        dispatcher.include_router(<domain>_router)
-        self._<domain>_controller.register(<domain>_router)
-
-        return dispatcher
-```
-
 ## Exception Handling Patterns
 
 ### HTTP Controller
@@ -413,22 +327,4 @@ def handle_exception(self, exception: Exception) -> Any:
             ) from exception
         case _:
             return super().handle_exception(exception)
-```
-
-### Async Controller (Bot)
-
-```python
-async def handle_exception(self, exception: Exception) -> Any:
-    import logging
-    logger = logging.getLogger(__name__)
-
-    match exception:
-        case <Domain>NotFoundError():
-            logger.warning("Resource not found", exc_info=exception)
-            return None  # Silently ignore
-        case <Domain>Error():
-            logger.error("Domain error", exc_info=exception)
-            return None
-        case _:
-            return await super().handle_exception(exception)
 ```

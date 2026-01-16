@@ -185,8 +185,8 @@ Inject the new controller into `TasksRegistryFactory` and register it with Celer
 from celery import Celery
 from celery.schedules import crontab
 
-from core.configs.core import RedisSettings
-from core.configs.django import application_settings
+from configs import RedisSettings
+from configs.django import application_settings
 from delivery.tasks.registry import TaskName, TasksRegistry
 from delivery.tasks.settings import CelerySettings
 from delivery.tasks.tasks.ping import PingTaskController
@@ -195,9 +195,9 @@ from delivery.tasks.tasks.todo_cleanup import TodoCleanupTaskController
 
 class CeleryAppFactory:
     def __init__(
-        self,
-        settings: CelerySettings,
-        redis_settings: RedisSettings,
+            self,
+            settings: CelerySettings,
+            redis_settings: RedisSettings,
     ) -> None:
         self._instance: Celery | None = None
         self._settings = settings
@@ -241,10 +241,10 @@ class CeleryAppFactory:
 
 class TasksRegistryFactory:
     def __init__(
-        self,
-        celery_app_factory: CeleryAppFactory,
-        ping_controller: PingTaskController,
-        todo_cleanup_controller: TodoCleanupTaskController,
+            self,
+            celery_app_factory: CeleryAppFactory,
+            ping_controller: PingTaskController,
+            todo_cleanup_controller: TodoCleanupTaskController,
     ) -> None:
         self._instance: TasksRegistry | None = None
         self._celery_app_factory = celery_app_factory

@@ -1,75 +1,84 @@
-from django.contrib.admin import AdminSite
-from django.contrib.admin.sites import site as default_site
-from django.contrib.admin.views.decorators import staff_member_required
-from django.urls import URLResolver, path
-from ninja import NinjaAPI, Router
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
-from core.configs.core import ApplicationSettings
+from a2wsgi import WSGIMiddleware
+from fastapi import APIRouter, FastAPI
+from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+
+from configs.core import ApplicationSettings
+from delivery.http.django.factories import DjangoWSGIFactory
 from delivery.http.health.controllers import HealthController
+from delivery.http.settings import HTTPSettings
 from delivery.http.user.controllers import UserController, UserTokenController
 from infrastructure.settings.types import Environment
 
 
-class NinjaAPIFactory:
+class Lifespan:
+    pass
+
+
+class FastAPIFactory:
     def __init__(
         self,
-        settings: ApplicationSettings,
+        application_settings: ApplicationSettings,
+        http_settings: HTTPSettings,
+        django_wsgi_factory: DjangoWSGIFactory,
         health_controller: HealthController,
         user_token_controller: UserTokenController,
         user_controller: UserController,
     ) -> None:
-        self._settings = settings
+        self._settings = application_settings
+        self._http_settings = http_settings
+        self._django_wsgi_factory = django_wsgi_factory
+
         self._health_controller = health_controller
         self._user_token_controller = user_token_controller
         self._user_controller = user_controller
 
     def __call__(
         self,
-        urls_namespace: str | None = None,
-    ) -> NinjaAPI:
-        if self._settings.environment == Environment.PRODUCTION:
-            docs_decorator = staff_member_required
-        else:
-            docs_decorator = None
+        *,
+        include_admin: bool = True,
+        add_trusted_hosts_middleware: bool = True,
+        add_cors_middleware: bool = True,
+    ) -> FastAPI:
+        @asynccontextmanager
+        async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+            yield
 
-        ninja_api = NinjaAPI(
-            urls_namespace=urls_namespace,
-            docs_decorator=docs_decorator,
+        docs_url = "/api/docs" if self._settings.environment != Environment.PRODUCTION else None
+
+        app = FastAPI(
+            title="API",
+            lifespan=lifespan,
+            docs_url=docs_url,
+            redoc_url=None,
         )
 
-        health_router = Router(tags=["health"])
-        ninja_api.add_router("/", health_router)
-        self._health_controller.register(registry=health_router)
+        if add_trusted_hosts_middleware:
+            app.add_middleware(
+                TrustedHostMiddleware,  # type: ignore[invalid-argument-type]
+                allowed_hosts=self._http_settings.allowed_hosts,
+            )
 
-        user_router = Router(tags=["user"])
-        ninja_api.add_router("/", user_router)
-        self._user_controller.register(registry=user_router)
-        self._user_token_controller.register(registry=user_router)
+        if add_cors_middleware:
+            app.add_middleware(
+                CORSMiddleware,  # type: ignore[invalid-argument-type]
+                allow_origins=self._http_settings.cors_allow_origins,
+                allow_credentials=self._http_settings.cors_allow_credentials,
+                allow_methods=["*"],
+                allow_headers=["*"],
+            )
 
-        return ninja_api
+        api_router = APIRouter(prefix="/api")
+        self._health_controller.register(api_router)
+        self._user_controller.register(api_router)
+        self._user_token_controller.register(api_router)
+        app.include_router(api_router)
 
+        if include_admin:
+            django_wsgi = self._django_wsgi_factory()
+            app.mount("/admin", WSGIMiddleware(django_wsgi))  # type: ignore[arg-type, invalid-argument-type]
 
-class AdminSiteFactory:
-    def __call__(self) -> AdminSite:
-        from delivery.http.user import admin as _user_admin  # noqa: F401, PLC0415
-
-        return default_site
-
-
-class URLPatternsFactory:
-    def __init__(
-        self,
-        api_factory: NinjaAPIFactory,
-        admin_site_factory: AdminSiteFactory,
-    ) -> None:
-        self._api_factory = api_factory
-        self._admin_site_factory = admin_site_factory
-
-    def __call__(self) -> list[URLResolver]:
-        api = self._api_factory()
-        admin_site = self._admin_site_factory()
-
-        return [
-            path("admin/", admin_site.urls),
-            path("api/", api.urls),
-        ]
+        return app

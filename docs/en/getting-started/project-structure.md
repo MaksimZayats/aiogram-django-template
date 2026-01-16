@@ -58,16 +58,12 @@ src/delivery/
 │   │   └── controllers.py
 │   └── user/               # User endpoints
 │       └── controllers.py
-├── tasks/                  # Celery background tasks
-│   ├── app.py              # Celery application factory
-│   ├── registry.py         # Task name registry
-│   ├── settings.py         # Celery settings
-│   └── tasks/              # Task controllers
-│       └── ping.py
-└── bot/                    # Telegram bot (aiogram)
-    ├── __main__.py         # Bot entry point
-    ├── settings.py         # Bot settings
-    └── controllers/        # Bot command handlers
+└── tasks/                  # Celery background tasks
+    ├── app.py              # Celery application factory
+    ├── registry.py         # Task name registry
+    ├── settings.py         # Celery settings
+    └── tasks/              # Task controllers
+        └── ping.py
 ```
 
 #### HTTP Controllers
@@ -101,20 +97,6 @@ class PingTaskController(Controller):
 
     def ping(self) -> str:
         return "pong"
-```
-
-#### Bot Controllers
-
-Telegram bot controllers use aiogram's routing:
-
-```python
-# src/delivery/bot/controllers/__init__.py
-class CommandsController(AsyncController):
-    def register(self, registry: Router) -> None:
-        registry.message.register(
-            self.handle_start_command,
-            Command(commands=["start"]),
-        )
 ```
 
 ### `infrastructure/` - Cross-Cutting Concerns

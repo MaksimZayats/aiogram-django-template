@@ -1,21 +1,32 @@
 import hashlib
+import ipaddress
 import secrets
+from collections.abc import Mapping
 from datetime import timedelta
-from typing import NamedTuple
+from typing import NamedTuple, Protocol
 
 from django.contrib.auth.models import AbstractBaseUser
 from django.db import transaction
-from django.http import HttpRequest
 from django.utils import timezone
 from pydantic_settings import BaseSettings
 
 from infrastructure.django.refresh_sessions.models import BaseRefreshSession
 
 
+class RequestProtocol(Protocol):
+    """Protocol for request objects that can provide user agent and IP address."""
+
+    @property
+    def headers(self) -> Mapping[str, str]: ...
+
+    @property
+    def client(self) -> tuple[str, int] | None: ...
+
+
 class RefreshSessionServiceSettings(BaseSettings):
     refresh_token_nbytes: int = 32
     refresh_token_ttl_days: int = 30
-    ninja_num_proxies: int = 0
+    num_proxies: int = 0
 
     @property
     def refresh_token_ttl(self) -> timedelta:
@@ -50,7 +61,7 @@ class RefreshSessionService:
 
     def create_refresh_session(
         self,
-        request: HttpRequest,
+        request: RequestProtocol,
         user: AbstractBaseUser,
     ) -> RefreshSessionResult:
         refresh_token = self._issue_refresh_token()
@@ -59,7 +70,7 @@ class RefreshSessionService:
         session = self._refresh_session_model.objects.create(  # type: ignore[attr-defined]
             user=user,
             refresh_token_hash=refresh_token_hash,
-            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            user_agent=self._get_user_agent(request),
             ip_address=self._get_ip_address(request),
             expires_at=timezone.now() + self._settings.refresh_token_ttl,
         )
@@ -119,13 +130,28 @@ class RefreshSessionService:
 
         return session
 
-    def _get_ip_address(self, request: HttpRequest) -> str | None:
-        xff = request.META.get("HTTP_X_FORWARDED_FOR", None)
-        remote_address = request.META.get("REMOTE_ADDR", None)
+    def _get_user_agent(self, request: RequestProtocol) -> str:
+        return request.headers.get("user-agent", "")
 
-        if self._settings.ninja_num_proxies == 0 or xff is None:
-            return remote_address
+    def _get_ip_address(self, request: RequestProtocol) -> str | None:
+        xff = request.headers.get("x-forwarded-for")
+        client = request.client
+        remote_address = client[0] if client else None
+
+        if self._settings.num_proxies == 0 or xff is None:
+            # Validate that remote_address is a valid IP, otherwise return None
+            if remote_address and self._is_valid_ip(remote_address):
+                return remote_address
+            return None
 
         addresses = xff.split(",")
-        client_address = addresses[-min(self._settings.ninja_num_proxies, len(addresses))]
+        client_address = addresses[-min(self._settings.num_proxies, len(addresses))]
         return client_address.strip()
+
+    def _is_valid_ip(self, address: str) -> bool:
+        try:
+            ipaddress.ip_address(address)
+        except ValueError:
+            return False
+        else:
+            return True

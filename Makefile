@@ -1,5 +1,5 @@
 dev:
-	DJANGO_DEBUG=true uv run src/manage.py runserver
+	uv run uvicorn delivery.http.app:app --reload --host 0.0.0.0 --port 8000
 
 makemigrations:
 	uv run src/manage.py makemigrations
@@ -18,7 +18,7 @@ lint:
 	uv run ruff check .
 	uv run ty check .
 	uv run pyrefly check src/
-	uv run mypy src/ tests/
+	uv run --env-file .env.test.example mypy src/ tests/
 
 test:
 	uv run pytest tests/

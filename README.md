@@ -1,13 +1,12 @@
 # Modern API Template
 
-Production-ready template for building modern Python applications with **Django**, **aiogram**, and **Celery** —
+Production-ready template for building modern Python applications with **Django** and **Celery** —
 featuring dependency injection, type-safe configuration, and comprehensive observability.
 
 ## Features
 
 - **HTTP API** — [Django Ninja](https://django-ninja.dev/) with automatic OpenAPI documentation
 - **Background Tasks** — [Celery](https://docs.celeryq.dev/en/stable/) with beat scheduler
-- **Telegram Bot** — [aiogram 3.x](https://docs.aiogram.dev/) with async handlers and commands
 - **Dependency Injection** — [punq](https://github.com/bobthemighty/punq) IoC container
 - **Type-Safe Config** — [Pydantic Settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) with
   validation
@@ -122,7 +121,6 @@ Full documentation is available at [template.zayats.dev](https://template.zayats
 |-----------------|-------------------|--------------------------------------------------------------------------------------------|
 | Web Framework   | Django 6+         | [docs.djangoproject.com](https://docs.djangoproject.com/en/stable/)                        |
 | HTTP API        | Django Ninja 1.x  | [django-ninja.dev](https://django-ninja.dev/)                                              |
-| Telegram Bot    | aiogram 3.x       | [docs.aiogram.dev](https://docs.aiogram.dev/)                                              |
 | Task Queue      | Celery 5.x        | [docs.celeryq.dev](https://docs.celeryq.dev/en/stable/)                                    |
 | Validation      | Pydantic 2.x      | [docs.pydantic.dev](https://docs.pydantic.dev/latest/)                                     |
 | Settings        | Pydantic Settings | [docs.pydantic.dev/settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) |

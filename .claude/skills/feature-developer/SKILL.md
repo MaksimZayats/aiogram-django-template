@@ -6,7 +6,7 @@ version: 1.0.0
 
 # Feature Developer Skill
 
-This skill guides you through adding new features to the aiogram-django-template codebase following established architectural patterns.
+This skill guides you through adding new features to this codebase following established architectural patterns.
 
 ## The Golden Rule
 
@@ -35,7 +35,6 @@ HTTP Request -> Controller -> Service -> Model -> Database
 | Service | `src/core/<domain>/services.py` | `src/ioc/registries/core.py` |
 | HTTP Controller | `src/delivery/http/<domain>/controllers.py` | `src/ioc/registries/delivery.py` |
 | Celery Task | `src/delivery/tasks/tasks/<task>.py` | `src/ioc/registries/delivery.py` |
-| Bot Handler | `src/delivery/bot/controllers/<handler>.py` | `src/ioc/registries/delivery.py` |
 
 ## Workflow: Adding a New Domain
 

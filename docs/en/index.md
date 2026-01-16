@@ -1,6 +1,6 @@
 # Modern API Template
 
-A production-ready Django + aiogram + Celery application template with dependency injection, designed for building scalable APIs and background task processing.
+A production-ready Django + Celery application template with dependency injection, designed for building scalable APIs and background task processing.
 
 ## Key Features
 
@@ -8,7 +8,6 @@ A production-ready Django + aiogram + Celery application template with dependenc
 - **Dependency Injection** - Testable, loosely-coupled components using punq
 - **Modern HTTP API** - Django Ninja with automatic OpenAPI documentation
 - **Background Tasks** - Celery with Redis broker and typed task registry
-- **Telegram Bot Ready** - aiogram integration with async controller pattern
 - **Observability** - Logfire/OpenTelemetry integration for tracing and logging
 - **Type Safety** - Full type hints with mypy strict mode
 
@@ -56,11 +55,11 @@ A production-ready Django + aiogram + Celery application template with dependenc
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Entry Points                             │
 ├───────────────┬───────────────────────┬─────────────────────────┤
-│   HTTP API    │     Celery Worker     │     Telegram Bot        │
-│ (Django Ninja)│                       │      (aiogram)          │
-├───────────────┴───────────────────────┴─────────────────────────┤
-│                     Controllers (delivery/)                     │
-│              HTTP Controllers │ Task Controllers                │
+│      HTTP API       │        Celery Worker        │
+│   (Django Ninja)    │                             │
+├─────────────────────┴─────────────────────────────┤
+│              Controllers (delivery/)              │
+│       HTTP Controllers │ Task Controllers         │
 ├─────────────────────────────────────────────────────────────────┤
 │                      Services (core/)                           │
 │              Business Logic │ Database Operations               │

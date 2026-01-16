@@ -44,7 +44,7 @@ First, add the import at the top of the file:
 ```python title="src/ioc/registries/core.py" hl_lines="5"
 from punq import Container, Scope
 
-from core.configs.core import ApplicationSettings, RedisSettings
+from configs import ApplicationSettings, RedisSettings
 from core.health.services import HealthService
 from core.todo.services import TodoService  # Add this import
 from core.user.models import RefreshSession
@@ -68,7 +68,7 @@ Here is the complete `src/ioc/registries/core.py` after the changes:
 ```python title="src/ioc/registries/core.py"
 from punq import Container, Scope
 
-from core.configs.core import ApplicationSettings, RedisSettings
+from configs import ApplicationSettings, RedisSettings
 from core.health.services import HealthService
 from core.todo.services import TodoService
 from core.user.models import RefreshSession
