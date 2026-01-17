@@ -67,13 +67,14 @@ class Test<Model>Factory(ContainerBasedFactory):
 Add to `tests/integration/conftest.py`:
 
 ```python
+from infrastructure.punq.container import AutoRegisteringContainer
 from tests.integration.factories import Test<Model>Factory
 
 
 @pytest.fixture(scope="function")
 def <model>_factory(
     transactional_db: None,
-    container: Container,
+    container: AutoRegisteringContainer,
 ) -> Test<Model>Factory:
     return Test<Model>Factory(container=container)
 ```
@@ -260,16 +261,16 @@ When you need to mock a service:
 from unittest.mock import MagicMock
 
 import pytest
-from punq import Container
 
 from core.<domain>.services import <Domain>Service, <Domain>NotFoundError
+from infrastructure.punq.container import AutoRegisteringContainer
 
 
-class TestWith MockedService:
+class TestWithMockedService:
     @pytest.mark.django_db(transaction=True)
     def test_handles_service_error(
         self,
-        container: Container,
+        container: AutoRegisteringContainer,
         user_factory: TestUserFactory,
     ) -> None:
         # Create mock

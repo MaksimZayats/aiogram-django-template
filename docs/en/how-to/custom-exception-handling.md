@@ -98,7 +98,7 @@ from typing import Any
 
 from fastapi import HTTPException
 
-from infrastructure.django.refresh_sessions.services import (
+from core.user.services.refresh_session import (
     ExpiredRefreshTokenError,
     InvalidRefreshTokenError,
     RefreshTokenError,

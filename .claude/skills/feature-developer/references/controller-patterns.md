@@ -55,7 +55,7 @@ from pydantic import BaseModel
 
 from core.<domain>.services import <Domain>Service, <Domain>NotFoundError
 from infrastructure.delivery.controllers import Controller
-from infrastructure.fastapi.auth import AuthenticatedRequest, JWTAuth, JWTAuthFactory
+from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuth, JWTAuthFactory
 
 
 # Response Schemas

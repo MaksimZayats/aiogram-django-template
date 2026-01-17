@@ -107,27 +107,24 @@ class ContainerFactory:
 
 ### Explicit Registry (Special Cases Only)
 
-Only abstract type mappings need explicit registration:
+Only protocol/interface mappings need explicit registration:
 
 ```python
 # ioc/registries.py
 class Registry:
     def register(self, container: Container) -> None:
-        # Map abstract base types to concrete implementations
+        # Map protocols to concrete implementations
         container.register(
-            type[AbstractBaseUser],
-            instance=User,
-        )
-        container.register(
-            type[BaseRefreshSession],
-            instance=RefreshSession,
+            ApplicationSettingsProtocol,
+            factory=lambda: container.resolve(ApplicationSettings),
+            scope=Scope.singleton,
         )
 ```
 
 !!! note "When to Use Explicit Registration"
     Explicit registration is only needed for:
 
-    - Abstract type → concrete type mappings
+    - Protocol → concrete type mappings
     - Named registrations (string keys)
     - Special factory logic beyond Pydantic Settings
 
@@ -264,13 +261,14 @@ health_service = container.resolve(HealthService)
 
 ### 2. Loose Coupling
 
-Components depend on abstractions, not concrete implementations:
+Components depend on protocols/abstractions rather than concrete implementations when needed:
 
 ```python
-class RefreshSessionService:
+class LogfireConfigurator:
     def __init__(
         self,
-        refresh_session_model: type[BaseRefreshSession],  # Abstract
+        application_settings: ApplicationSettingsProtocol,  # Protocol
+        logfire_settings: LogfireSettings,
     ) -> None:
         ...
 ```
@@ -357,15 +355,16 @@ class ItemController(Controller):
         )
 ```
 
-### Mapping Abstract to Concrete Types
+### Mapping Protocols to Concrete Types
 
 The only case requiring explicit registration:
 
 ```python
 # ioc/registries.py
 container.register(
-    type[BaseRefreshSession],  # Abstract type
-    instance=RefreshSession,   # Concrete implementation
+    ApplicationSettingsProtocol,  # Protocol type
+    factory=lambda: container.resolve(ApplicationSettings),  # Concrete implementation
+    scope=Scope.singleton,
 )
 ```
 

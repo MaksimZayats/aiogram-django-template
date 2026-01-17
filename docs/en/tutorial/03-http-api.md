@@ -41,7 +41,7 @@ from core.todo.services import (
     TodoService,
 )
 from infrastructure.delivery.controllers import Controller
-from infrastructure.fastapi.auth import AuthenticatedRequest, JWTAuth, JWTAuthFactory
+from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuth, JWTAuthFactory
 
 
 # ============================================================================

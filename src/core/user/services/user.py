@@ -16,6 +16,17 @@ class UserService:
 
         return user
 
+    def get_active_user_by_id(
+        self,
+        user_id: int,
+    ) -> User | None:
+        try:
+            user = User.objects.get(pk=user_id, is_active=True)
+        except User.DoesNotExist:
+            return None
+
+        return user
+
     def get_user_by_username_and_password(
         self,
         username: str,

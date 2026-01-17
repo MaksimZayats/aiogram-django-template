@@ -7,16 +7,17 @@ from annotated_types import Len
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 
-from core.user.services import UserService
-from infrastructure.delivery.controllers import Controller
-from infrastructure.django.refresh_sessions.services import (
+from core.user.services.refresh_session import (
     ExpiredRefreshTokenError,
     InvalidRefreshTokenError,
     RefreshSessionService,
     RefreshTokenError,
 )
-from infrastructure.fastapi.auth import AuthenticatedRequest, JWTAuth, JWTAuthFactory
-from infrastructure.jwt.services import JWTService
+from core.user.services.user import UserService
+from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuth, JWTAuthFactory
+from delivery.services.jwt import JWTService
+from infrastructure.delivery.controllers import Controller
+from infrastructure.delivery.request import RequestInfoService
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +40,11 @@ class TokenResponseSchema(BaseModel):
 class UserTokenController(Controller):
     _jwt_auth_factory: JWTAuthFactory
     _jwt_service: JWTService
+    _request_info_service: RequestInfoService
+
     _refresh_token_service: RefreshSessionService
     _user_service: UserService
+
     _jwt_auth: JWTAuth = field(init=False)
 
     def __post_init__(self) -> None:
@@ -86,8 +90,9 @@ class UserTokenController(Controller):
 
         access_token = self._jwt_service.issue_access_token(user_id=user.pk)
         refresh_session = self._refresh_token_service.create_refresh_session(
-            request=request,
             user=user,
+            user_agent=self._request_info_service.get_user_agent(request=request),
+            ip_address=self._request_info_service.get_user_ip(request=request),
         )
 
         return TokenResponseSchema(

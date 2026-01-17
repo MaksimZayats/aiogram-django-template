@@ -8,12 +8,13 @@ Each test function receives a fresh IoC container through the `container` fixtur
 
 ```python
 # tests/integration/conftest.py
+from ioc.container import ContainerFactory
+from infrastructure.punq.container import AutoRegisteringContainer
 
 @pytest.fixture(scope="function")
-def container(django_user_model: type[User]) -> Container:
-    container = get_container()
-    container.register(type[AbstractUser], instance=django_user_model, scope=Scope.singleton)
-    return container
+def container() -> AutoRegisteringContainer:
+    container_factory = ContainerFactory()
+    return container_factory()
 ```
 
 The `scope="function"` ensures a new container is created for each test.
@@ -26,7 +27,6 @@ The `scope="function"` ensures a new container is created for each test.
 from unittest.mock import MagicMock
 
 import pytest
-from punq import Container
 
 from core.products.services import ProductService
 
@@ -46,8 +46,11 @@ def mock_product_service() -> MagicMock:
 ### Step 2: Override the Registration
 
 ```python
+from infrastructure.punq.container import AutoRegisteringContainer
+
+
 def test_with_mocked_service(
-    container: Container,
+    container: AutoRegisteringContainer,
     mock_product_service: MagicMock,
     test_client_factory: TestClientFactory,
     user_factory: TestUserFactory,
@@ -76,9 +79,9 @@ from http import HTTPStatus
 from unittest.mock import MagicMock
 
 import pytest
-from punq import Container
 
-from infrastructure.jwt.services import JWTService
+from delivery.services.jwt import JWTService
+from infrastructure.punq.container import AutoRegisteringContainer
 from tests.integration.factories import TestClientFactory, TestUserFactory
 
 
@@ -93,7 +96,7 @@ def mock_jwt_service() -> MagicMock:
 
 @pytest.mark.django_db(transaction=True)
 def test_jwt_decoding_with_mock(
-    container: Container,
+    container: AutoRegisteringContainer,
     mock_jwt_service: MagicMock,
     test_client_factory: TestClientFactory,
     user_factory: TestUserFactory,
@@ -121,11 +124,12 @@ Override services to simulate error conditions:
 
 ```python
 from core.products.services import ProductNotFoundError, ProductService
+from infrastructure.punq.container import AutoRegisteringContainer
 
 
 @pytest.mark.django_db(transaction=True)
 def test_product_not_found_error(
-    container: Container,
+    container: AutoRegisteringContainer,
     test_client_factory: TestClientFactory,
     user_factory: TestUserFactory,
 ) -> None:
@@ -152,6 +156,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from infrastructure.punq.container import AutoRegisteringContainer
+
 
 class PaymentGateway:
     def charge(self, amount: float, card_token: str) -> dict:
@@ -171,7 +177,7 @@ def mock_payment_gateway() -> MagicMock:
 
 @pytest.mark.django_db(transaction=True)
 def test_payment_processing(
-    container: Container,
+    container: AutoRegisteringContainer,
     mock_payment_gateway: MagicMock,
     test_client_factory: TestClientFactory,
     user_factory: TestUserFactory,
@@ -216,15 +222,15 @@ Override services for Celery task tests:
 from unittest.mock import MagicMock
 
 import pytest
-from punq import Container
 
 from core.notifications.services import NotificationService
+from infrastructure.punq.container import AutoRegisteringContainer
 from tests.integration.factories import TestCeleryWorkerFactory, TestTasksRegistryFactory
 
 
 @pytest.mark.django_db(transaction=True)
 def test_notification_task_with_mock(
-    container: Container,
+    container: AutoRegisteringContainer,
     celery_worker_factory: TestCeleryWorkerFactory,
     tasks_registry_factory: TestTasksRegistryFactory,
 ) -> None:

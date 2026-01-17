@@ -197,7 +197,7 @@ from pydantic import BaseModel
 
 from core.products.services import ProductNotFoundError, ProductService
 from infrastructure.delivery.controllers import Controller
-from infrastructure.fastapi.auth import AuthenticatedRequest, JWTAuth, JWTAuthFactory
+from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuth, JWTAuthFactory
 
 
 class ProductSchema(BaseModel):

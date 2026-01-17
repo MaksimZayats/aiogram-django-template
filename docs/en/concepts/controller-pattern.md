@@ -82,7 +82,7 @@ Register handlers with a FastAPI APIRouter:
 ```python
 from dataclasses import dataclass, field
 from fastapi import APIRouter, Depends
-from infrastructure.fastapi.auth import JWTAuth, JWTAuthFactory
+from delivery.http.auth.jwt import JWTAuth, JWTAuthFactory
 
 @dataclass
 class UserController(Controller):
@@ -161,7 +161,7 @@ A typical controller follows this structure:
 from dataclasses import dataclass, field
 from fastapi import APIRouter, Depends, HTTPException
 from http import HTTPStatus
-from infrastructure.fastapi.auth import AuthenticatedRequest, JWTAuth, JWTAuthFactory
+from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuth, JWTAuthFactory
 
 @dataclass
 class ItemController(Controller):

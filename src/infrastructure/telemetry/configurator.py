@@ -1,14 +1,20 @@
 import logging
 from dataclasses import dataclass
+from typing import Protocol
 
 import logfire
 from logfire import ScrubbingOptions
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from configs.core import ApplicationSettings
+from infrastructure.settings.types import Environment
 
 logger = logging.getLogger(__name__)
+
+
+class ApplicationSettingsProtocol(Protocol):
+    version: str
+    environment: Environment
 
 
 class LogfireSettings(BaseSettings):
@@ -24,7 +30,7 @@ class LogfireSettings(BaseSettings):
 
 @dataclass
 class LogfireConfigurator:
-    _application_settings: ApplicationSettings
+    _application_settings: ApplicationSettingsProtocol
     _logfire_settings: LogfireSettings
 
     def configure(

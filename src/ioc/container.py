@@ -1,5 +1,5 @@
+from configs.logging import LoggingConfigurator
 from infrastructure.django.configurator import DjangoConfigurator
-from infrastructure.logging.configurator import LoggingConfigurator
 from infrastructure.punq.container import AutoRegisteringContainer
 from infrastructure.telemetry.instrumentor import OpenTelemetryInstrumentor
 
@@ -30,7 +30,7 @@ class ContainerFactory:
 
     def _configure_django(self, container: AutoRegisteringContainer) -> None:
         configurator = container.resolve(DjangoConfigurator)
-        configurator.configure()
+        configurator.configure(django_settings_module="configs.django")
 
     def _configure_logging(self, container: AutoRegisteringContainer) -> None:
         configurator = container.resolve(LoggingConfigurator)

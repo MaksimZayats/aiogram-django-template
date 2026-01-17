@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from fastapi import APIRouter, Depends
 
 from infrastructure.delivery.controllers import Controller
-from infrastructure.fastapi.auth import AuthenticatedRequest, JWTAuth, JWTAuthFactory
+from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuth, JWTAuthFactory
 
 
 @dataclass
@@ -49,7 +49,7 @@ class ProductController(Controller):
 Use `AuthenticatedRequest` instead of `Request` for authenticated endpoints:
 
 ```python
-from infrastructure.fastapi.auth import AuthenticatedRequest
+from delivery.http.auth.jwt import AuthenticatedRequest
 
 
 def get_current_user(
@@ -76,7 +76,7 @@ from dataclasses import dataclass, field
 from fastapi import APIRouter, Depends
 
 from infrastructure.delivery.controllers import Controller
-from infrastructure.fastapi.auth import AuthenticatedRequest, JWTAuth, JWTAuthFactory
+from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuth, JWTAuthFactory
 
 
 @dataclass
@@ -143,7 +143,7 @@ from pydantic import BaseModel
 
 from core.orders.services import OrderNotFoundError, OrderService
 from infrastructure.delivery.controllers import Controller
-from infrastructure.fastapi.auth import AuthenticatedRequest, JWTAuth, JWTAuthFactory
+from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuth, JWTAuthFactory
 
 
 class OrderSchema(BaseModel):

@@ -105,7 +105,7 @@ class UserService:
 # delivery/http/user/controllers.py
 from dataclasses import dataclass
 from fastapi import Request
-from core.user.services import UserService  # Import service, NOT model
+from core.user.services.user import UserService  # Import service, NOT model
 
 @dataclass
 class UserController(Controller):
@@ -316,7 +316,7 @@ Services are registered in the IoC container as singletons:
 ```python
 # ioc/registries/core.py
 from punq import Container, Scope
-from core.user.services import UserService
+from core.user.services.user import UserService
 from core.health.services import HealthService
 
 def _register_services(container: Container) -> None:

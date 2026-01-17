@@ -13,8 +13,8 @@ Ensure you have installed:
 ## Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/MaksimZayats/fast-django.git
-cd fast-django
+git clone https://github.com/MaksimZayats/fastdjango.git
+cd fastdjango
 ```
 
 ## Step 2: Configure Environment

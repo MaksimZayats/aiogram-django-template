@@ -428,7 +428,7 @@ wheels = [
 ]
 
 [[package]]
-name = "fast-django"
+name = "fastdjango"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

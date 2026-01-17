@@ -26,8 +26,8 @@ Before getting started, ensure you have installed:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/MaksimZayats/fast-django.git
-cd fast-django
+git clone https://github.com/MaksimZayats/fastdjango.git
+cd fastdjango
 ```
 
 ### 2. Rename the Project

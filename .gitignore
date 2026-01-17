@@ -146,3 +146,5 @@ media/
 staticfiles/
 
 .DS_Store
+
+.local/

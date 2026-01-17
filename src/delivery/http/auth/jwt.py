@@ -1,23 +1,27 @@
+from dataclasses import dataclass
 from http import HTTPStatus
 from typing import Any, Protocol, cast
 
-from django.contrib.auth.base_user import AbstractBaseUser
+from asgiref.sync import sync_to_async
 from fastapi import HTTPException
 from fastapi.requests import Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from infrastructure.jwt.services import JWTService
+from core.user.models import User
+from core.user.services.user import UserService
+from delivery.services.jwt import JWTService
 
 
-class AuthenticatedRequestState[UserT: AbstractBaseUser = AbstractBaseUser](Protocol):
+class AuthenticatedRequestState(Protocol):
     jwt_payload: dict[str, Any]
-    user: UserT
+    user: User
 
 
-class AuthenticatedRequest[UserT: AbstractBaseUser = AbstractBaseUser](Request):
-    state: AuthenticatedRequestState[UserT]  # type: ignore[bad-override, assignment]
+class AuthenticatedRequest(Request):
+    state: AuthenticatedRequestState  # type: ignore[bad-override, assignment]
 
 
+@dataclass
 class JWTAuthFactory:
     """Factory for creating JWT auth instances with optional permission checks.
 
@@ -28,13 +32,8 @@ class JWTAuthFactory:
         admin_auth = factory(require_superuser=True)  # Requires is_superuser=True
     """
 
-    def __init__(
-        self,
-        jwt_service: JWTService,
-        user_model: type[AbstractBaseUser],
-    ) -> None:
-        self._jwt_service = jwt_service
-        self._user_model = user_model
+    _jwt_service: JWTService
+    _user_service: UserService
 
     def __call__(
         self,
@@ -54,23 +53,23 @@ class JWTAuthFactory:
         if require_staff or require_superuser:
             return JWTAuthWithPermissions(
                 jwt_service=self._jwt_service,
-                user_model=self._user_model,
+                user_service=self._user_service,
                 require_staff=require_staff,
                 require_superuser=require_superuser,
             )
 
-        return JWTAuth(jwt_service=self._jwt_service, user_model=self._user_model)
+        return JWTAuth(jwt_service=self._jwt_service, user_service=self._user_service)
 
 
 class JWTAuth(HTTPBearer):
     def __init__(
         self,
         jwt_service: JWTService,
-        user_model: type[AbstractBaseUser],
+        user_service: UserService,
     ) -> None:
         super().__init__()
         self._jwt_service = jwt_service
-        self._user_model = user_model
+        self._user_service = user_service
 
     async def __call__(self, request: Request) -> HTTPAuthorizationCredentials | None:
         credentials = await super().__call__(request)
@@ -89,13 +88,16 @@ class JWTAuth(HTTPBearer):
                 detail="Token payload missing 'sub' field",
             )
 
-        try:
-            user = await self._user_model.objects.aget(id=user_id)  # type: ignore[attr-defined]
-        except self._user_model.DoesNotExist as e:
+        user = await sync_to_async(
+            self._user_service.get_active_user_by_id,
+            thread_sensitive=False,
+        )(user_id=user_id)
+
+        if user is None:
             raise HTTPException(
                 status_code=HTTPStatus.UNAUTHORIZED,
                 detail="User not found",
-            ) from e
+            )
 
         request.state.user = user
 
@@ -122,12 +124,12 @@ class JWTAuthWithPermissions(JWTAuth):
     def __init__(
         self,
         jwt_service: JWTService,
-        user_model: type[AbstractBaseUser],
+        user_service: UserService,
         *,
         require_staff: bool = False,
         require_superuser: bool = False,
     ) -> None:
-        super().__init__(jwt_service=jwt_service, user_model=user_model)
+        super().__init__(jwt_service=jwt_service, user_service=user_service)
         self._require_staff = require_staff
         self._require_superuser = require_superuser
 

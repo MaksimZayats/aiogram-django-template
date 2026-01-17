@@ -8,8 +8,8 @@ from configs.core import (
     ApplicationSettings,
 )
 from configs.infrastructure import AWSS3Settings
+from configs.logging import LoggingSettings
 from infrastructure.django.settings.pydantic_adapter import PydanticSettingsAdapter
-from infrastructure.logging.configurator import LoggingSettings
 
 
 class DjangoSettings(ApplicationSettings):

@@ -50,9 +50,10 @@ This is a Django + Celery application using **punq** for dependency injection.
 
 ### Module Structure
 
+- **`configs/`** - Application configuration (Django settings, logging, Pydantic settings classes).
 - **`core/`** - Business logic, domain models, and **services**. All database operations are encapsulated in services.
-- **`delivery/`** - External interfaces (HTTP API, Celery tasks). **Controllers NEVER access models directly.**
-- **`infrastructure/`** - Cross-cutting concerns (JWT, auth, settings adapters, controller base classes).
+- **`delivery/`** - External interfaces (HTTP API, Celery tasks, JWT auth, delivery-specific services). **Controllers NEVER access models directly.**
+- **`infrastructure/`** - Cross-cutting concerns (settings adapters, controller base classes, telemetry).
 - **`ioc/`** - Dependency injection container configuration.
 - **`delivery/tasks/`** - Celery task definitions using controller pattern.
 
@@ -74,7 +75,7 @@ Controller → Service → Model
 
 ```python
 # delivery/http/user/controllers.py
-from core.user.services import UserService  # ✅ Import service, not model
+from core.user.services.user import UserService  # ✅ Import service, not model
 
 class UserController(Controller):
     def __init__(self, user_service: UserService) -> None:
@@ -99,7 +100,7 @@ class UserController(Controller):
 
 ### Creating Services
 
-Services belong in `core/<domain>/services.py`:
+Services belong in `core/<domain>/services.py` or `core/<domain>/services/<service_name>.py` for domains with multiple services:
 
 ```python
 # core/item/services.py
@@ -126,11 +127,14 @@ class ItemService:
 
 ### Registering Services
 
-Register services in `src/ioc/registries/core.py`:
+Services are **auto-registered** by the IoC container - no explicit registration needed. When a service is resolved, the `AutoRegisteringContainer` automatically registers it as a singleton based on its `__init__` type annotations.
 
 ```python
-container.register(ItemService, scope=Scope.singleton)
+# No registration needed - just resolve the service
+item_service = container.resolve(ItemService)  # Auto-registered as singleton
 ```
+
+Only protocol/interface mappings require explicit registration in `src/ioc/registries.py`.
 
 ### Data Flow
 
@@ -190,19 +194,16 @@ The container:
 
 ### Explicit Registration (Special Cases Only)
 
-Only abstract type mappings need explicit registration in `src/ioc/registries.py`:
+Only protocol/interface mappings need explicit registration in `src/ioc/registries.py`:
 
 ```python
 class Registry:
     def register(self, container: Container) -> None:
-        # Map abstract types to concrete implementations
+        # Map protocols to concrete implementations
         container.register(
-            type[AbstractBaseUser],
-            instance=User,
-        )
-        container.register(
-            type[BaseRefreshSession],
-            instance=RefreshSession,
+            ApplicationSettingsProtocol,
+            factory=lambda: container.resolve(ApplicationSettings),
+            scope=Scope.singleton,
         )
 ```
 
@@ -283,7 +284,7 @@ async def create_user_async(self, request: AuthenticatedRequest, body: CreateUse
 ```python
 from dataclasses import dataclass, field
 from fastapi import APIRouter, Depends
-from infrastructure.fastapi.auth import JWTAuth, JWTAuthFactory
+from delivery.http.auth.jwt import JWTAuth, JWTAuthFactory
 
 @dataclass
 class UserController(Controller):
@@ -310,7 +311,7 @@ Use `JWTAuthFactory` for JWT authentication with optional permission checks:
 ```python
 from dataclasses import dataclass, field
 from fastapi import APIRouter, Depends
-from infrastructure.fastapi.auth import JWTAuth, JWTAuthFactory
+from delivery.http.auth.jwt import JWTAuth, JWTAuthFactory
 
 @dataclass
 class AdminController(Controller):
@@ -465,8 +466,14 @@ Uses Pydantic BaseSettings with environment variable prefixes:
 - `AWS_S3_` - S3/MinIO storage
 - `CELERY_` - Celery settings
 - `ANYIO_` - Thread pool settings (THREAD_LIMITER_TOKENS for parallelism)
+- `LOGGING_` - Logging level configuration
+- `LOGFIRE_` - OpenTelemetry Logfire instrumentation (enabled, token)
+- `INSTRUMENTOR_` - FastAPI instrumentation settings
+- `CORS_` - CORS configuration (allow_credentials, allow_origins, allow_methods, allow_headers)
 
-Settings classes are registered in IoC and injected into services.
+Unprefixed variables: `DATABASE_URL`, `REDIS_URL`, `ENVIRONMENT`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`
+
+Settings classes are auto-registered in IoC and injected into services.
 
 ## Test Environment
 

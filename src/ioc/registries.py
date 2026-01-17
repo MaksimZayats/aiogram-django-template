@@ -1,9 +1,8 @@
-from django.contrib.auth.base_user import AbstractBaseUser
 from punq import Container, Scope
 
-from core.user.models import RefreshSession, User
+from configs.core import ApplicationSettings
 from delivery.http.factories import FastAPIFactory
-from infrastructure.django.refresh_sessions.models import BaseRefreshSession
+from infrastructure.telemetry.configurator import ApplicationSettingsProtocol
 
 
 class Registry:
@@ -14,12 +13,7 @@ class Registry:
             scope=Scope.singleton,
         )
         container.register(
-            type[AbstractBaseUser],
-            instance=User,
-            scope=Scope.singleton,
-        )
-        container.register(
-            type[BaseRefreshSession],
-            instance=RefreshSession,
+            ApplicationSettingsProtocol,
+            factory=lambda: container.resolve(ApplicationSettings),
             scope=Scope.singleton,
         )

@@ -1,17 +1,16 @@
 from abc import ABC, abstractmethod
 from contextlib import AbstractContextManager
-from typing import Any, cast
+from typing import Any
 
 from celery.contrib.testing import worker
 from celery.worker import WorkController
-from django.contrib.auth.base_user import AbstractBaseUser
 from fastapi.testclient import TestClient
 
 from core.user.models import User
 from delivery.http.factories import FastAPIFactory
+from delivery.services.jwt import JWTService
 from delivery.tasks.factories import CeleryAppFactory, TasksRegistryFactory
 from delivery.tasks.registry import TasksRegistry
-from infrastructure.jwt.services import JWTService
 from infrastructure.punq.container import AutoRegisteringContainer
 
 
@@ -71,12 +70,7 @@ class TestUserFactory(ContainerBasedFactory):
         is_staff: bool = False,
         **kwargs: Any,
     ) -> User:
-        user_model = cast(
-            type[User],
-            self._container.resolve(type[AbstractBaseUser]),  # type: ignore[arg-type, invalid-argument-type]
-        )
-
-        return user_model.objects.create_user(
+        return User.objects.create_user(
             username=username,
             email=email,
             password=password,

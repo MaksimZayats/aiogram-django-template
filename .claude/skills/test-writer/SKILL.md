@@ -23,11 +23,13 @@ This skill guides you through writing tests for this codebase using the establis
 Every test gets a fresh IoC container:
 
 ```python
+from infrastructure.punq.container import AutoRegisteringContainer
+from ioc.container import ContainerFactory
+
 @pytest.fixture(scope="function")
-def container(django_user_model: type[User]) -> Container:
-    container = get_container()
-    container.register(type[AbstractUser], instance=django_user_model, scope=Scope.singleton)
-    return container
+def container() -> AutoRegisteringContainer:
+    container_factory = ContainerFactory()
+    return container_factory()
 ```
 
 This enables:
@@ -53,7 +55,7 @@ Available factories in `tests/integration/factories.py`:
 ```python
 @pytest.mark.django_db(transaction=True)
 def test_with_mock(
-    container: Container,
+    container: AutoRegisteringContainer,
     user_factory: TestUserFactory,
 ) -> None:
     # 1. Create mock

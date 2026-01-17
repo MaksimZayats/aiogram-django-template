@@ -44,12 +44,10 @@ First, add the import at the top of the file:
 ```python title="src/ioc/registries/core.py" hl_lines="5"
 from punq import Container, Scope
 
-from configs import ApplicationSettings, RedisSettings
+from configs.core import ApplicationSettings
 from core.health.services import HealthService
 from core.todo.services import TodoService  # Add this import
-from core.user.models import RefreshSession
-from core.user.services import UserService
-from infrastructure.django.refresh_sessions.models import BaseRefreshSession
+from core.user.services.user import UserService
 ```
 
 Then add the registration in the `_register_services` function:
@@ -68,17 +66,14 @@ Here is the complete `src/ioc/registries/core.py` after the changes:
 ```python title="src/ioc/registries/core.py"
 from punq import Container, Scope
 
-from configs import ApplicationSettings, RedisSettings
+from configs.core import ApplicationSettings
 from core.health.services import HealthService
 from core.todo.services import TodoService
-from core.user.models import RefreshSession
-from core.user.services import UserService
-from infrastructure.django.refresh_sessions.models import BaseRefreshSession
+from core.user.services.user import UserService
 
 
 def register_core(container: Container) -> None:
     _register_settings(container)
-    _register_models(container)
     _register_services(container)
 
 
@@ -87,19 +82,6 @@ def _register_settings(container: Container) -> None:
         ApplicationSettings,
         factory=lambda: ApplicationSettings(),
         scope=Scope.singleton,
-    )
-
-    container.register(
-        RedisSettings,
-        factory=lambda: RedisSettings(),
-        scope=Scope.singleton,
-    )
-
-
-def _register_models(container: Container) -> None:
-    container.register(
-        type[BaseRefreshSession],
-        instance=RefreshSession,
     )
 
 
@@ -145,20 +127,21 @@ Use factories when:
 - You need custom initialization logic
 - The service requires arguments not managed by the container
 
-### Instance Registration
+### Instance/Factory Registration for Protocols
 
-For concrete implementations of abstract types:
+For mapping protocols to concrete implementations:
 
 ```python
 container.register(
-    type[BaseRefreshSession],
-    instance=RefreshSession,
+    ApplicationSettingsProtocol,
+    factory=lambda: container.resolve(ApplicationSettings),
+    scope=Scope.singleton,
 )
 ```
 
-Use instance registration when:
+Use this pattern when:
 
-- You need to register a specific class as an implementation of an abstract type
+- You need to register a specific implementation for a protocol
 - The instance is pre-created (e.g., a configuration object)
 
 ## Scopes
