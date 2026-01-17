@@ -47,10 +47,9 @@ def test_with_mocked_service(
     # Step 4: Create user and test client
     user = user_factory()
     test_client_factory = TestClientFactory(container=container)
-    test_client = test_client_factory(auth_for_user=user)
-
-    # Step 5: Make request
-    response = test_client.get("/v1/products/1")
+    with test_client_factory(auth_for_user=user) as test_client:
+        # Step 5: Make request
+        response = test_client.get("/v1/products/1")
 
     # Step 6: Assert response
     assert response.status_code == 200
@@ -216,12 +215,11 @@ def test_with_mocked_jwt(
     container.register(JWTService, instance=mock_jwt_service)
 
     user = user_factory()
-    test_client = test_client_factory()
-
-    response = test_client.get(
-        "/v1/users/me",
-        headers={"Authorization": "Bearer any-token"},
-    )
+    with test_client_factory() as test_client:
+        response = test_client.get(
+            "/v1/users/me",
+            headers={"Authorization": "Bearer any-token"},
+        )
 
     mock_jwt_service.decode_token.assert_called_once_with(token="any-token")
 ```
@@ -271,10 +269,9 @@ def test_with_multiple_mocks(
     # Now create client and test
     user = user_factory()
     test_client_factory = TestClientFactory(container=container)
-    test_client = test_client_factory(auth_for_user=user)
-
-    # Test endpoint that uses all three services
-    response = test_client.post("/v1/orders/", json={"product_id": 1, "quantity": 5})
+    with test_client_factory(auth_for_user=user) as test_client:
+        # Test endpoint that uses all three services
+        response = test_client.post("/v1/orders/", json={"product_id": 1, "quantity": 5})
 
     assert response.status_code == 200
     mock_product_service.get_by_id.assert_called_once()
@@ -318,13 +315,15 @@ mock_service.list_all.return_value = mock_queryset
 ```python
 # WRONG - Mock registered after client creation
 user = user_factory()
-test_client = test_client_factory(auth_for_user=user)
-container.register(Service, instance=mock_service)  # Too late!
+with test_client_factory(auth_for_user=user) as test_client:
+    container.register(Service, instance=mock_service)  # Too late!
+    response = test_client.get("/v1/endpoint/")
 
 # CORRECT - Mock registered before client creation
 container.register(Service, instance=mock_service)
 user = user_factory()
-test_client = test_client_factory(auth_for_user=user)
+with test_client_factory(auth_for_user=user) as test_client:
+    response = test_client.get("/v1/endpoint/")
 ```
 
 ### Missing spec Parameter

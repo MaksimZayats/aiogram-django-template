@@ -19,18 +19,17 @@ class TestUserController:
     """Tests for UserController endpoints."""
 
     def test_create_user(self, test_client_factory: TestClientFactory) -> None:
-        test_client = test_client_factory()
-
-        response = test_client.post(
-            "/v1/users/",
-            json={
-                "username": "test_new_user",
-                "email": "new_user@test.com",
-                "password": _TEST_PASSWORD,
-                "first_name": "Test",
-                "last_name": "User",
-            },
-        )
+        with test_client_factory() as test_client:
+            response = test_client.post(
+                "/v1/users/",
+                json={
+                    "username": "test_new_user",
+                    "email": "new_user@test.com",
+                    "password": _TEST_PASSWORD,
+                    "first_name": "Test",
+                    "last_name": "User",
+                },
+            )
 
         response_data = UserSchema.model_validate(response.json())
         assert response.status_code == HTTPStatus.OK
@@ -41,24 +40,20 @@ class TestUserController:
         test_client_factory: TestClientFactory,
         user: User,
     ) -> None:
-        test_client = test_client_factory()
+        with test_client_factory() as test_client:
+            response = test_client.post(
+                "/v1/users/me/token",
+                json={"username": user.username, "password": _TEST_PASSWORD},
+            )
+            token_response = TokenResponseSchema.model_validate(response.json())
 
-        response = test_client.post(
-            "/v1/users/me/token",
-            json={"username": user.username, "password": _TEST_PASSWORD},
-        )
+            response = test_client.get(
+                "/v1/users/me",
+                headers={"Authorization": f"Bearer {token_response.access_token}"},
+            )
+            user_data = UserSchema.model_validate(response.json())
 
-        response_data = TokenResponseSchema.model_validate(response.json())
         assert response.status_code == HTTPStatus.OK
-
-        response = test_client.get(
-            "/v1/users/me",
-            headers={"Authorization": f"Bearer {response_data.access_token}"},
-        )
-
-        user_data = UserSchema.model_validate(response.json())
-        assert response.status_code == HTTPStatus.OK
-
         assert user_data.id == user.pk
         assert user_data.username == user.username
         assert user_data.email == user.email
@@ -68,12 +63,11 @@ class TestUserController:
         test_client_factory: TestClientFactory,
         user: User,
     ) -> None:
-        test_client = test_client_factory()
-
-        response = test_client.post(
-            "/v1/users/me/token",
-            json={"username": user.username, "password": "invalid-password"},
-        )
+        with test_client_factory() as test_client:
+            response = test_client.post(
+                "/v1/users/me/token",
+                json={"username": user.username, "password": "invalid-password"},
+            )
 
         assert response.status_code == HTTPStatus.UNAUTHORIZED
 
@@ -82,31 +76,32 @@ class TestUserController:
         test_client_factory: TestClientFactory,
         user: User,
     ) -> None:
-        test_client = test_client_factory()
+        with test_client_factory() as test_client:
+            response = test_client.post(
+                "/v1/users/me/token",
+                json={"username": user.username, "password": _TEST_PASSWORD},
+            )
+            token_response = TokenResponseSchema.model_validate(response.json())
 
-        response = test_client.post(
-            "/v1/users/me/token",
-            json={"username": user.username, "password": _TEST_PASSWORD},
-        )
-        token_response = TokenResponseSchema.model_validate(response.json())
+            response = test_client.post(
+                "/v1/users/me/token/refresh",
+                json={"refresh_token": token_response.refresh_token},
+            )
+            token_response = TokenResponseSchema.model_validate(response.json())
 
-        response = test_client.post(
-            "/v1/users/me/token/refresh",
-            json={"refresh_token": token_response.refresh_token},
-        )
-        token_response = TokenResponseSchema.model_validate(response.json())
+            response = test_client.post(
+                "/v1/users/me/token/revoke",
+                json={"refresh_token": token_response.refresh_token},
+                headers={"Authorization": f"Bearer {token_response.access_token}"},
+            )
+            revoke_status = response.status_code
 
-        response = test_client.post(
-            "/v1/users/me/token/revoke",
-            json={"refresh_token": token_response.refresh_token},
-            headers={"Authorization": f"Bearer {token_response.access_token}"},
-        )
-        assert response.status_code == HTTPStatus.OK
+            response = test_client.post(
+                "/v1/users/me/token/refresh",
+                json={"refresh_token": token_response.refresh_token},
+            )
 
-        response = test_client.post(
-            "/v1/users/me/token/refresh",
-            json={"refresh_token": token_response.refresh_token},
-        )
+        assert revoke_status == HTTPStatus.OK
         assert response.status_code == HTTPStatus.UNAUTHORIZED
 
     def test_auth_for_user(
@@ -114,7 +109,7 @@ class TestUserController:
         test_client_factory: TestClientFactory,
         user: User,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/users/me")
 
-        response = test_client.get("/v1/users/me")
         assert response.status_code == HTTPStatus.OK

@@ -35,8 +35,8 @@ class TestUserScopedResources:
         item_factory(user=user2, name="User2 Item")
 
         # User1 should only see their items
-        test_client = test_client_factory(auth_for_user=user1)
-        response = test_client.get("/v1/items/")
+        with test_client_factory(auth_for_user=user1) as test_client:
+            response = test_client.get("/v1/items/")
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -56,8 +56,8 @@ class TestUserScopedResources:
         item = item_factory(user=owner, name="Private Item")
 
         # Other user should not access owner's item
-        test_client = test_client_factory(auth_for_user=other)
-        response = test_client.get(f"/v1/items/{item.id}")
+        with test_client_factory(auth_for_user=other) as test_client:
+            response = test_client.get(f"/v1/items/{item.id}")
 
         assert response.status_code == HTTPStatus.NOT_FOUND
 
@@ -73,11 +73,11 @@ class TestUserScopedResources:
 
         item = item_factory(user=owner, name="Private Item")
 
-        test_client = test_client_factory(auth_for_user=other)
-        response = test_client.patch(
-            f"/v1/items/{item.id}",
-            json={"name": "Hacked"},
-        )
+        with test_client_factory(auth_for_user=other) as test_client:
+            response = test_client.patch(
+                f"/v1/items/{item.id}",
+                json={"name": "Hacked"},
+            )
 
         assert response.status_code == HTTPStatus.NOT_FOUND
 
@@ -93,8 +93,8 @@ class TestUserScopedResources:
 
         item = item_factory(user=owner, name="Private Item")
 
-        test_client = test_client_factory(auth_for_user=other)
-        response = test_client.delete(f"/v1/items/{item.id}")
+        with test_client_factory(auth_for_user=other) as test_client:
+            response = test_client.delete(f"/v1/items/{item.id}")
 
         assert response.status_code == HTTPStatus.NOT_FOUND
 ```
@@ -112,9 +112,8 @@ class TestErrorHandling:
         user_factory: TestUserFactory,
     ) -> None:
         user = user_factory()
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.get("/v1/items/99999")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/items/99999")
 
         assert response.status_code == HTTPStatus.NOT_FOUND
         assert "not found" in response.json()["detail"].lower()
@@ -126,9 +125,8 @@ class TestErrorHandling:
         user_factory: TestUserFactory,
     ) -> None:
         user = user_factory()
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.post("/v1/items/", json={})
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.post("/v1/items/", json={})
 
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
@@ -145,9 +143,8 @@ class TestErrorHandling:
 
         user = user_factory()
         test_client_factory = TestClientFactory(container=container)
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.get("/v1/items/1")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/items/1")
 
         assert response.status_code == HTTPStatus.NOT_FOUND
         mock_service.get_by_id.assert_called_once()
@@ -172,8 +169,8 @@ class TestPagination:
         for i in range(25):
             item_factory(user=user, name=f"Item {i}")
 
-        test_client = test_client_factory(auth_for_user=user)
-        response = test_client.get("/v1/items/")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/items/")
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -193,8 +190,8 @@ class TestPagination:
         for i in range(10):
             item_factory(user=user, name=f"Item {i}")
 
-        test_client = test_client_factory(auth_for_user=user)
-        response = test_client.get("/v1/items/?limit=5")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/items/?limit=5")
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -216,9 +213,8 @@ class TestAuthentication:
         self,
         test_client_factory: TestClientFactory,
     ) -> None:
-        test_client = test_client_factory()  # No auth
-
-        response = test_client.get("/v1/protected/")
+        with test_client_factory() as test_client:  # No auth
+            response = test_client.get("/v1/protected/")
 
         assert response.status_code == HTTPStatus.UNAUTHORIZED
 
@@ -227,12 +223,11 @@ class TestAuthentication:
         self,
         test_client_factory: TestClientFactory,
     ) -> None:
-        test_client = test_client_factory()
-
-        response = test_client.get(
-            "/v1/protected/",
-            headers={"Authorization": "Bearer invalid-token"},
-        )
+        with test_client_factory() as test_client:
+            response = test_client.get(
+                "/v1/protected/",
+                headers={"Authorization": "Bearer invalid-token"},
+            )
 
         assert response.status_code == HTTPStatus.UNAUTHORIZED
 
@@ -243,9 +238,8 @@ class TestAuthentication:
         user_factory: TestUserFactory,
     ) -> None:
         user = user_factory()
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.get("/v1/protected/")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/protected/")
 
         assert response.status_code == HTTPStatus.OK
 ```
@@ -345,9 +339,8 @@ class TestEmptyState:
         user_factory: TestUserFactory,
     ) -> None:
         user = user_factory()
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.get("/v1/items/")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/items/")
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -375,11 +368,11 @@ class TestUpdate:
         user = user_factory()
         item = item_factory(user=user, name="Original", description="Desc")
 
-        test_client = test_client_factory(auth_for_user=user)
-        response = test_client.patch(
-            f"/v1/items/{item.id}",
-            json={"name": "Updated"},  # Only update name
-        )
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.patch(
+                f"/v1/items/{item.id}",
+                json={"name": "Updated"},  # Only update name
+            )
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -396,11 +389,11 @@ class TestUpdate:
         user = user_factory()
         item = item_factory(user=user, name="Original")
 
-        test_client = test_client_factory(auth_for_user=user)
-        response = test_client.patch(
-            f"/v1/items/{item.id}",
-            json={},  # Empty update
-        )
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.patch(
+                f"/v1/items/{item.id}",
+                json={},  # Empty update
+            )
 
         # Should succeed with no changes
         assert response.status_code == HTTPStatus.OK
@@ -424,14 +417,14 @@ class TestDelete:
         user = user_factory()
         item = item_factory(user=user, name="ToDelete")
 
-        test_client = test_client_factory(auth_for_user=user)
-        response = test_client.delete(f"/v1/items/{item.id}")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.delete(f"/v1/items/{item.id}")
+
+            # Verify item is gone
+            verify_response = test_client.get(f"/v1/items/{item.id}")
 
         assert response.status_code == HTTPStatus.NO_CONTENT
-
-        # Verify item is gone
-        response = test_client.get(f"/v1/items/{item.id}")
-        assert response.status_code == HTTPStatus.NOT_FOUND
+        assert verify_response.status_code == HTTPStatus.NOT_FOUND
 
     @pytest.mark.django_db(transaction=True)
     def test_delete_nonexistent_returns_404(
@@ -440,9 +433,8 @@ class TestDelete:
         user_factory: TestUserFactory,
     ) -> None:
         user = user_factory()
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.delete("/v1/items/99999")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.delete("/v1/items/99999")
 
         assert response.status_code == HTTPStatus.NOT_FOUND
 ```

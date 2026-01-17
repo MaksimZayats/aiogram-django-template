@@ -276,15 +276,14 @@ class TestCreateTodo:
         test_client_factory: TestClientFactory,
         user: User,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.post(
-            "/v1/todos/",
-            json={
-                "title": "Buy groceries",
-                "description": "Milk, eggs, bread",
-            },
-        )
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.post(
+                "/v1/todos/",
+                json={
+                    "title": "Buy groceries",
+                    "description": "Milk, eggs, bread",
+                },
+            )
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -298,12 +297,11 @@ class TestCreateTodo:
         self,
         test_client_factory: TestClientFactory,
     ) -> None:
-        test_client = test_client_factory()  # No auth_for_user
-
-        response = test_client.post(
-            "/v1/todos/",
-            json={"title": "Test"},
-        )
+        with test_client_factory() as test_client:  # No auth_for_user
+            response = test_client.post(
+                "/v1/todos/",
+                json={"title": "Test"},
+            )
 
         assert response.status_code == HTTPStatus.UNAUTHORIZED
 
@@ -313,12 +311,11 @@ class TestCreateTodo:
         test_client_factory: TestClientFactory,
         user: User,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.post(
-            "/v1/todos/",
-            json={"description": "Missing title"},  # title is required
-        )
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.post(
+                "/v1/todos/",
+                json={"description": "Missing title"},  # title is required
+            )
 
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
@@ -339,8 +336,8 @@ class TestListTodos:
         todo_factory(user=user2, title="User2 Todo")
 
         # User1 should only see their own todos
-        test_client = test_client_factory(auth_for_user=user1)
-        response = test_client.get("/v1/todos/")
+        with test_client_factory(auth_for_user=user1) as test_client:
+            response = test_client.get("/v1/todos/")
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -353,9 +350,8 @@ class TestListTodos:
         test_client_factory: TestClientFactory,
         user: User,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.get("/v1/todos/")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/todos/")
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -371,9 +367,8 @@ class TestGetTodo:
         user: User,
         todo: Todo,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.get(f"/v1/todos/{todo.id}")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get(f"/v1/todos/{todo.id}")
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -386,9 +381,8 @@ class TestGetTodo:
         test_client_factory: TestClientFactory,
         user: User,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.get("/v1/todos/99999")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/todos/99999")
 
         assert response.status_code == HTTPStatus.NOT_FOUND
 
@@ -405,8 +399,8 @@ class TestGetTodo:
         todo = todo_factory(user=user1, title="Private Todo")
 
         # User2 should not access User1's todo
-        test_client = test_client_factory(auth_for_user=user2)
-        response = test_client.get(f"/v1/todos/{todo.id}")
+        with test_client_factory(auth_for_user=user2) as test_client:
+            response = test_client.get(f"/v1/todos/{todo.id}")
 
         assert response.status_code == HTTPStatus.NOT_FOUND
 
@@ -419,9 +413,8 @@ class TestCompleteTodo:
         user: User,
         todo: Todo,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.post(f"/v1/todos/{todo.id}/complete")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.post(f"/v1/todos/{todo.id}/complete")
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -434,9 +427,8 @@ class TestCompleteTodo:
         test_client_factory: TestClientFactory,
         user: User,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.post("/v1/todos/99999/complete")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.post("/v1/todos/99999/complete")
 
         assert response.status_code == HTTPStatus.NOT_FOUND
 
@@ -449,15 +441,14 @@ class TestDeleteTodo:
         user: User,
         todo: Todo,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.delete(f"/v1/todos/{todo.id}")
 
-        response = test_client.delete(f"/v1/todos/{todo.id}")
+            # Verify deletion
+            verify_response = test_client.get(f"/v1/todos/{todo.id}")
 
         assert response.status_code == HTTPStatus.NO_CONTENT
-
-        # Verify deletion
-        response = test_client.get(f"/v1/todos/{todo.id}")
-        assert response.status_code == HTTPStatus.NOT_FOUND
+        assert verify_response.status_code == HTTPStatus.NOT_FOUND
 ```
 
 !!! tip "Test Class Organization"
@@ -603,9 +594,8 @@ class TestTodoControllerWithMockedService:
 
         # Now create the test client - it will use the mocked service
         test_client_factory = TestClientFactory(container=container)
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.get("/v1/todos/1")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/todos/1")
 
         assert response.status_code == HTTPStatus.NOT_FOUND
         mock_service.get_todo_by_id.assert_called_once_with(todo_id=1, user_id=user.pk)
@@ -630,9 +620,8 @@ class TestTodoControllerWithMockedService:
         container.register(TodoService, instance=mock_service)
 
         test_client_factory = TestClientFactory(container=container)
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.get("/v1/todos/")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/todos/")
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()

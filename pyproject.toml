@@ -94,7 +94,7 @@ ignore_no_config = true
 
 [tool.pytest.ini_options]
 minversion = "9.0"
-addopts = "--exitfirst -vv --cov=src --cov-report=html --cov-fail-under=80"
+addopts = "--reuse-db --create-db --exitfirst -vv --cov=src --cov-report=html --cov-fail-under=80"
 testpaths = ["tests"]
 
 [tool.coverage.run]
@@ -103,13 +103,12 @@ source = ["src"]
 omit = [
     # Entry points
     "src/manage.py",
-    "src/delivery/bot/__main__.py",
     "src/delivery/http/app.py",
     "src/delivery/tasks/app.py",
     # Django admin (requires manual testing)
     "src/**/admin.py",
     # Observability/telemetry (requires external services)
-    "src/infrastructure/otel/*",
+    "src/infrastructure/telemetry/*",
     # Celery event handlers (signal-based, hard to test in isolation)
     "src/delivery/tasks/events.py",
 ]

@@ -57,9 +57,8 @@ def test_with_mocked_service(
 
     # Now create the test client - it will use the mocked service
     user = user_factory()
-    test_client = test_client_factory(auth_for_user=user)
-
-    response = test_client.get("/v1/products/1")
+    with test_client_factory(auth_for_user=user) as test_client:
+        response = test_client.get("/v1/products/1")
 
     assert response.status_code == 200
     assert response.json()["name"] == "Mocked Product"
@@ -104,13 +103,12 @@ def test_jwt_decoding_with_mock(
 
     # Create user and test client
     user = user_factory()
-    test_client = test_client_factory()
-
-    # Make authenticated request
-    response = test_client.get(
-        "/v1/users/me",
-        headers={"Authorization": "Bearer any-token-will-work"},
-    )
+    with test_client_factory() as test_client:
+        # Make authenticated request
+        response = test_client.get(
+            "/v1/users/me",
+            headers={"Authorization": "Bearer any-token-will-work"},
+        )
 
     # The mock returns sub=1, but our test user might have a different ID
     # This test verifies the JWT decoding flow, not the user lookup
@@ -138,9 +136,8 @@ def test_product_not_found_error(
     container.register(ProductService, instance=mock_service)
 
     user = user_factory()
-    test_client = test_client_factory(auth_for_user=user)
-
-    response = test_client.get("/v1/products/999")
+    with test_client_factory(auth_for_user=user) as test_client:
+        response = test_client.get("/v1/products/999")
 
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert "not found" in response.json()["detail"].lower()
@@ -182,12 +179,11 @@ def test_payment_processing(
     container.register(PaymentGateway, instance=mock_payment_gateway)
 
     user = user_factory()
-    test_client = test_client_factory(auth_for_user=user)
-
-    response = test_client.post(
-        "/v1/payments/",
-        json={"amount": 100.00, "card_token": "tok_test"},
-    )
+    with test_client_factory(auth_for_user=user) as test_client:
+        response = test_client.post(
+            "/v1/payments/",
+            json={"amount": 100.00, "card_token": "tok_test"},
+        )
 
     assert response.status_code == HTTPStatus.OK
     mock_payment_gateway.charge.assert_called_once_with(100.00, "tok_test")
@@ -201,11 +197,12 @@ def test_payment_processing(
 ```python
 # Correct order
 container.register(ProductService, instance=mock_service)  # 1. Override first
-test_client = test_client_factory()  # 2. Then create client
+with test_client_factory() as test_client:  # 2. Then create client
+    response = test_client.get("/v1/products/1")
 
 # Wrong order - mock will not be used
-test_client = test_client_factory()  # Client created with real service
-container.register(ProductService, instance=mock_service)  # Too late!
+with test_client_factory() as test_client:  # Client created with real service
+    container.register(ProductService, instance=mock_service)  # Too late!
 ```
 
 !!! tip "Use spec Parameter"

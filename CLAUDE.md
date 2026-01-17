@@ -401,12 +401,11 @@ def user(user_factory: TestUserFactory) -> User:
 @pytest.mark.django_db(transaction=True)
 class TestUserController:
     def test_create_user(self, test_client_factory: TestClientFactory) -> None:
-        test_client = test_client_factory()
-
-        response = test_client.post(
-            "/v1/users/",
-            json={"username": "new_user", "email": "user@test.com", "password": "pass"},
-        )
+        with test_client_factory() as test_client:
+            response = test_client.post(
+                "/v1/users/",
+                json={"username": "new_user", "email": "user@test.com", "password": "pass"},
+            )
 
         assert response.status_code == HTTPStatus.OK
 
@@ -416,9 +415,9 @@ class TestUserController:
         user: User,
     ) -> None:
         # Use auth_for_user to auto-inject JWT token
-        test_client = test_client_factory(auth_for_user=user)
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/users/me")
 
-        response = test_client.get("/v1/users/me")
         assert response.status_code == HTTPStatus.OK
 ```
 
@@ -451,8 +450,11 @@ def test_with_mock_service(container: AutoRegisteringContainer) -> None:
     container.register(JWTService, instance=mock_service)
 
     test_client_factory = TestClientFactory(container=container)
-    test_client = test_client_factory()
-    # Now all requests use mock_service
+    with test_client_factory() as test_client:
+        # Now all requests use mock_service
+        response = test_client.get("/v1/some-endpoint")
+
+    assert response.status_code == 200
 ```
 
 ## Configuration

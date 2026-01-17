@@ -414,9 +414,8 @@ def test_list_products(
     product: Product,
 ) -> None:
     user = user_factory()
-    test_client = test_client_factory(auth_for_user=user)
-
-    response = test_client.get("/api/v1/products/")
+    with test_client_factory(auth_for_user=user) as test_client:
+        response = test_client.get("/api/v1/products/")
 
     assert response.status_code == HTTPStatus.OK
     data = response.json()
@@ -430,16 +429,15 @@ def test_create_product(
     user_factory: TestUserFactory,
 ) -> None:
     user = user_factory()
-    test_client = test_client_factory(auth_for_user=user)
-
-    response = test_client.post(
-        "/api/v1/products/",
-        json={
-            "name": "New Product",
-            "description": "A new product",
-            "price": 49.99,
-        },
-    )
+    with test_client_factory(auth_for_user=user) as test_client:
+        response = test_client.post(
+            "/api/v1/products/",
+            json={
+                "name": "New Product",
+                "description": "A new product",
+                "price": 49.99,
+            },
+        )
 
     assert response.status_code == HTTPStatus.OK
     data = response.json()
@@ -452,9 +450,8 @@ def test_get_product_not_found(
     user_factory: TestUserFactory,
 ) -> None:
     user = user_factory()
-    test_client = test_client_factory(auth_for_user=user)
-
-    response = test_client.get("/api/v1/products/999")
+    with test_client_factory(auth_for_user=user) as test_client:
+        response = test_client.get("/api/v1/products/999")
 
     assert response.status_code == HTTPStatus.NOT_FOUND
 ```
