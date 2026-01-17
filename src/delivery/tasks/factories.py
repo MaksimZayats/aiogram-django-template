@@ -1,6 +1,7 @@
 from celery import Celery
 
-from configs.core import ApplicationSettings, RedisSettings
+from configs.core import ApplicationSettings
+from configs.infrastructure import RedisSettings
 from delivery.tasks.registry import TaskName, TasksRegistry
 from delivery.tasks.settings import CelerySettings
 from delivery.tasks.tasks.ping import PingTaskController

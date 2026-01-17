@@ -6,8 +6,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from configs.core import (
     ApplicationSettings,
-    AWSS3Settings,
 )
+from configs.infrastructure import AWSS3Settings
 from infrastructure.django.settings.pydantic_adapter import PydanticSettingsAdapter
 from infrastructure.logging.configuration import LoggingSettings
 

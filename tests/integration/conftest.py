@@ -13,7 +13,7 @@ from tests.integration.factories import (
 @pytest.fixture(scope="function")
 def container() -> Container:
     container_factory = ContainerFactory()
-    return container_factory(configure_infrastructure=True)
+    return container_factory()
 
 
 # region Factories

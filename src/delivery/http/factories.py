@@ -11,11 +11,21 @@ from delivery.http.django.factories import DjangoWSGIFactory
 from delivery.http.health.controllers import HealthController
 from delivery.http.settings import HTTPSettings
 from delivery.http.user.controllers import UserController, UserTokenController
+from infrastructure.anyio.configurator import AnyIOConfigurator
 from infrastructure.settings.types import Environment
 
 
 class Lifespan:
-    pass
+    def __init__(
+        self,
+        anyio_configurator: AnyIOConfigurator,
+    ) -> None:
+        self._anyio_configurator = anyio_configurator
+
+    @asynccontextmanager
+    async def __call__(self, _app: FastAPI) -> AsyncIterator[None]:
+        self._anyio_configurator.configure()
+        yield
 
 
 class FastAPIFactory:
@@ -23,6 +33,7 @@ class FastAPIFactory:
         self,
         application_settings: ApplicationSettings,
         http_settings: HTTPSettings,
+        lifespan: Lifespan,
         django_wsgi_factory: DjangoWSGIFactory,
         health_controller: HealthController,
         user_token_controller: UserTokenController,
@@ -31,6 +42,7 @@ class FastAPIFactory:
         self._settings = application_settings
         self._http_settings = http_settings
         self._django_wsgi_factory = django_wsgi_factory
+        self._lifespan = lifespan
 
         self._health_controller = health_controller
         self._user_token_controller = user_token_controller
@@ -43,15 +55,11 @@ class FastAPIFactory:
         add_trusted_hosts_middleware: bool = True,
         add_cors_middleware: bool = True,
     ) -> FastAPI:
-        @asynccontextmanager
-        async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-            yield
-
         docs_url = "/api/docs" if self._settings.environment != Environment.PRODUCTION else None
 
         app = FastAPI(
             title="API",
-            lifespan=lifespan,
+            lifespan=self._lifespan,
             docs_url=docs_url,
             redoc_url=None,
         )
