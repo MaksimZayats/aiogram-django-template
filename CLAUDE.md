@@ -6,22 +6,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Install dependencies
-uv sync --locked --all-extras --dev
+uv sync --locked --all-groups
 
 # Configure environment (includes COMPOSE_FILE for local development, see .env.example)
 cp .env.example .env
 
 # Start infrastructure (PostgreSQL, Redis, MinIO)
-docker compose up -d postgres redis minio
+docker compose up -d postgres redis minio minio-create-buckets
 
-# Create MinIO buckets, run migrations, and collect static files
-docker compose up minio-create-buckets migrations collectstatic
+# Run migrations and collect static files
+docker compose up migrations collectstatic
 
 # Run development server
 make dev
 
 # Run Celery worker
 make celery-dev
+
+# Run Celery beat scheduler (for scheduled tasks)
+make celery-beat-dev
 
 # Manual database migrations (alternative to docker compose)
 make makemigrations
@@ -31,28 +34,30 @@ make migrate
 make format    # ruff format + fix
 make lint      # ruff, ty, pyrefly, mypy
 make test      # pytest with 80% coverage requirement
+
+# Documentation
+make docs      # Serve docs with live reload
+make docs-build # Build static documentation
 ```
 
 ## Python Version
 
 **Minimum Required:** Python 3.14+
 
-This project leverages Python 3.14 features including:
-- Deferred evaluation of annotations (PEP 649)
-- Template string literals (PEP 750) - available for custom string processing
-- Improved type inference and static analysis support
+The project requires Python 3.14+ and uses standard Python typing patterns including union operators (`|`), `Annotated`, and PEP 695 type parameters.
 
 All code must be compatible with `mypy --strict` mode.
 
 ## Architecture Overview
 
-This is a Django + aiogram + Celery application using **punq** for dependency injection.
+This is a Django + Celery application using **punq** for dependency injection.
 
 ### Module Structure
 
+- **`configs/`** - Application configuration (Django settings, logging, Pydantic settings classes).
 - **`core/`** - Business logic, domain models, and **services**. All database operations are encapsulated in services.
-- **`delivery/`** - External interfaces (HTTP API, Telegram bot, Celery tasks). **Controllers NEVER access models directly.**
-- **`infrastructure/`** - Cross-cutting concerns (JWT, auth, settings adapters, controller base classes).
+- **`delivery/`** - External interfaces (HTTP API, Celery tasks, JWT auth, delivery-specific services). **Controllers NEVER access models directly.**
+- **`infrastructure/`** - Cross-cutting concerns (settings adapters, controller base classes, telemetry).
 - **`ioc/`** - Dependency injection container configuration.
 - **`delivery/tasks/`** - Celery task definitions using controller pattern.
 
@@ -74,7 +79,7 @@ Controller → Service → Model
 
 ```python
 # delivery/http/user/controllers.py
-from core.user.services import UserService  # ✅ Import service, not model
+from core.user.services.user import UserService  # ✅ Import service, not model
 
 class UserController(Controller):
     def __init__(self, user_service: UserService) -> None:
@@ -99,7 +104,7 @@ class UserController(Controller):
 
 ### Creating Services
 
-Services belong in `core/<domain>/services.py`:
+Services belong in `core/<domain>/services.py` or `core/<domain>/services/<service_name>.py` for domains with multiple services:
 
 ```python
 # core/item/services.py
@@ -126,11 +131,14 @@ class ItemService:
 
 ### Registering Services
 
-Register services in `src/ioc/registries/core.py`:
+Services are **auto-registered** by the IoC container - no explicit registration needed. When a service is resolved, the `AutoRegisteringContainer` automatically registers it as a singleton based on its `__init__` type annotations.
 
 ```python
-container.register(ItemService, scope=Scope.singleton)
+# No registration needed - just resolve the service
+item_service = container.resolve(ItemService)  # Auto-registered as singleton
 ```
+
+Only protocol/interface mappings require explicit registration in `src/ioc/registries.py`.
 
 ### Data Flow
 
@@ -150,49 +158,81 @@ Direct model imports are acceptable ONLY in:
 
 ### Entry Points
 
-1. **HTTP API**: `src/manage.py` → `delivery/http/api.py` (Django-Ninja)
-2. **Telegram Bot**: `delivery/bot/__main__.py` (aiogram polling)
-3. **Celery Worker**: `delivery/tasks/app.py`
+1. **HTTP API**: `delivery/http/app.py` (FastAPI)
+2. **Celery Worker**: `delivery/tasks/app.py`
 
 All entry points share the same IoC container for consistent dependency resolution.
 
 ## IoC Container Pattern
 
-The container is configured in `src/ioc/container.py`:
+The container uses **auto-registration** - services are automatically registered when resolved based on their `__init__` type annotations.
+
+### Container Setup
+
+The container is created via `ContainerFactory` in `src/ioc/container.py`:
 
 ```python
-def get_container() -> Container:
-    container = Container()
-    register_core(container)           # Settings, models, services
-    register_infrastructure(container)  # JWT, auth, refresh sessions
-    register_delivery(container)        # HTTP, bot, Celery controllers
-    return container
+from ioc.container import ContainerFactory
+
+container_factory = ContainerFactory()
+container = container_factory()  # Creates AutoRegisteringContainer
 ```
 
-### Registering Components
+### AutoRegisteringContainer
+
+The `AutoRegisteringContainer` automatically registers services when resolved:
 
 ```python
-# Type-based (auto-resolves dependencies from __init__ signature)
-container.register(UserController, scope=Scope.singleton)
+# No explicit registration needed - just resolve
+user_service = container.resolve(UserService)  # Auto-registered as singleton
 
-# Factory-based (for settings that load from env)
-container.register(JWTServiceSettings, factory=lambda: JWTServiceSettings())
+# Pydantic Settings are auto-detected and registered with factory
+jwt_settings = container.resolve(JWTServiceSettings)  # Loads from env vars
+```
 
-# Instance (for concrete implementations of abstract types)
-container.register(type[BaseRefreshSession], instance=RefreshSession)
+The container:
+1. Inspects `__init__` type annotations
+2. Auto-registers Pydantic Settings with `factory=lambda: SettingsClass()`
+3. Auto-registers other classes as singletons
+4. Recursively registers dependencies
+
+### Explicit Registration (Special Cases Only)
+
+Explicit registration in `src/ioc/registries.py` is needed for:
+- Protocol/interface mappings
+- Special factory classes resolved by string key
+
+```python
+class Registry:
+    def register(self, container: Container) -> None:
+        # Factory class resolved by string key
+        container.register(
+            "FastAPIFactory",
+            factory=lambda: container.resolve(FastAPIFactory),
+            scope=Scope.singleton,
+        )
+        # Protocol to concrete implementation mapping
+        container.register(
+            ApplicationSettingsProtocol,
+            factory=lambda: container.resolve(ApplicationSettings),
+            scope=Scope.singleton,
+        )
 ```
 
 ### Resolving Dependencies
 
 ```python
+# The entire dependency graph is auto-resolved
 controller = container.resolve(UserController)
+# UserController -> UserService -> (auto-registered)
+# UserController -> JWTAuthFactory -> JWTService -> JWTServiceSettings (auto from env)
 ```
 
 ## Controller Pattern
 
-Controllers are defined in `infrastructure/delivery/controllers.py`. There are two base classes:
+Controllers are defined in `infrastructure/delivery/controllers.py`.
 
-### Sync Controller (HTTP API, Celery)
+### Controller (HTTP API, Celery)
 
 ```python
 class Controller(ABC):
@@ -203,37 +243,76 @@ class Controller(ABC):
         raise exception  # Override for custom error handling
 ```
 
-### Async Controller (Telegram Bot)
+Controllers auto-wrap public methods with exception handling. Override `handle_exception()` to customize error responses.
 
-For async handlers (like aiogram), use `AsyncController`:
+### Sync vs Async Handlers
+
+**Always use synchronous handler methods.** FastAPI automatically runs sync handlers in a thread pool using `anyio.to_thread.run_sync()`, providing proper parallelism for Django's synchronous ORM.
 
 ```python
-class AsyncController(ABC):
-    @abstractmethod
-    def register(self, registry: Any) -> None: ...
+# ✅ CORRECT - Sync handler (recommended)
+def get_user(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
+    user = self._user_service.get_user_by_id(user_id)
+    return UserSchema.model_validate(user, from_attributes=True)
 
-    async def handle_exception(self, exception: Exception) -> Any:
-        raise exception  # Override for custom error handling
+# ❌ WRONG - Async handler calling sync service directly (blocks event loop)
+async def get_user(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
+    user = self._user_service.get_user_by_id(user_id)  # Blocks the event loop!
+    return UserSchema.model_validate(user, from_attributes=True)
 ```
 
-Both controllers auto-wrap public methods with exception handling. Override `handle_exception()` to customize error responses.
+**Thread pool configuration:** Control parallelism via `ANYIO_THREAD_LIMITER_TOKENS` environment variable (default: 40 concurrent threads per worker). See `src/infrastructure/anyio/configurator.py`.
+
+### Async Handlers (Advanced)
+
+In rare cases where you need async handlers (e.g., calling external async APIs), use `asgiref.sync_to_async` to call services:
+
+```python
+from asgiref.sync import sync_to_async
+
+async def get_user_async(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
+    # thread_sensitive=False for read-only operations (parallel execution)
+    user = await sync_to_async(
+        self._user_service.get_user_by_id,
+        thread_sensitive=False,
+    )(user_id)
+    return UserSchema.model_validate(user, from_attributes=True)
+
+async def create_user_async(self, request: AuthenticatedRequest, body: CreateUserRequest) -> UserSchema:
+    # thread_sensitive=True for write operations (transaction safety)
+    user = await sync_to_async(
+        self._user_service.create_user,
+        thread_sensitive=True,
+    )(**body.model_dump())
+    return UserSchema.model_validate(user, from_attributes=True)
+```
+
+**Thread sensitivity rules:**
+- `thread_sensitive=False` - Read-only operations (SELECT) - allows parallel execution
+- `thread_sensitive=True` - Write operations (INSERT/UPDATE/DELETE) - ensures transaction safety
 
 ### HTTP Controller Registration
 
 ```python
-from infrastructure.django.auth import JWTAuthFactory
+from dataclasses import dataclass, field
+from fastapi import APIRouter, Depends
+from delivery.http.auth.jwt import JWTAuth, JWTAuthFactory
 
+@dataclass
 class UserController(Controller):
-    def __init__(self, jwt_auth_factory: JWTAuthFactory) -> None:
-        self._jwt_auth = jwt_auth_factory()
+    _jwt_auth_factory: JWTAuthFactory
+    _jwt_auth: JWTAuth = field(init=False)
 
-    def register(self, registry: Router) -> None:
-        registry.add_api_operation(
+    def __post_init__(self) -> None:
+        self._jwt_auth = self._jwt_auth_factory()
+
+    def register(self, registry: APIRouter) -> None:
+        registry.add_api_route(
             path="/v1/users/me",
+            endpoint=self.get_me,
             methods=["GET"],
-            view_func=self.get_me,
-            response=UserSchema,
-            auth=self._jwt_auth,
+            response_model=UserSchema,
+            dependencies=[Depends(self._jwt_auth)],
         )
 ```
 
@@ -242,21 +321,29 @@ class UserController(Controller):
 Use `JWTAuthFactory` for JWT authentication with optional permission checks:
 
 ```python
-from infrastructure.django.auth import JWTAuthFactory
+from dataclasses import dataclass, field
+from fastapi import APIRouter, Depends
+from delivery.http.auth.jwt import JWTAuth, JWTAuthFactory
 
+@dataclass
 class AdminController(Controller):
-    def __init__(self, jwt_auth_factory: JWTAuthFactory) -> None:
-        self._jwt_auth = jwt_auth_factory()  # Basic auth
-        self._staff_auth = jwt_auth_factory(require_staff=True)
-        self._superuser_auth = jwt_auth_factory(require_superuser=True)
+    _jwt_auth_factory: JWTAuthFactory
+    _jwt_auth: JWTAuth = field(init=False)
+    _staff_auth: JWTAuth = field(init=False)
+    _superuser_auth: JWTAuth = field(init=False)
 
-    def register(self, registry: Router) -> None:
+    def __post_init__(self) -> None:
+        self._jwt_auth = self._jwt_auth_factory()  # Basic auth
+        self._staff_auth = self._jwt_auth_factory(require_staff=True)
+        self._superuser_auth = self._jwt_auth_factory(require_superuser=True)
+
+    def register(self, registry: APIRouter) -> None:
         # Staff-only endpoint
-        registry.add_api_operation(
+        registry.add_api_route(
             path="/v1/admin/reports",
+            endpoint=self.list_reports,
             methods=["GET"],
-            view_func=self.list_reports,
-            auth=self._staff_auth,
+            dependencies=[Depends(self._staff_auth)],
         )
 ```
 
@@ -274,100 +361,113 @@ class PingTaskController(Controller):
         registry.task(name=TaskName.PING)(self.ping)
 ```
 
-### Telegram Bot Controller Registration
-
-```python
-class CommandsController(AsyncController):
-    def register(self, registry: Router) -> None:
-        registry.message.register(
-            self.handle_start_command,
-            Command(commands=["start"]),
-        )
-
-    async def handle_start_command(self, message: Message) -> None:
-        await message.answer("Hello!")
-```
-
-Bot controllers are registered in the IoC container and injected into `DispatcherFactory`:
-
-```python
-container.register(CommandsController, scope=Scope.singleton)
-container.register(DispatcherFactory, scope=Scope.singleton)
-container.register(
-    Dispatcher,
-    factory=lambda: container.resolve(DispatcherFactory)(),
-    scope=Scope.singleton,
-)
-```
-
 ## Testing Architecture
 
 ### Test Factories
 
-Test factories in `tests/integration/factories.py` enable isolated testing with IoC override capability:
+Test factories in `tests/integration/factories.py` are container-based and enable isolated testing:
 
-- **`TestClientFactory`** - Creates test clients with optional authentication
-- **`TestUserFactory`** - Creates test users
-- **`TestCeleryWorkerFactory`** - Manages test worker lifecycle
+- **`TestClientFactory`** - Creates FastAPI `TestClient` with optional authentication
+- **`TestUserFactory`** - Creates test users via the User model
+- **`TestCeleryWorkerFactory`** - Manages Celery worker lifecycle as context manager
 - **`TestTasksRegistryFactory`** - Creates task registry instances
+
+All factories extend `ContainerBasedFactory` and receive the container via constructor:
+
+```python
+class ContainerBasedFactory(BaseFactory, ABC):
+    def __init__(self, container: AutoRegisteringContainer) -> None:
+        self._container = container
+```
 
 ### Per-Test Container Isolation
 
-Each test gets a fresh container (function-scoped fixtures), enabling IoC overrides:
+Each test gets a fresh container (function-scoped fixtures in `tests/integration/conftest.py`):
 
 ```python
 @pytest.fixture(scope="function")
-def container() -> Container:
-    return get_container()
+def container() -> AutoRegisteringContainer:
+    container_factory = ContainerFactory()
+    return container_factory()
 
 @pytest.fixture(scope="function")
-def test_client_factory(api_factory: NinjaAPIFactory) -> TestClientFactory:
-    # New API + test client per test function for IoC override capability
-    return TestClientFactory(api_factory=api_factory)
-```
+def test_client_factory(container: AutoRegisteringContainer) -> TestClientFactory:
+    return TestClientFactory(container=container)
 
-### Overriding IoC Registrations in Tests
-
-To mock a component for a specific test:
-
-```python
-def test_with_mock_service(container: Container) -> None:
-    # Override before creating factories
-    mock_service = MagicMock()
-    container.register(JWTService, instance=mock_service)
-
-    api_factory = NinjaAPIFactory(container=container)
-    test_client = TestClientFactory(api_factory=api_factory)()
-    # Now all requests use mock_service
+@pytest.fixture(scope="function")
+def user_factory(
+    transactional_db: None,
+    container: AutoRegisteringContainer,
+) -> TestUserFactory:
+    return TestUserFactory(container=container)
 ```
 
 ### HTTP API Tests
 
+Use class-based tests with `@pytest.mark.django_db(transaction=True)`:
+
 ```python
+@pytest.fixture(scope="function")
+def user(user_factory: TestUserFactory) -> User:
+    return user_factory(username="test", password="test-password")
+
 @pytest.mark.django_db(transaction=True)
-def test_create_user(test_client_factory: TestClientFactory) -> None:
-    test_client = test_client_factory()
-    response = test_client.post("/v1/users/", json={...})
+class TestUserController:
+    def test_create_user(self, test_client_factory: TestClientFactory) -> None:
+        with test_client_factory() as test_client:
+            response = test_client.post(
+                "/v1/users/",
+                json={"username": "new_user", "email": "user@test.com", "password": "pass"},
+            )
+
+        assert response.status_code == HTTPStatus.OK
+
+    def test_authenticated_endpoint(
+        self,
+        test_client_factory: TestClientFactory,
+        user: User,
+    ) -> None:
+        # Use auth_for_user to auto-inject JWT token
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/users/me")
+
+        assert response.status_code == HTTPStatus.OK
 ```
 
 ### Celery Task Tests
 
+Use `TestTasksRegistryFactory` to get the registry and `TestCeleryWorkerFactory` as context manager:
+
 ```python
-def test_ping_task(celery_worker_factory: CeleryWorkerFactory, container: Container) -> None:
-    registry = container.resolve(TasksRegistry)
-    with celery_worker_factory():  # Starts worker in context
-        result = registry.ping.delay().get(timeout=1)
+class TestPingTaskController:
+    def test_ping_task(
+        self,
+        celery_worker_factory: TestCeleryWorkerFactory,
+        tasks_registry_factory: TestTasksRegistryFactory,
+    ) -> None:
+        registry = tasks_registry_factory()
+        with celery_worker_factory():  # Starts worker in context
+            ping_result = registry.ping.delay().get(timeout=1)
+
+        assert ping_result == PingResult(result="pong")
 ```
 
-## API Factory Customization
+### Overriding IoC Registrations in Tests
 
-`get_ninja_api()` and `get_celery_app()` accept optional `container` parameter for test customization:
+To mock a component, register it on the container before creating factories:
 
 ```python
-def get_ninja_api(
-    container: Container | None = None,  # Custom container for tests
-    urls_namespace: str | None = None,   # Unique namespace per test
-) -> NinjaAPI:
+def test_with_mock_service(container: AutoRegisteringContainer) -> None:
+    # Override before creating test client
+    mock_service = MagicMock()
+    container.register(JWTService, instance=mock_service)
+
+    test_client_factory = TestClientFactory(container=container)
+    with test_client_factory() as test_client:
+        # Now all requests use mock_service
+        response = test_client.get("/v1/some-endpoint")
+
+    assert response.status_code == 200
 ```
 
 ## Configuration
@@ -376,10 +476,16 @@ Uses Pydantic BaseSettings with environment variable prefixes:
 - `DJANGO_` - Django settings (SECRET_KEY, DEBUG)
 - `JWT_` - JWT configuration (SECRET_KEY, algorithm, expiry)
 - `AWS_S3_` - S3/MinIO storage
-- `TELEGRAM_BOT_` - Bot token
 - `CELERY_` - Celery settings
+- `ANYIO_` - Thread pool settings (THREAD_LIMITER_TOKENS for parallelism)
+- `LOGGING_` - Logging level configuration
+- `LOGFIRE_` - OpenTelemetry Logfire instrumentation (enabled, token)
+- `INSTRUMENTOR_` - FastAPI instrumentation settings
+- `CORS_` - CORS configuration (allow_credentials, allow_origins, allow_methods, allow_headers)
 
-Settings classes are registered in IoC and injected into services.
+Unprefixed variables: `DATABASE_URL`, `REDIS_URL`, `ENVIRONMENT`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`
+
+Settings classes are auto-registered in IoC and injected into services.
 
 ## Test Environment
 

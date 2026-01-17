@@ -1,6 +1,6 @@
 # Service Layer
 
-The Service Layer is the most important architectural pattern in this template. It enforces a strict boundary between your delivery mechanisms (HTTP API, Telegram bot, Celery tasks) and your business logic.
+The Service Layer is the most important architectural pattern in this template. It enforces a strict boundary between your delivery mechanisms (HTTP API, Celery tasks) and your business logic.
 
 ## The Golden Rule
 
@@ -37,11 +37,6 @@ class UserController(Controller):
     def __init__(self, user_service: UserService) -> None:
         self._user_service = user_service
 
-# Telegram bot controller uses the same UserService
-class CommandsController(AsyncController):
-    def __init__(self, user_service: UserService) -> None:
-        self._user_service = user_service
-
 # Celery task uses the same UserService
 class UserCleanupController(Controller):
     def __init__(self, user_service: UserService) -> None:
@@ -63,7 +58,7 @@ The architecture makes responsibilities explicit:
 
 | Layer | Responsibility |
 |-------|----------------|
-| Controller | HTTP/Bot/Task concerns, request validation, response formatting |
+| Controller | HTTP/Task concerns, request validation, response formatting |
 | Service | Business logic, database operations, domain rules |
 | Model | Data structure, database schema |
 
@@ -108,15 +103,17 @@ class UserService:
 
 ```python
 # delivery/http/user/controllers.py
-from core.user.services import UserService  # Import service, NOT model
+from dataclasses import dataclass
+from fastapi import Request
+from core.user.services.user import UserService  # Import service, NOT model
 
+@dataclass
 class UserController(Controller):
-    def __init__(self, user_service: UserService) -> None:
-        self._user_service = user_service
+    _user_service: UserService
 
-    def create_user(
+    async def create_user(
         self,
-        request: HttpRequest,
+        request: Request,
         request_body: CreateUserRequestSchema,
     ) -> UserSchema:
         user = self._user_service.create_user(
@@ -139,9 +136,9 @@ class UserController(Controller):
 from core.user.models import User  # NEVER import models in controllers
 
 class UserController(Controller):
-    def create_user(
+    async def create_user(
         self,
-        request: HttpRequest,
+        request: Request,
         request_body: CreateUserRequestSchema,
     ) -> UserSchema:
         # WRONG - Direct ORM access
@@ -297,14 +294,16 @@ ApplicationError (base)
 Controllers then handle these exceptions and convert them to appropriate responses:
 
 ```python
+from fastapi import HTTPException, Request
+
 class HealthController(Controller):
-    def health_check(self, request: HttpRequest) -> HealthCheckResponseSchema:
+    async def health_check(self, request: Request) -> HealthCheckResponseSchema:
         try:
             self._health_service.check_system_health()
         except HealthCheckError as e:
-            raise HttpError(
+            raise HTTPException(
                 status_code=HTTPStatus.SERVICE_UNAVAILABLE,
-                message="Service is unavailable",
+                detail="Service is unavailable",
             ) from e
 
         return HealthCheckResponseSchema(status="ok")
@@ -317,7 +316,7 @@ Services are registered in the IoC container as singletons:
 ```python
 # ioc/registries/core.py
 from punq import Container, Scope
-from core.user.services import UserService
+from core.user.services.user import UserService
 from core.health.services import HealthService
 
 def _register_services(container: Container) -> None:
@@ -341,7 +340,7 @@ Direct model imports are acceptable ONLY in:
 The Service Layer pattern provides:
 
 1. **Clear separation** between delivery and business logic
-2. **Reusable business logic** across HTTP, Celery, and Telegram
+2. **Reusable business logic** across HTTP and Celery
 3. **Testable architecture** through dependency injection
 4. **Maintainable code** with isolated concerns
 5. **Domain exceptions** for meaningful error handling

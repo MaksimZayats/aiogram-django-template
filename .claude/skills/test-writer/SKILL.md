@@ -6,7 +6,7 @@ version: 1.0.0
 
 # Test Writer Skill
 
-This skill guides you through writing tests for the aiogram-django-template codebase using the established test patterns with IoC container overrides and test factories.
+This skill guides you through writing tests for this codebase using the established test patterns with IoC container overrides and test factories.
 
 ## Quick Reference: Test Locations
 
@@ -23,11 +23,13 @@ This skill guides you through writing tests for the aiogram-django-template code
 Every test gets a fresh IoC container:
 
 ```python
+from infrastructure.punq.container import AutoRegisteringContainer
+from ioc.container import ContainerFactory
+
 @pytest.fixture(scope="function")
-def container(django_user_model: type[User]) -> Container:
-    container = get_container()
-    container.register(type[AbstractUser], instance=django_user_model, scope=Scope.singleton)
-    return container
+def container() -> AutoRegisteringContainer:
+    container_factory = ContainerFactory()
+    return container_factory()
 ```
 
 This enables:
@@ -53,7 +55,7 @@ Available factories in `tests/integration/factories.py`:
 ```python
 @pytest.mark.django_db(transaction=True)
 def test_with_mock(
-    container: Container,
+    container: AutoRegisteringContainer,
     user_factory: TestUserFactory,
 ) -> None:
     # 1. Create mock
@@ -66,10 +68,9 @@ def test_with_mock(
     # 3. Create test client (uses mock)
     user = user_factory()
     test_client_factory = TestClientFactory(container=container)
-    test_client = test_client_factory(auth_for_user=user)
-
-    # 4. Make request
-    response = test_client.get("/v1/endpoint/")
+    with test_client_factory(auth_for_user=user) as test_client:
+        # 4. Make request
+        response = test_client.get("/v1/endpoint/")
 
     # 5. Assert
     assert response.status_code == HTTPStatus.OK
@@ -81,8 +82,9 @@ def test_with_mock(
 ```python
 @pytest.mark.django_db(transaction=True)
 def test_create_success(self, test_client_factory: TestClientFactory, user: User) -> None:
-    test_client = test_client_factory(auth_for_user=user)
-    response = test_client.post("/v1/<domain>s/", json={"name": "Test"})
+    with test_client_factory(auth_for_user=user) as test_client:
+        response = test_client.post("/v1/<domain>s/", json={"name": "Test"})
+
     assert response.status_code == HTTPStatus.OK
 ```
 

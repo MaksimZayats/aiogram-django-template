@@ -30,7 +30,6 @@ Each settings class uses a prefix to namespace its environment variables:
 | `SecuritySettings` | `DJANGO_` | `DJANGO_SECRET_KEY` |
 | `JWTServiceSettings` | `JWT_` | `JWT_SECRET_KEY` |
 | `AWSS3Settings` | `AWS_S3_` | `AWS_S3_ENDPOINT_URL` |
-| `TelegramBotSettings` | `TELEGRAM_BOT_` | `TELEGRAM_BOT_TOKEN` |
 | `CelerySettings` | `CELERY_` | `CELERY_TASK_TIME_LIMIT` |
 | `CacheSettings` | `CACHE_` | `CACHE_DEFAULT_TIMEOUT` |
 
@@ -142,27 +141,6 @@ Environment variables:
 JWT_SECRET_KEY=your-256-bit-secret
 JWT_ALGORITHM=HS256
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=15
-```
-
-### Telegram Bot Settings
-
-```python
-from pydantic import SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-class TelegramBotSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="TELEGRAM_BOT_")
-
-    token: SecretStr
-    parse_mode: str = "HTML"
-```
-
-Environment variables:
-
-```bash
-TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
-TELEGRAM_BOT_PARSE_MODE=HTML
 ```
 
 ### Celery Settings

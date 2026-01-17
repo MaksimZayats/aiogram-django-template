@@ -45,7 +45,7 @@ class InsufficientInventoryError(Exception):
 from http import HTTPStatus
 from typing import Any
 
-from ninja.errors import HttpError
+from fastapi import HTTPException
 
 from core.orders.services import (
     InsufficientInventoryError,
@@ -60,26 +60,26 @@ class OrderController(Controller):
     def __init__(self, order_service: OrderService) -> None:
         self._order_service = order_service
 
-    def register(self, registry: Router) -> None:
+    def register(self, registry: APIRouter) -> None:
         # ... register routes ...
 
     def handle_exception(self, exception: Exception) -> Any:
         if isinstance(exception, OrderNotFoundError):
-            raise HttpError(
+            raise HTTPException(
                 status_code=HTTPStatus.NOT_FOUND,
-                message=str(exception),
+                detail=str(exception),
             ) from exception
 
         if isinstance(exception, OrderAlreadyShippedError):
-            raise HttpError(
+            raise HTTPException(
                 status_code=HTTPStatus.CONFLICT,
-                message="Cannot modify a shipped order",
+                detail="Cannot modify a shipped order",
             ) from exception
 
         if isinstance(exception, InsufficientInventoryError):
-            raise HttpError(
+            raise HTTPException(
                 status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-                message=str(exception),
+                detail=str(exception),
             ) from exception
 
         # Fall back to default behavior for unhandled exceptions
@@ -96,9 +96,9 @@ Here is how the template handles refresh token exceptions:
 from http import HTTPStatus
 from typing import Any
 
-from ninja.errors import HttpError
+from fastapi import HTTPException
 
-from infrastructure.django.refresh_sessions.services import (
+from core.user.services.refresh_session import (
     ExpiredRefreshTokenError,
     InvalidRefreshTokenError,
     RefreshTokenError,
@@ -119,26 +119,26 @@ class UserTokenController(Controller):
         self._refresh_token_service = refresh_token_service
         self._user_service = user_service
 
-    def register(self, registry: Router) -> None:
+    def register(self, registry: APIRouter) -> None:
         # ... route registration ...
 
     def handle_exception(self, exception: Exception) -> Any:
         if isinstance(exception, InvalidRefreshTokenError):
-            raise HttpError(
+            raise HTTPException(
                 status_code=HTTPStatus.UNAUTHORIZED,
-                message="Invalid refresh token",
+                detail="Invalid refresh token",
             ) from exception
 
         if isinstance(exception, ExpiredRefreshTokenError):
-            raise HttpError(
+            raise HTTPException(
                 status_code=HTTPStatus.UNAUTHORIZED,
-                message="Refresh token expired or revoked",
+                detail="Refresh token expired or revoked",
             ) from exception
 
         if isinstance(exception, RefreshTokenError):
-            raise HttpError(
+            raise HTTPException(
                 status_code=HTTPStatus.UNAUTHORIZED,
-                message="Refresh token error",
+                detail="Refresh token error",
             ) from exception
 
         return super().handle_exception(exception)
@@ -147,19 +147,19 @@ class UserTokenController(Controller):
 ## Exception Chaining
 
 !!! important "Always Chain Exceptions"
-    Use `from exception` when raising `HttpError` to preserve the exception chain for debugging and logging.
+    Use `from exception` when raising `HTTPException` to preserve the exception chain for debugging and logging.
 
 ```python
 # Correct: preserves exception chain
-raise HttpError(
+raise HTTPException(
     status_code=HTTPStatus.NOT_FOUND,
-    message="Order not found",
+    detail="Order not found",
 ) from exception
 
 # Incorrect: loses original exception context
-raise HttpError(
+raise HTTPException(
     status_code=HTTPStatus.NOT_FOUND,
-    message="Order not found",
+    detail="Order not found",
 )
 ```
 
@@ -203,51 +203,31 @@ Then handle the base class as a fallback:
 ```python
 def handle_exception(self, exception: Exception) -> Any:
     if isinstance(exception, PaymentNotFoundError):
-        raise HttpError(
+        raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            message=str(exception),
+            detail=str(exception),
         ) from exception
 
     if isinstance(exception, PaymentDeclinedError):
-        raise HttpError(
+        raise HTTPException(
             status_code=HTTPStatus.PAYMENT_REQUIRED,
-            message="Payment was declined",
+            detail="Payment was declined",
         ) from exception
 
     if isinstance(exception, PaymentAlreadyProcessedError):
-        raise HttpError(
+        raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
-            message="Payment has already been processed",
+            detail="Payment has already been processed",
         ) from exception
 
     # Catch any other PaymentError
     if isinstance(exception, PaymentError):
-        raise HttpError(
+        raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
-            message="Payment error occurred",
+            detail="Payment error occurred",
         ) from exception
 
     return super().handle_exception(exception)
-```
-
-## Async Controllers
-
-For Telegram bot handlers, use `AsyncController` with an async `handle_exception()`:
-
-```python
-from infrastructure.delivery.controllers import AsyncController
-
-
-class BotController(AsyncController):
-    def register(self, registry: Router) -> None:
-        # ... register handlers ...
-
-    async def handle_exception(self, exception: Exception) -> Any:
-        if isinstance(exception, SomeDomainError):
-            # Handle async-specific error responses
-            return await self._send_error_message(exception)
-
-        return await super().handle_exception(exception)
 ```
 
 ## Summary
@@ -255,6 +235,6 @@ class BotController(AsyncController):
 1. Define domain exceptions in your service module
 2. Override `handle_exception()` in your controller
 3. Use `isinstance()` to check exception types
-4. Map exceptions to appropriate HTTP status codes using `HttpError`
+4. Map exceptions to appropriate HTTP status codes using `HTTPException`
 5. Always chain exceptions with `from exception`
 6. Call `super().handle_exception(exception)` for unhandled cases

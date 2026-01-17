@@ -20,15 +20,15 @@ This reference provides comprehensive mocking patterns for testing with IoC cont
 from unittest.mock import MagicMock
 
 import pytest
-from punq import Container
 
 from core.product.services import ProductService, ProductNotFoundError
+from infrastructure.punq.container import AutoRegisteringContainer
 from tests.integration.factories import TestClientFactory, TestUserFactory
 
 
 @pytest.mark.django_db(transaction=True)
 def test_with_mocked_service(
-    container: Container,
+    container: AutoRegisteringContainer,
     user_factory: TestUserFactory,
 ) -> None:
     # Step 1: Create mock with spec (type safety)
@@ -47,10 +47,9 @@ def test_with_mocked_service(
     # Step 4: Create user and test client
     user = user_factory()
     test_client_factory = TestClientFactory(container=container)
-    test_client = test_client_factory(auth_for_user=user)
-
-    # Step 5: Make request
-    response = test_client.get("/v1/products/1")
+    with test_client_factory(auth_for_user=user) as test_client:
+        # Step 5: Make request
+        response = test_client.get("/v1/products/1")
 
     # Step 6: Assert response
     assert response.status_code == 200
@@ -208,7 +207,7 @@ def mock_jwt_service() -> MagicMock:
 
 @pytest.mark.django_db(transaction=True)
 def test_with_mocked_jwt(
-    container: Container,
+    container: AutoRegisteringContainer,
     mock_jwt_service: MagicMock,
     test_client_factory: TestClientFactory,
     user_factory: TestUserFactory,
@@ -216,12 +215,11 @@ def test_with_mocked_jwt(
     container.register(JWTService, instance=mock_jwt_service)
 
     user = user_factory()
-    test_client = test_client_factory()
-
-    response = test_client.get(
-        "/v1/users/me",
-        headers={"Authorization": "Bearer any-token"},
-    )
+    with test_client_factory() as test_client:
+        response = test_client.get(
+            "/v1/users/me",
+            headers={"Authorization": "Bearer any-token"},
+        )
 
     mock_jwt_service.decode_token.assert_called_once_with(token="any-token")
 ```
@@ -250,7 +248,7 @@ When you need to mock multiple services:
 ```python
 @pytest.mark.django_db(transaction=True)
 def test_with_multiple_mocks(
-    container: Container,
+    container: AutoRegisteringContainer,
     user_factory: TestUserFactory,
 ) -> None:
     # Create all mocks
@@ -271,10 +269,9 @@ def test_with_multiple_mocks(
     # Now create client and test
     user = user_factory()
     test_client_factory = TestClientFactory(container=container)
-    test_client = test_client_factory(auth_for_user=user)
-
-    # Test endpoint that uses all three services
-    response = test_client.post("/v1/orders/", json={"product_id": 1, "quantity": 5})
+    with test_client_factory(auth_for_user=user) as test_client:
+        # Test endpoint that uses all three services
+        response = test_client.post("/v1/orders/", json={"product_id": 1, "quantity": 5})
 
     assert response.status_code == 200
     mock_product_service.get_by_id.assert_called_once()
@@ -318,13 +315,15 @@ mock_service.list_all.return_value = mock_queryset
 ```python
 # WRONG - Mock registered after client creation
 user = user_factory()
-test_client = test_client_factory(auth_for_user=user)
-container.register(Service, instance=mock_service)  # Too late!
+with test_client_factory(auth_for_user=user) as test_client:
+    container.register(Service, instance=mock_service)  # Too late!
+    response = test_client.get("/v1/endpoint/")
 
 # CORRECT - Mock registered before client creation
 container.register(Service, instance=mock_service)
 user = user_factory()
-test_client = test_client_factory(auth_for_user=user)
+with test_client_factory(auth_for_user=user) as test_client:
+    response = test_client.get("/v1/endpoint/")
 ```
 
 ### Missing spec Parameter
@@ -344,10 +343,10 @@ mock_service.non_existent_method()  # Will fail!
 ```python
 # WRONG - Creating new container
 def test_something():
-    container = get_container()  # New container, not the test one!
+    container = ContainerFactory()()  # New container, not the test one!
     container.register(Service, instance=mock)
 
 # CORRECT - Using fixture container
-def test_something(container: Container):  # Use fixture
+def test_something(container: AutoRegisteringContainer):  # Use fixture
     container.register(Service, instance=mock)
 ```

@@ -6,7 +6,7 @@ version: 1.0.0
 
 # Feature Developer Skill
 
-This skill guides you through adding new features to the aiogram-django-template codebase following established architectural patterns.
+This skill guides you through adding new features to this codebase following established architectural patterns.
 
 ## The Golden Rule
 
@@ -35,7 +35,6 @@ HTTP Request -> Controller -> Service -> Model -> Database
 | Service | `src/core/<domain>/services.py` | `src/ioc/registries/core.py` |
 | HTTP Controller | `src/delivery/http/<domain>/controllers.py` | `src/ioc/registries/delivery.py` |
 | Celery Task | `src/delivery/tasks/tasks/<task>.py` | `src/ioc/registries/delivery.py` |
-| Bot Handler | `src/delivery/bot/controllers/<handler>.py` | `src/ioc/registries/delivery.py` |
 
 ## Workflow: Adding a New Domain
 
@@ -77,14 +76,26 @@ Full template with CRUD operations: See `references/domain-checklist.md` (Step 5
 
 ## Controller Pattern
 
-Controllers handle HTTP, convert exceptions, and delegate to services.
+Controllers handle HTTP, convert exceptions, and delegate to services. **Always use sync methods** - FastAPI runs them in a thread pool automatically.
 
 ```python
+@dataclass
 class <Domain>Controller(Controller):
-    def __init__(self, jwt_auth_factory: JWTAuthFactory, service: <Domain>Service) -> None: ...
-    def register(self, registry: Router) -> None: ...
+    _jwt_auth_factory: JWTAuthFactory
+    _<domain>_service: <Domain>Service
+
+    def register(self, registry: APIRouter) -> None: ...
+
+    # ✅ Sync handler - FastAPI runs in thread pool via anyio.to_thread
+    def get_item(self, request: AuthenticatedRequest, item_id: int) -> <Model>Schema:
+        item = self._<domain>_service.get_by_id(item_id)
+        return <Model>Schema.model_validate(item, from_attributes=True)
+
     def handle_exception(self, exception: Exception) -> Any: ...
 ```
+
+**Thread pool parallelism:** Configure via `ANYIO_THREAD_LIMITER_TOKENS` env var (default: 40).
+See `src/infrastructure/anyio/configurator.py`.
 
 Full template with schemas and routes: See `references/controller-patterns.md`
 
@@ -98,7 +109,7 @@ container.register(<Domain>Service, scope=Scope.singleton)
 container.register(<Domain>Controller, scope=Scope.singleton)
 ```
 
-Full NinjaAPIFactory update: See `references/domain-checklist.md` (Step 10)
+Full FastAPIFactory update: See `references/domain-checklist.md` (Step 10)
 
 ## Validation: After Implementation
 
@@ -121,6 +132,7 @@ make dev
 | Mistake | Why It's Wrong | Correct Approach |
 |---------|---------------|------------------|
 | Importing models in controllers | Violates architecture | Import and use services only |
+| Using async handlers with sync services | Blocks the event loop | Use sync handlers (FastAPI runs in thread pool) |
 | Skipping IoC registration | Dependencies won't resolve | Always register services and controllers |
 | Using generic exceptions | Hard to handle specifically | Create domain-specific exceptions |
 | Forgetting `@transaction.atomic` | Multi-step operations can fail partially | Wrap create/update/delete in transactions |
@@ -130,7 +142,7 @@ make dev
 
 For detailed examples and edge cases, read:
 - `references/domain-checklist.md` - Complete step-by-step checklist
-- `references/controller-patterns.md` - HTTP, Celery, and Bot controller examples
+- `references/controller-patterns.md` - HTTP and Celery controller examples
 - `references/testing-new-features.md` - How to test your new domain
 
 ## Project Documentation

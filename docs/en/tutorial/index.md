@@ -1,6 +1,6 @@
 # Tutorial: Build a Todo List
 
-This hands-on tutorial guides you through building a complete **Todo List** feature using the Modern Django API Template. You will learn the core architectural patterns while creating a real, working feature.
+This hands-on tutorial guides you through building a complete **Todo List** feature using Fast Django. You will learn the core architectural patterns while creating a real, working feature.
 
 ## What You'll Build
 
@@ -8,7 +8,7 @@ By the end of this tutorial, you will have built:
 
 - **Todo Model** - A Django model to store todo items with user ownership
 - **TodoService** - A service layer encapsulating all database operations
-- **HTTP API** - RESTful endpoints for CRUD operations using Django Ninja
+- **HTTP API** - RESTful endpoints for CRUD operations using FastAPI
 - **Celery Task** - A background task to clean up completed todos
 - **Admin Interface** - Django admin for managing todos
 - **Tests** - Integration tests with IoC override capability
@@ -40,7 +40,7 @@ This separation ensures:
 
 - **Testability** - Each layer can be tested in isolation
 - **Maintainability** - Business logic stays independent of delivery mechanism
-- **Flexibility** - The same service works for HTTP, Celery, and Telegram bot
+- **Flexibility** - The same service works for HTTP and Celery
 
 ## Prerequisites
 
@@ -56,7 +56,7 @@ Before starting this tutorial, make sure you have:
 |------|-------|-------------------|
 | [Step 1](01-model-and-service.md) | Model & Service | Django models, service layer pattern, domain exceptions |
 | [Step 2](02-ioc-registration.md) | IoC Registration | Dependency injection with punq, container configuration |
-| [Step 3](03-http-api.md) | HTTP API & Admin | Controllers, Pydantic schemas, rate limiting, admin |
+| [Step 3](03-http-api.md) | HTTP API & Admin | Sync controllers, Pydantic schemas, thread pool parallelism, admin |
 | [Step 4](04-celery-tasks.md) | Celery Tasks | Task controllers, background jobs, task registry |
 | [Step 5](05-observability.md) | Observability | Structured logging, metrics, health checks |
 | [Step 6](06-testing.md) | Testing | Integration tests, IoC overrides, test factories |

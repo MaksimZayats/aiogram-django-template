@@ -1,6 +1,6 @@
 # Development Environment
 
-Configure your development environment for the best experience with the Modern Django API Template.
+Configure your development environment for the best experience with Fast Django.
 
 ## IDE Setup
 
@@ -66,7 +66,7 @@ PyCharm provides built-in support for most features.
    - Go to `Settings` > `Languages & Frameworks` > `Django`
    - Enable Django support
    - Set Django project root to the repository root
-   - Set Settings to `core.configs.django`
+   - Set Settings to `configs.django`
 
 4. **Configure Ruff**
    - Go to `Settings` > `Tools` > `Ruff`
@@ -264,7 +264,7 @@ Tests are configured in `pyproject.toml`:
 ```toml
 [tool.pytest.ini_options]
 minversion = "9.0"
-DJANGO_SETTINGS_MODULE = "core.configs.django"
+DJANGO_SETTINGS_MODULE = "configs.django"
 addopts = "--exitfirst -vv --cov=src --cov-report=html --cov-fail-under=80"
 testpaths = ["tests"]
 ```
@@ -307,7 +307,6 @@ Tests use `.env.test` which is loaded automatically by `tests/conftest.py`.
 | `make dev` | Run development server |
 | `make celery-dev` | Run Celery worker |
 | `make celery-beat-dev` | Run Celery beat scheduler |
-| `make bot-dev` | Run Telegram bot |
 | `make format` | Format code with Ruff |
 | `make lint` | Run all linters and type checkers |
 | `make test` | Run tests with coverage |
@@ -343,7 +342,7 @@ Create `.vscode/launch.json`:
       "module": "pytest",
       "args": ["${file}", "-vv"],
       "env": {
-        "DJANGO_SETTINGS_MODULE": "core.configs.django"
+        "DJANGO_SETTINGS_MODULE": "configs.django"
       }
     }
   ]

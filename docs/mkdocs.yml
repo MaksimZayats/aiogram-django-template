@@ -1,8 +1,8 @@
-site_name: Modern Django API Template
+site_name: Fast Django
 site_url: https://template.zayats.dev
-site_description: Production-ready Django, Celery, and aiogram application with dependency injection
-repo_url: https://github.com/MaksimZayats/modern-django-template
-repo_name: MaksimZayats/modern-django-template
+site_description: Production-ready Django, FastAPI, and Celery application with dependency injection
+repo_url: https://github.com/MaksimZayats/fastdjango
+repo_name: MaksimZayats/fastdjango
 
 docs_dir: en
 site_dir: ../site

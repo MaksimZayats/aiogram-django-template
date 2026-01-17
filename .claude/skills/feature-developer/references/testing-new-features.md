@@ -67,13 +67,14 @@ class Test<Model>Factory(ContainerBasedFactory):
 Add to `tests/integration/conftest.py`:
 
 ```python
+from infrastructure.punq.container import AutoRegisteringContainer
 from tests.integration.factories import Test<Model>Factory
 
 
 @pytest.fixture(scope="function")
 def <model>_factory(
     transactional_db: None,
-    container: Container,
+    container: AutoRegisteringContainer,
 ) -> Test<Model>Factory:
     return Test<Model>Factory(container=container)
 ```
@@ -117,15 +118,14 @@ class TestCreate<Model>:
         test_client_factory: TestClientFactory,
         user: User,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.post(
-            "/v1/<domain>s/",
-            json={
-                "name": "New <Model>",
-                "description": "Test description",
-            },
-        )
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.post(
+                "/v1/<domain>s/",
+                json={
+                    "name": "New <Model>",
+                    "description": "Test description",
+                },
+            )
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -137,12 +137,11 @@ class TestCreate<Model>:
         self,
         test_client_factory: TestClientFactory,
     ) -> None:
-        test_client = test_client_factory()  # No auth
-
-        response = test_client.post(
-            "/v1/<domain>s/",
-            json={"name": "Test"},
-        )
+        with test_client_factory() as test_client:  # No auth
+            response = test_client.post(
+                "/v1/<domain>s/",
+                json={"name": "Test"},
+            )
 
         assert response.status_code == HTTPStatus.UNAUTHORIZED
 
@@ -152,12 +151,11 @@ class TestCreate<Model>:
         test_client_factory: TestClientFactory,
         user: User,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.post(
-            "/v1/<domain>s/",
-            json={},  # Missing required fields
-        )
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.post(
+                "/v1/<domain>s/",
+                json={},  # Missing required fields
+            )
 
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
@@ -170,9 +168,8 @@ class TestList<Model>s:
         user: User,
         <model>: <Model>,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.get("/v1/<domain>s/")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/<domain>s/")
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -184,9 +181,8 @@ class TestList<Model>s:
         test_client_factory: TestClientFactory,
         user: User,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.get("/v1/<domain>s/")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/<domain>s/")
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -201,9 +197,8 @@ class TestGet<Model>:
         user: User,
         <model>: <Model>,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.get(f"/v1/<domain>s/{<model>.id}")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get(f"/v1/<domain>s/{<model>.id}")
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -215,9 +210,8 @@ class TestGet<Model>:
         test_client_factory: TestClientFactory,
         user: User,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.get("/v1/<domain>s/99999")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/<domain>s/99999")
 
         assert response.status_code == HTTPStatus.NOT_FOUND
 
@@ -230,12 +224,11 @@ class TestUpdate<Model>:
         user: User,
         <model>: <Model>,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.patch(
-            f"/v1/<domain>s/{<model>.id}",
-            json={"name": "Updated Name"},
-        )
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.patch(
+                f"/v1/<domain>s/{<model>.id}",
+                json={"name": "Updated Name"},
+            )
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -250,15 +243,14 @@ class TestDelete<Model>:
         user: User,
         <model>: <Model>,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.delete(f"/v1/<domain>s/{<model>.id}")
 
-        response = test_client.delete(f"/v1/<domain>s/{<model>.id}")
+            # Verify deletion
+            verify_response = test_client.get(f"/v1/<domain>s/{<model>.id}")
 
         assert response.status_code == HTTPStatus.NO_CONTENT
-
-        # Verify deletion
-        response = test_client.get(f"/v1/<domain>s/{<model>.id}")
-        assert response.status_code == HTTPStatus.NOT_FOUND
+        assert verify_response.status_code == HTTPStatus.NOT_FOUND
 ```
 
 ## IoC Override Pattern for Mocking
@@ -269,16 +261,16 @@ When you need to mock a service:
 from unittest.mock import MagicMock
 
 import pytest
-from punq import Container
 
 from core.<domain>.services import <Domain>Service, <Domain>NotFoundError
+from infrastructure.punq.container import AutoRegisteringContainer
 
 
-class TestWith MockedService:
+class TestWithMockedService:
     @pytest.mark.django_db(transaction=True)
     def test_handles_service_error(
         self,
-        container: Container,
+        container: AutoRegisteringContainer,
         user_factory: TestUserFactory,
     ) -> None:
         # Create mock
@@ -291,9 +283,8 @@ class TestWith MockedService:
         # Now create client
         user = user_factory()
         test_client_factory = TestClientFactory(container=container)
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.get("/v1/<domain>s/1")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/<domain>s/1")
 
         assert response.status_code == HTTPStatus.NOT_FOUND
         mock_service.get_by_id.assert_called_once()

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Any
 
 from celery import Celery, Task
@@ -7,9 +8,9 @@ class TaskNotFoundError(Exception):
     pass
 
 
+@dataclass
 class BaseTasksRegistry:
-    def __init__(self, app: Celery) -> None:
-        self._celery_app = app
+    _celery_app: Celery
 
     def _get_task_by_name(self, name: str) -> Task[..., Any]:
         try:

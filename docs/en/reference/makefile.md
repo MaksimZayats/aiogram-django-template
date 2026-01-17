@@ -6,10 +6,9 @@ All development commands are available through the Makefile.
 
 | Command | Description |
 |---------|-------------|
-| `make dev` | Run Django development server with `DJANGO_DEBUG=true` |
-| `make celery-dev` | Run Celery worker with DEBUG logging |
+| `make dev` | Run FastAPI development server with uvicorn (hot reload) |
+| `make celery-dev` | Run Celery worker with DEBUG logging and auto-restart |
 | `make celery-beat-dev` | Run Celery beat scheduler with DEBUG logging |
-| `make bot-dev` | Run Telegram bot in polling mode |
 
 ## Database
 
@@ -44,18 +43,22 @@ All development commands are available through the Makefile.
 ### make dev
 
 ```bash
-DJANGO_DEBUG=true uv run src/manage.py runserver
+uv run uvicorn delivery.http.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Starts the Django development server on `http://127.0.0.1:8000`.
+Starts the FastAPI development server on `http://0.0.0.0:8000` with hot reload.
 
 ### make celery-dev
 
 ```bash
-OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES uv run celery -A delivery.tasks.app worker --loglevel=DEBUG
+OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES uv run watchmedo auto-restart \
+    --directory=src \
+    --pattern='*.py' \
+    --recursive \
+    -- celery -A delivery.tasks.app worker --loglevel=DEBUG
 ```
 
-The `OBJC_DISABLE_INITIALIZE_FORK_SAFETY` flag is required on macOS.
+Uses `watchmedo` to auto-restart the worker on code changes. The `OBJC_DISABLE_INITIALIZE_FORK_SAFETY` flag is required on macOS.
 
 ### make celery-beat-dev
 
@@ -64,14 +67,6 @@ uv run celery -A delivery.tasks.app beat --loglevel=DEBUG
 ```
 
 Runs the periodic task scheduler.
-
-### make bot-dev
-
-```bash
-uv run python -m delivery.bot
-```
-
-Runs the Telegram bot in long-polling mode. Requires `TELEGRAM_BOT_TOKEN`.
 
 ### make format
 

@@ -38,39 +38,39 @@ Test factories provide several benefits:
 
 Add a factory for creating test todos in `tests/integration/factories.py`.
 
-```python title="tests/integration/factories.py" hl_lines="10 19-20 91-107"
-import uuid
+```python title="tests/integration/factories.py" hl_lines="10 14 63-79"
 from abc import ABC, abstractmethod
 from contextlib import AbstractContextManager
-from typing import Any, cast
+from typing import Any
 
 from celery.contrib.testing import worker
 from celery.worker import WorkController
-from django.contrib.auth.models import AbstractUser
-from ninja.testing import TestClient
-from punq import Container
+from fastapi.testclient import TestClient
 
 from core.todo.models import Todo
 from core.todo.services import TodoService
 from core.user.models import User
-from delivery.http.factories import NinjaAPIFactory
+from delivery.http.factories import FastAPIFactory
+from delivery.services.jwt import JWTService
 from delivery.tasks.factories import CeleryAppFactory, TasksRegistryFactory
 from delivery.tasks.registry import TasksRegistry
-from infrastructure.jwt.services import JWTService
+from infrastructure.punq.container import AutoRegisteringContainer
 
 
-class ContainerBasedFactory(ABC):
+class BaseFactory(ABC):
     __test__ = False
-
-    def __init__(
-        self,
-        container: Container,
-    ) -> None:
-        self._container = container
 
     @abstractmethod
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         pass
+
+
+class ContainerBasedFactory(BaseFactory, ABC):
+    def __init__(
+        self,
+        container: AutoRegisteringContainer,
+    ) -> None:
+        self._container = container
 
 
 class TestClientFactory(ContainerBasedFactory):
@@ -80,7 +80,7 @@ class TestClientFactory(ContainerBasedFactory):
         headers: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> TestClient:
-        api_factory = self._container.resolve(NinjaAPIFactory)
+        api_factory = self._container.resolve(FastAPIFactory)
         jwt_service = self._container.resolve(JWTService)
 
         headers = headers or {}
@@ -90,7 +90,7 @@ class TestClientFactory(ContainerBasedFactory):
             headers["Authorization"] = f"Bearer {token}"
 
         return TestClient(
-            api_factory(urls_namespace=str(uuid.uuid7())),
+            api_factory(),
             headers=headers,
             **kwargs,
         )
@@ -102,16 +102,16 @@ class TestUserFactory(ContainerBasedFactory):
         username: str = "test_user",
         password: str = "password123",  # noqa: S107
         email: str = "user@test.com",
+        *,
+        is_staff: bool = False,
+        **kwargs: Any,
     ) -> User:
-        user_model = cast(
-            type[User],
-            self._container.resolve(type[AbstractUser]),
-        )
-
-        return user_model.objects.create_user(
+        return User.objects.create_user(
             username=username,
             email=email,
             password=password,
+            is_staff=is_staff,
+            **kwargs,
         )
 
 
@@ -162,16 +162,11 @@ class TestTodoFactory(ContainerBasedFactory):
 
 Add the fixture to `tests/integration/conftest.py`.
 
-```python title="tests/integration/conftest.py" hl_lines="11 16 66-71"
-from uuid import uuid7
-
+```python title="tests/integration/conftest.py" hl_lines="3-4 14-16 41-46"
 import pytest
-from django.contrib.auth.models import AbstractUser
-from punq import Container, Scope
-from pytest_django.fixtures import SettingsWrapper
 
-from core.user.models import User
-from ioc.container import get_container
+from infrastructure.punq.container import AutoRegisteringContainer
+from ioc.container import ContainerFactory
 from tests.integration.factories import (
     TestCeleryWorkerFactory,
     TestClientFactory,
@@ -181,54 +176,42 @@ from tests.integration.factories import (
 )
 
 
-@pytest.fixture(scope="function", autouse=True)
-def _configure_settings(settings: SettingsWrapper) -> None:
-    settings.CACHES = {
-        "default": {
-            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-            "LOCATION": f"test-cache-{uuid7()}",
-        },
-    }
-
-
 @pytest.fixture(scope="function")
-def container(django_user_model: type[User]) -> Container:
-    container = get_container()
-    container.register(type[AbstractUser], instance=django_user_model, scope=Scope.singleton)
-
-    return container
+def container() -> AutoRegisteringContainer:
+    container_factory = ContainerFactory()
+    return container_factory()
 
 
 # region Factories
 
 
 @pytest.fixture(scope="function")
-def test_client_factory(container: Container) -> TestClientFactory:
+def test_client_factory(container: AutoRegisteringContainer) -> TestClientFactory:
     return TestClientFactory(container=container)
 
 
 @pytest.fixture(scope="function")
 def user_factory(
     transactional_db: None,
-    container: Container,
+    container: AutoRegisteringContainer,
 ) -> TestUserFactory:
     return TestUserFactory(container=container)
 
 
 @pytest.fixture(scope="function")
-def celery_worker_factory(container: Container) -> TestCeleryWorkerFactory:
+def celery_worker_factory(container: AutoRegisteringContainer) -> TestCeleryWorkerFactory:
     return TestCeleryWorkerFactory(container=container)
 
 
 @pytest.fixture(scope="function")
-def tasks_registry_factory(container: Container) -> TestTasksRegistryFactory:
+def tasks_registry_factory(container: AutoRegisteringContainer) -> TestTasksRegistryFactory:
     return TestTasksRegistryFactory(container=container)
 
 
 @pytest.fixture(scope="function")
 def todo_factory(
     transactional_db: None,
-    container: Container,
+    container: AutoRegisteringContainer,
 ) -> TestTodoFactory:
     return TestTodoFactory(container=container)
 
@@ -276,15 +259,14 @@ class TestCreateTodo:
         test_client_factory: TestClientFactory,
         user: User,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.post(
-            "/v1/todos/",
-            json={
-                "title": "Buy groceries",
-                "description": "Milk, eggs, bread",
-            },
-        )
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.post(
+                "/v1/todos/",
+                json={
+                    "title": "Buy groceries",
+                    "description": "Milk, eggs, bread",
+                },
+            )
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -298,12 +280,11 @@ class TestCreateTodo:
         self,
         test_client_factory: TestClientFactory,
     ) -> None:
-        test_client = test_client_factory()  # No auth_for_user
-
-        response = test_client.post(
-            "/v1/todos/",
-            json={"title": "Test"},
-        )
+        with test_client_factory() as test_client:  # No auth_for_user
+            response = test_client.post(
+                "/v1/todos/",
+                json={"title": "Test"},
+            )
 
         assert response.status_code == HTTPStatus.UNAUTHORIZED
 
@@ -313,12 +294,11 @@ class TestCreateTodo:
         test_client_factory: TestClientFactory,
         user: User,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.post(
-            "/v1/todos/",
-            json={"description": "Missing title"},  # title is required
-        )
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.post(
+                "/v1/todos/",
+                json={"description": "Missing title"},  # title is required
+            )
 
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
@@ -339,8 +319,8 @@ class TestListTodos:
         todo_factory(user=user2, title="User2 Todo")
 
         # User1 should only see their own todos
-        test_client = test_client_factory(auth_for_user=user1)
-        response = test_client.get("/v1/todos/")
+        with test_client_factory(auth_for_user=user1) as test_client:
+            response = test_client.get("/v1/todos/")
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -353,9 +333,8 @@ class TestListTodos:
         test_client_factory: TestClientFactory,
         user: User,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.get("/v1/todos/")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/todos/")
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -371,9 +350,8 @@ class TestGetTodo:
         user: User,
         todo: Todo,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.get(f"/v1/todos/{todo.id}")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get(f"/v1/todos/{todo.id}")
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -386,9 +364,8 @@ class TestGetTodo:
         test_client_factory: TestClientFactory,
         user: User,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.get("/v1/todos/99999")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/todos/99999")
 
         assert response.status_code == HTTPStatus.NOT_FOUND
 
@@ -405,8 +382,8 @@ class TestGetTodo:
         todo = todo_factory(user=user1, title="Private Todo")
 
         # User2 should not access User1's todo
-        test_client = test_client_factory(auth_for_user=user2)
-        response = test_client.get(f"/v1/todos/{todo.id}")
+        with test_client_factory(auth_for_user=user2) as test_client:
+            response = test_client.get(f"/v1/todos/{todo.id}")
 
         assert response.status_code == HTTPStatus.NOT_FOUND
 
@@ -419,9 +396,8 @@ class TestCompleteTodo:
         user: User,
         todo: Todo,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.post(f"/v1/todos/{todo.id}/complete")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.post(f"/v1/todos/{todo.id}/complete")
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
@@ -434,9 +410,8 @@ class TestCompleteTodo:
         test_client_factory: TestClientFactory,
         user: User,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.post("/v1/todos/99999/complete")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.post("/v1/todos/99999/complete")
 
         assert response.status_code == HTTPStatus.NOT_FOUND
 
@@ -449,15 +424,14 @@ class TestDeleteTodo:
         user: User,
         todo: Todo,
     ) -> None:
-        test_client = test_client_factory(auth_for_user=user)
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.delete(f"/v1/todos/{todo.id}")
 
-        response = test_client.delete(f"/v1/todos/{todo.id}")
+            # Verify deletion
+            verify_response = test_client.get(f"/v1/todos/{todo.id}")
 
         assert response.status_code == HTTPStatus.NO_CONTENT
-
-        # Verify deletion
-        response = test_client.get(f"/v1/todos/{todo.id}")
-        assert response.status_code == HTTPStatus.NOT_FOUND
+        assert verify_response.status_code == HTTPStatus.NOT_FOUND
 ```
 
 !!! tip "Test Class Organization"
@@ -573,10 +547,10 @@ from http import HTTPStatus
 from unittest.mock import MagicMock
 
 import pytest
-from punq import Container
 
 from core.todo.services import TodoNotFoundError, TodoService
 from core.user.models import User
+from infrastructure.punq.container import AutoRegisteringContainer
 from tests.integration.factories import TestClientFactory, TestUserFactory
 
 
@@ -591,7 +565,7 @@ class TestTodoControllerWithMockedService:
     @pytest.mark.django_db(transaction=True)
     def test_get_todo_handles_service_exception(
         self,
-        container: Container,
+        container: AutoRegisteringContainer,
         user: User,
     ) -> None:
         # Create a mock service that raises an exception
@@ -603,9 +577,8 @@ class TestTodoControllerWithMockedService:
 
         # Now create the test client - it will use the mocked service
         test_client_factory = TestClientFactory(container=container)
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.get("/v1/todos/1")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/todos/1")
 
         assert response.status_code == HTTPStatus.NOT_FOUND
         mock_service.get_todo_by_id.assert_called_once_with(todo_id=1, user_id=user.pk)
@@ -613,7 +586,7 @@ class TestTodoControllerWithMockedService:
     @pytest.mark.django_db(transaction=True)
     def test_list_todos_with_custom_mock_data(
         self,
-        container: Container,
+        container: AutoRegisteringContainer,
         user: User,
     ) -> None:
         # Create a mock that returns specific test data
@@ -630,9 +603,8 @@ class TestTodoControllerWithMockedService:
         container.register(TodoService, instance=mock_service)
 
         test_client_factory = TestClientFactory(container=container)
-        test_client = test_client_factory(auth_for_user=user)
-
-        response = test_client.get("/v1/todos/")
+        with test_client_factory(auth_for_user=user) as test_client:
+            response = test_client.get("/v1/todos/")
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()

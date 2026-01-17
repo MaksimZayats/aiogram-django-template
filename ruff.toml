@@ -74,3 +74,4 @@ mark-parentheses = false
 
 [lint.pydocstyle]
 convention = "google"
+property-decorators = ["pydantic.computed_field"]

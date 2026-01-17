@@ -54,7 +54,7 @@ This reference provides comprehensive mappings from common user questions to the
 
 | Question | Primary Doc | Answer Location |
 |----------|-------------|-----------------|
-| "What is NinjaAPIFactory?" | `concepts/factory-pattern.md` | HTTP API section |
+| "What is FastAPIFactory?" | `concepts/factory-pattern.md` | HTTP API section |
 | "How do I customize the API?" | `concepts/factory-pattern.md` | Customization section |
 | "Why use factories instead of direct instantiation?" | `concepts/factory-pattern.md` | Benefits section |
 

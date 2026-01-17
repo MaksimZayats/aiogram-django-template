@@ -1,43 +1,61 @@
 # Controller Patterns Reference
 
-This reference provides complete examples for all three controller types: HTTP API, Celery tasks, and Telegram bot handlers.
+This reference provides complete examples for controller types: HTTP API and Celery tasks.
 
 ## Contents
 
-- [HTTP Controller (Django Ninja)](#http-controller-django-ninja)
+- [HTTP Controller (FastAPI)](#http-controller-fastapi)
+  - [Sync vs Async Handlers](#sync-vs-async-handlers)
   - [Basic CRUD Controller](#basic-crud-controller)
   - [User-Scoped Resources](#user-scoped-resources)
+  - [Async Handlers (Advanced)](#async-handlers-advanced)
 - [Celery Task Controller](#celery-task-controller)
   - [Basic Task](#basic-task)
   - [Task with Arguments](#task-with-arguments)
   - [Register Task Name](#register-task-name)
   - [Register Task in IoC](#register-task-in-ioc)
   - [Update CeleryAppFactory](#update-celeryappfactory)
-- [Telegram Bot Controller (aiogram)](#telegram-bot-controller-aiogram)
-  - [Command Handler](#command-handler)
-  - [Register Bot Controller in IoC](#register-bot-controller-in-ioc)
-  - [Update DispatcherFactory](#update-dispatcherfactory)
 - [Exception Handling Patterns](#exception-handling-patterns)
 
-## HTTP Controller (Django Ninja)
+## HTTP Controller (FastAPI)
+
+### Sync vs Async Handlers
+
+**Always use synchronous handler methods.** FastAPI automatically runs sync handlers in a thread pool using `anyio.to_thread.run_sync()`, which provides proper parallelism for Django's synchronous ORM.
+
+```python
+# ✅ CORRECT - Sync handler (recommended)
+def list_items(self, request: AuthenticatedRequest) -> ItemListSchema:
+    items = self._item_service.list_all()  # Sync service call
+    return ItemListSchema(items=items)
+
+# ❌ WRONG - Async handler calling sync service directly
+async def list_items(self, request: AuthenticatedRequest) -> ItemListSchema:
+    items = self._item_service.list_all()  # Blocks the event loop!
+    return ItemListSchema(items=items)
+```
+
+**Why sync handlers?**
+
+1. Django ORM is synchronous - all database operations block
+2. FastAPI runs sync handlers in `anyio.to_thread.run_sync()` automatically
+3. Parallelism is controlled via `ANYIO_THREAD_LIMITER_TOKENS` environment variable
+4. Default is 40 concurrent threads per worker (configured in `src/infrastructure/anyio/configurator.py`)
 
 ### Basic CRUD Controller
 
 ```python
 # src/delivery/http/<domain>/controllers.py
+from dataclasses import dataclass, field
 from http import HTTPStatus
 from typing import Any
 
-from django.http import HttpRequest
-from ninja import Router
-from ninja.errors import HttpError
-from ninja.pagination import paginate, PageNumberPagination
-from ninja.throttling import AuthRateThrottle
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from core.<domain>.services import <Domain>Service, <Domain>NotFoundError
 from infrastructure.delivery.controllers import Controller
-from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuthFactory
+from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuth, JWTAuthFactory
 
 
 # Response Schemas
@@ -62,69 +80,64 @@ class Update<Model>Request(BaseModel):
     # ... optional fields for update (all fields optional)
 
 
+@dataclass
 class <Domain>Controller(Controller):
-    def __init__(
-        self,
-        jwt_auth_factory: JWTAuthFactory,
-        <domain>_service: <Domain>Service,
-    ) -> None:
-        self._jwt_auth = jwt_auth_factory()
-        self._<domain>_service = <domain>_service
+    _jwt_auth_factory: JWTAuthFactory
+    _<domain>_service: <Domain>Service
+    _jwt_auth: JWTAuth = field(init=False)
 
-    def register(self, registry: Router) -> None:
-        # List endpoint with pagination
-        registry.add_api_operation(
+    def __post_init__(self) -> None:
+        self._jwt_auth = self._jwt_auth_factory()
+
+    def register(self, registry: APIRouter) -> None:
+        # List endpoint
+        registry.add_api_route(
             path="/v1/<domain>s/",
+            endpoint=self.list_items,
             methods=["GET"],
-            view_func=self.list_items,
-            response=<Model>ListSchema,
-            auth=self._jwt_auth,
-            throttle=AuthRateThrottle(rate="60/min"),
+            response_model=<Model>ListSchema,
+            dependencies=[Depends(self._jwt_auth)],
         )
 
         # Create endpoint
-        registry.add_api_operation(
+        registry.add_api_route(
             path="/v1/<domain>s/",
+            endpoint=self.create_item,
             methods=["POST"],
-            view_func=self.create_item,
-            response=<Model>Schema,
-            auth=self._jwt_auth,
-            throttle=AuthRateThrottle(rate="30/min"),
+            response_model=<Model>Schema,
+            dependencies=[Depends(self._jwt_auth)],
         )
 
         # Get single item
-        registry.add_api_operation(
+        registry.add_api_route(
             path="/v1/<domain>s/{item_id}",
+            endpoint=self.get_item,
             methods=["GET"],
-            view_func=self.get_item,
-            response=<Model>Schema,
-            auth=self._jwt_auth,
-            throttle=AuthRateThrottle(rate="60/min"),
+            response_model=<Model>Schema,
+            dependencies=[Depends(self._jwt_auth)],
         )
 
         # Update item
-        registry.add_api_operation(
+        registry.add_api_route(
             path="/v1/<domain>s/{item_id}",
+            endpoint=self.update_item,
             methods=["PATCH"],
-            view_func=self.update_item,
-            response=<Model>Schema,
-            auth=self._jwt_auth,
-            throttle=AuthRateThrottle(rate="30/min"),
+            response_model=<Model>Schema,
+            dependencies=[Depends(self._jwt_auth)],
         )
 
         # Delete item
-        registry.add_api_operation(
+        registry.add_api_route(
             path="/v1/<domain>s/{item_id}",
+            endpoint=self.delete_item,
             methods=["DELETE"],
-            view_func=self.delete_item,
-            response={HTTPStatus.NO_CONTENT: None},
-            auth=self._jwt_auth,
-            throttle=AuthRateThrottle(rate="30/min"),
+            status_code=HTTPStatus.NO_CONTENT,
+            dependencies=[Depends(self._jwt_auth)],
         )
 
     def list_items(
         self,
-        request: AuthenticatedHttpRequest,
+        request: AuthenticatedRequest,
     ) -> <Model>ListSchema:
         items = self._<domain>_service.list_all()
         return <Model>ListSchema(
@@ -134,7 +147,7 @@ class <Domain>Controller(Controller):
 
     def create_item(
         self,
-        request: AuthenticatedHttpRequest,
+        request: AuthenticatedRequest,
         body: Create<Model>Request,
     ) -> <Model>Schema:
         item = self._<domain>_service.create(**body.model_dump())
@@ -142,7 +155,7 @@ class <Domain>Controller(Controller):
 
     def get_item(
         self,
-        request: AuthenticatedHttpRequest,
+        request: AuthenticatedRequest,
         item_id: int,
     ) -> <Model>Schema:
         item = self._<domain>_service.get_by_id(item_id)
@@ -150,7 +163,7 @@ class <Domain>Controller(Controller):
 
     def update_item(
         self,
-        request: AuthenticatedHttpRequest,
+        request: AuthenticatedRequest,
         item_id: int,
         body: Update<Model>Request,
     ) -> <Model>Schema:
@@ -162,16 +175,16 @@ class <Domain>Controller(Controller):
 
     def delete_item(
         self,
-        request: AuthenticatedHttpRequest,
+        request: AuthenticatedRequest,
         item_id: int,
     ) -> None:
         self._<domain>_service.delete(item_id)
 
     def handle_exception(self, exception: Exception) -> Any:
         if isinstance(exception, <Domain>NotFoundError):
-            raise HttpError(
+            raise HTTPException(
                 status_code=HTTPStatus.NOT_FOUND,
-                message=str(exception),
+                detail=str(exception),
             ) from exception
         return super().handle_exception(exception)
 ```
@@ -183,24 +196,81 @@ When resources belong to a specific user:
 ```python
 def list_items(
     self,
-    request: AuthenticatedHttpRequest,
+    request: AuthenticatedRequest,
 ) -> list[<Model>Schema]:
     # Pass the authenticated user to scope the query
-    items = self._<domain>_service.list_for_user(user_id=request.user.pk)
+    items = self._<domain>_service.list_for_user(user_id=request.state.user.id)
     return [<Model>Schema.model_validate(i, from_attributes=True) for i in items]
 
 def create_item(
     self,
-    request: AuthenticatedHttpRequest,
+    request: AuthenticatedRequest,
     body: Create<Model>Request,
 ) -> <Model>Schema:
     # Associate the resource with the authenticated user
     item = self._<domain>_service.create(
-        user_id=request.user.pk,
+        user_id=request.state.user.id,
         **body.model_dump(),
     )
     return <Model>Schema.model_validate(item, from_attributes=True)
 ```
+
+### Async Handlers (Advanced)
+
+In rare cases where you need async handlers (e.g., calling external async APIs), use `asgiref.sync_to_async` to call services:
+
+```python
+from asgiref.sync import sync_to_async
+
+@dataclass
+class <Domain>Controller(Controller):
+    _<domain>_service: <Domain>Service
+
+    async def list_items_async(
+        self,
+        request: AuthenticatedRequest,
+    ) -> <Model>ListSchema:
+        # For READ-ONLY operations: thread_sensitive=False
+        # This allows parallel execution in any thread
+        items = await sync_to_async(
+            self._<domain>_service.list_all,
+            thread_sensitive=False,
+        )()
+        return <Model>ListSchema(items=items)
+
+    async def create_item_async(
+        self,
+        request: AuthenticatedRequest,
+        body: Create<Model>Request,
+    ) -> <Model>Schema:
+        # For WRITE operations: thread_sensitive=True (default)
+        # This ensures database transactions are handled correctly
+        item = await sync_to_async(
+            self._<domain>_service.create,
+            thread_sensitive=True,
+        )(**body.model_dump())
+        return <Model>Schema.model_validate(item, from_attributes=True)
+```
+
+**Thread sensitivity rules:**
+
+| Operation Type | `thread_sensitive` | Why |
+|----------------|-------------------|-----|
+| Read-only (SELECT) | `False` | Can run in any thread, enables parallelism |
+| Write (INSERT/UPDATE/DELETE) | `True` | Must run in same thread for transaction safety |
+| Mixed/Unknown | `True` | Default to safe behavior |
+
+**When to use async handlers:**
+
+- Calling external async HTTP clients (httpx, aiohttp)
+- WebSocket handlers
+- Streaming responses
+- Orchestrating multiple async I/O operations
+
+**Prefer sync handlers when:**
+
+- Only calling Django services (99% of cases)
+- No external async dependencies
 
 ## Celery Task Controller
 
@@ -307,88 +377,6 @@ class CeleryAppFactory:
         return app
 ```
 
-## Telegram Bot Controller (aiogram)
-
-### Command Handler
-
-```python
-# src/delivery/bot/controllers/<handler>.py
-from typing import Any
-
-from aiogram import Router
-from aiogram.filters import Command
-from aiogram.types import Message
-
-from core.<domain>.services import <Domain>Service
-from infrastructure.delivery.controllers import AsyncController
-
-
-class <Domain>BotController(AsyncController):
-    def __init__(
-        self,
-        <domain>_service: <Domain>Service,
-    ) -> None:
-        self._<domain>_service = <domain>_service
-
-    def register(self, registry: Router) -> None:
-        registry.message.register(
-            self.handle_<command>_command,
-            Command(commands=["<command>"]),
-        )
-
-    async def handle_<command>_command(self, message: Message) -> None:
-        # Use sync_to_async for synchronous service calls
-        from asgiref.sync import sync_to_async
-
-        result = await sync_to_async(
-            self._<domain>_service.some_operation,
-            thread_sensitive=False,  # I/O-bound, safe in threadpool
-        )()
-
-        await message.answer(f"Result: {result}")
-
-    async def handle_exception(self, exception: Exception) -> Any:
-        if isinstance(exception, <Domain>Error):
-            # Log and optionally notify user
-            return None
-        return await super().handle_exception(exception)
-```
-
-### Register Bot Controller in IoC
-
-```python
-# src/ioc/registries/delivery.py
-from delivery.bot.controllers.<handler> import <Domain>BotController
-
-
-def _register_bot_controllers(container: Container) -> None:
-    # ... existing registrations
-    container.register(<Domain>BotController, scope=Scope.singleton)
-```
-
-### Update DispatcherFactory
-
-```python
-# src/delivery/bot/dispatcher_factory.py
-class DispatcherFactory:
-    def __init__(
-        self,
-        # ... existing dependencies
-        <domain>_controller: <Domain>BotController,
-    ) -> None:
-        # ... existing assignments
-        self._<domain>_controller = <domain>_controller
-
-    def __call__(self) -> Dispatcher:
-        # ... existing code
-
-        <domain>_router = Router(name="<domain>")
-        dispatcher.include_router(<domain>_router)
-        self._<domain>_controller.register(<domain>_router)
-
-        return dispatcher
-```
-
 ## Exception Handling Patterns
 
 ### HTTP Controller
@@ -397,38 +385,20 @@ class DispatcherFactory:
 def handle_exception(self, exception: Exception) -> Any:
     match exception:
         case <Domain>NotFoundError():
-            raise HttpError(
+            raise HTTPException(
                 status_code=HTTPStatus.NOT_FOUND,
-                message=str(exception),
+                detail=str(exception),
             ) from exception
         case <Domain>ValidationError():
-            raise HttpError(
+            raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
-                message=str(exception),
+                detail=str(exception),
             ) from exception
         case <Domain>PermissionError():
-            raise HttpError(
+            raise HTTPException(
                 status_code=HTTPStatus.FORBIDDEN,
-                message=str(exception),
+                detail=str(exception),
             ) from exception
         case _:
             return super().handle_exception(exception)
-```
-
-### Async Controller (Bot)
-
-```python
-async def handle_exception(self, exception: Exception) -> Any:
-    import logging
-    logger = logging.getLogger(__name__)
-
-    match exception:
-        case <Domain>NotFoundError():
-            logger.warning("Resource not found", exc_info=exception)
-            return None  # Silently ignore
-        case <Domain>Error():
-            logger.error("Domain error", exc_info=exception)
-            return None
-        case _:
-            return await super().handle_exception(exception)
 ```

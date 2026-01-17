@@ -137,14 +137,13 @@ The tutorial uses a **Todo List** as the central example because:
 ### Tutorial Scope
 
 The tutorial covers:
-- HTTP API (Django Ninja)
+- HTTP API (FastAPI)
 - Celery tasks
 - Admin panel
 - Observability (Logfire)
 - Testing
 
 The tutorial does **NOT** cover:
-- Telegram bot (too much scope for onboarding)
 - Advanced authentication flows
 - Production deployment
 
@@ -202,13 +201,13 @@ Use ASCII art for architecture diagrams:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     Delivery Layer                          │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │  HTTP API   │  │ Celery Tasks│  │ Telegram Bot│         │
-│  │ Controllers │  │ Controllers │  │ Controllers │         │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘         │
-└─────────┼────────────────┼────────────────┼─────────────────┘
-          │                │                │
-          ▼                ▼                ▼
+│  ┌─────────────────────────┐  ┌─────────────────────────┐  │
+│  │        HTTP API         │  │      Celery Tasks       │  │
+│  │      Controllers        │  │      Controllers        │  │
+│  └───────────┬─────────────┘  └───────────┬─────────────┘  │
+└──────────────┼────────────────────────────┼─────────────────┘
+               │                            │
+               ▼                            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                      Core Layer                             │
 │  ┌─────────────────────────────────────────────────────┐   │

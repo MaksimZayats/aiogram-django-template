@@ -1,66 +1,44 @@
 import hashlib
 import secrets
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import NamedTuple
 
-from django.contrib.auth.models import AbstractBaseUser
 from django.db import transaction
-from django.http import HttpRequest
 from django.utils import timezone
 from pydantic_settings import BaseSettings
 
-from infrastructure.django.refresh_sessions.models import BaseRefreshSession
+from core.exceptions import ApplicationError
+from core.user.models import RefreshSession, User
 
 
 class RefreshSessionServiceSettings(BaseSettings):
     refresh_token_nbytes: int = 32
     refresh_token_ttl_days: int = 30
-    ninja_num_proxies: int = 0
 
     @property
     def refresh_token_ttl(self) -> timedelta:
         return timedelta(days=self.refresh_token_ttl_days)
 
 
-class RefreshSessionResult(NamedTuple):
-    refresh_token: str
-    session: BaseRefreshSession
-
-
-class RefreshTokenError(Exception):
-    pass
-
-
-class InvalidRefreshTokenError(RefreshTokenError):
-    pass
-
-
-class ExpiredRefreshTokenError(RefreshTokenError):
-    pass
-
-
+@dataclass
 class RefreshSessionService:
-    def __init__(
-        self,
-        settings: RefreshSessionServiceSettings,
-        refresh_session_model: type[BaseRefreshSession],
-    ) -> None:
-        self._settings = settings
-        self._refresh_session_model = refresh_session_model
+    _settings: RefreshSessionServiceSettings
 
     def create_refresh_session(
         self,
-        request: HttpRequest,
-        user: AbstractBaseUser,
+        user: User,
+        user_agent: str,
+        ip_address: str | None,
     ) -> RefreshSessionResult:
         refresh_token = self._issue_refresh_token()
         refresh_token_hash = self._hash_refresh_token(refresh_token)
 
-        session = self._refresh_session_model.objects.create(  # type: ignore[attr-defined]
+        session = RefreshSession.objects.create(  # type: ignore[attr-defined]
             user=user,
             refresh_token_hash=refresh_token_hash,
-            user_agent=request.META.get("HTTP_USER_AGENT", ""),
-            ip_address=self._get_ip_address(request),
+            user_agent=user_agent,
+            ip_address=ip_address,
             expires_at=timezone.now() + self._settings.refresh_token_ttl,
         )
 
@@ -88,7 +66,7 @@ class RefreshSessionService:
     def revoke_refresh_token(
         self,
         refresh_token: str,
-        user: AbstractBaseUser,
+        user: User,
     ) -> None:
         session = self._get_refresh_session(refresh_token)
         if session.user.pk != user.pk:
@@ -106,12 +84,12 @@ class RefreshSessionService:
     def _get_refresh_session(
         self,
         refresh_token: str,
-    ) -> BaseRefreshSession:
+    ) -> RefreshSession:
         try:
-            session = self._refresh_session_model.objects.get(  # type: ignore[attr-defined]
+            session = RefreshSession.objects.get(
                 refresh_token_hash=self._hash_refresh_token(refresh_token),
             )
-        except self._refresh_session_model.DoesNotExist as e:
+        except RefreshSession.DoesNotExist as e:
             raise InvalidRefreshTokenError from e
 
         if not session.is_active:
@@ -119,13 +97,19 @@ class RefreshSessionService:
 
         return session
 
-    def _get_ip_address(self, request: HttpRequest) -> str | None:
-        xff = request.META.get("HTTP_X_FORWARDED_FOR", None)
-        remote_address = request.META.get("REMOTE_ADDR", None)
 
-        if self._settings.ninja_num_proxies == 0 or xff is None:
-            return remote_address
+class RefreshSessionResult(NamedTuple):
+    refresh_token: str
+    session: RefreshSession
 
-        addresses = xff.split(",")
-        client_address = addresses[-min(self._settings.ninja_num_proxies, len(addresses))]
-        return client_address.strip()
+
+class RefreshTokenError(ApplicationError):
+    pass
+
+
+class InvalidRefreshTokenError(RefreshTokenError):
+    pass
+
+
+class ExpiredRefreshTokenError(RefreshTokenError):
+    pass

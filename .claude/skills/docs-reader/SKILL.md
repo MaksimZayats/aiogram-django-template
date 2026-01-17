@@ -48,8 +48,8 @@ The tutorial builds a complete Todo List feature:
 |-------|------|-------------|
 | Service Layer | `docs/en/concepts/service-layer.md` | The Golden Rule, why services matter |
 | IoC Container | `docs/en/concepts/ioc-container.md` | Dependency injection with punq |
-| Controller Pattern | `docs/en/concepts/controller-pattern.md` | HTTP, Celery, Bot controllers |
-| Factory Pattern | `docs/en/concepts/factory-pattern.md` | NinjaAPIFactory, CeleryAppFactory |
+| Controller Pattern | `docs/en/concepts/controller-pattern.md` | HTTP, Celery controllers |
+| Factory Pattern | `docs/en/concepts/factory-pattern.md` | FastAPIFactory, CeleryAppFactory |
 | Pydantic Settings | `docs/en/concepts/pydantic-settings.md` | Environment-based configuration |
 
 ### How-To Guides (Task-Focused)
@@ -162,7 +162,6 @@ register_delivery(container)       # 3. Controllers and factories
 
 From `docs/en/concepts/controller-pattern.md`:
 - `Controller` (sync) - HTTP API, Celery tasks
-- `AsyncController` - Telegram bot handlers
 
 ## Additional Documentation
 

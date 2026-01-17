@@ -1,18 +1,75 @@
-# Modern API Template
+# Fast Django
 
-Production-ready template for building modern Python applications with **Django**, **aiogram**, and **Celery** —
+Production-ready **FastAPI** template with **Django ORM**, admin panel, and **Celery** background tasks —
 featuring dependency injection, type-safe configuration, and comprehensive observability.
 
 ## Features
 
-- **HTTP API** — [Django Ninja](https://django-ninja.dev/) with automatic OpenAPI documentation
+- **HTTP API** — [FastAPI](https://fastapi.tiangolo.com/) with automatic OpenAPI documentation
 - **Background Tasks** — [Celery](https://docs.celeryq.dev/en/stable/) with beat scheduler
-- **Telegram Bot** — [aiogram 3.x](https://docs.aiogram.dev/) with async handlers and commands
 - **Dependency Injection** — [punq](https://github.com/bobthemighty/punq) IoC container
 - **Type-Safe Config** — [Pydantic Settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) with
   validation
 - **Observability** — [Logfire](https://logfire.pydantic.dev/docs/) (OpenTelemetry) integration
 - **Production Ready** — Docker Compose with PostgreSQL, PgBouncer, Redis, MinIO
+
+## At a Glance
+
+**Define a service** with business logic and database operations:
+
+```python
+# src/core/todo/services.py
+from django.db import transaction
+from core.todo.models import Todo
+
+class TodoService:
+    def get_todo_by_id(self, todo_id: int) -> Todo | None:
+        return Todo.objects.filter(id=todo_id).first()
+
+    def list_todos(self, user_id: int) -> list[Todo]:
+        return list(Todo.objects.filter(user_id=user_id))
+
+    @transaction.atomic
+    def create_todo(self, user_id: int, title: str) -> Todo:
+        return Todo.objects.create(user_id=user_id, title=title)
+```
+
+**Create a controller** — services are auto-injected via the IoC container:
+
+```python
+# src/delivery/http/todo/controllers.py
+from dataclasses import dataclass
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+
+from core.todo.services import TodoService
+from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuth, JWTAuthFactory
+from infrastructure.delivery.controllers import Controller
+
+class TodoSchema(BaseModel):
+    id: int
+    title: str
+    completed: bool
+
+@dataclass
+class TodoController(Controller):
+    _jwt_auth_factory: JWTAuthFactory
+    _todo_service: TodoService  # Auto-injected
+
+    def register(self, registry: APIRouter) -> None:
+        registry.add_api_route(
+            path="/v1/todos",
+            endpoint=self.list_todos,
+            methods=["GET"],
+            dependencies=[Depends(self._jwt_auth_factory())],
+        )
+
+    def list_todos(self, request: AuthenticatedRequest) -> list[TodoSchema]:
+        todos = self._todo_service.list_todos(user_id=request.state.user.id)
+        return [TodoSchema.model_validate(t, from_attributes=True) for t in todos]
+```
+
+> **The Golden Rule:** Controllers never access models directly → all database operations go through services.
 
 ## Prerequisites
 
@@ -27,8 +84,8 @@ Before getting started, ensure you have installed:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/MaksimZayats/modern-django-template.git
-cd modern-django-template
+git clone https://github.com/MaksimZayats/fastdjango.git
+cd fastdjango
 ```
 
 ### 2. Rename the Project
@@ -120,9 +177,8 @@ Full documentation is available at [template.zayats.dev](https://template.zayats
 
 | Component       | Technology        | Documentation                                                                              |
 |-----------------|-------------------|--------------------------------------------------------------------------------------------|
-| Web Framework   | Django 6+         | [docs.djangoproject.com](https://docs.djangoproject.com/en/stable/)                        |
-| HTTP API        | Django Ninja 1.x  | [django-ninja.dev](https://django-ninja.dev/)                                              |
-| Telegram Bot    | aiogram 3.x       | [docs.aiogram.dev](https://docs.aiogram.dev/)                                              |
+| HTTP API        | FastAPI 0.128+    | [fastapi.tiangolo.com](https://fastapi.tiangolo.com/)                                      |
+| ORM & Admin     | Django 6+         | [docs.djangoproject.com](https://docs.djangoproject.com/en/stable/)                        |
 | Task Queue      | Celery 5.x        | [docs.celeryq.dev](https://docs.celeryq.dev/en/stable/)                                    |
 | Validation      | Pydantic 2.x      | [docs.pydantic.dev](https://docs.pydantic.dev/latest/)                                     |
 | Settings        | Pydantic Settings | [docs.pydantic.dev/settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) |

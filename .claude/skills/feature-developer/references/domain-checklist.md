@@ -15,7 +15,7 @@ This reference provides the complete, detailed checklist for adding a new domain
   - [Step 7: Create Controller Directory](#step-7-create-controller-directory)
   - [Step 8: Create Controller with Schemas](#step-8-create-controller-with-schemas)
   - [Step 9: Register Controller in IoC](#step-9-register-controller-in-ioc)
-  - [Step 10: Update NinjaAPIFactory](#step-10-update-ninjaapifactory)
+  - [Step 10: Update FastAPIFactory](#step-10-update-fastapifactory)
 - [Phase 3: Finalization](#phase-3-finalization)
   - [Step 11: Create and Run Migrations](#step-11-create-and-run-migrations)
   - [Step 12: Create Tests](#step-12-create-tests)
@@ -188,18 +188,16 @@ touch src/delivery/http/products/__init__.py
 Create `src/delivery/http/products/controllers.py`:
 
 ```python
+from dataclasses import dataclass, field
 from http import HTTPStatus
 from typing import Any
 
-from django.http import HttpRequest
-from ninja import Router
-from ninja.errors import HttpError
-from ninja.throttling import AuthRateThrottle
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from core.products.services import ProductNotFoundError, ProductService
 from infrastructure.delivery.controllers import Controller
-from infrastructure.django.auth import AuthenticatedHttpRequest, JWTAuthFactory
+from delivery.http.auth.jwt import AuthenticatedRequest, JWTAuth, JWTAuthFactory
 
 
 class ProductSchema(BaseModel):
@@ -221,55 +219,55 @@ class UpdateProductRequest(BaseModel):
     price: float | None = None
 
 
+@dataclass
 class ProductController(Controller):
-    def __init__(
-        self,
-        jwt_auth_factory: JWTAuthFactory,
-        product_service: ProductService,
-    ) -> None:
-        self._jwt_auth = jwt_auth_factory()
-        self._product_service = product_service
+    _jwt_auth_factory: JWTAuthFactory
+    _product_service: ProductService
+    _jwt_auth: JWTAuth = field(init=False)
 
-    def register(self, registry: Router) -> None:
-        registry.add_api_operation(
+    def __post_init__(self) -> None:
+        self._jwt_auth = self._jwt_auth_factory()
+
+    def register(self, registry: APIRouter) -> None:
+        registry.add_api_route(
             path="/v1/products/",
+            endpoint=self.list_products,
             methods=["GET"],
-            view_func=self.list_products,
-            auth=self._jwt_auth,
-            throttle=AuthRateThrottle(rate="30/min"),
+            response_model=list[ProductSchema],
+            dependencies=[Depends(self._jwt_auth)],
         )
-        registry.add_api_operation(
+        registry.add_api_route(
             path="/v1/products/",
+            endpoint=self.create_product,
             methods=["POST"],
-            view_func=self.create_product,
-            auth=self._jwt_auth,
-            throttle=AuthRateThrottle(rate="30/min"),
+            response_model=ProductSchema,
+            dependencies=[Depends(self._jwt_auth)],
         )
-        registry.add_api_operation(
+        registry.add_api_route(
             path="/v1/products/{product_id}",
+            endpoint=self.get_product,
             methods=["GET"],
-            view_func=self.get_product,
-            auth=self._jwt_auth,
-            throttle=AuthRateThrottle(rate="30/min"),
+            response_model=ProductSchema,
+            dependencies=[Depends(self._jwt_auth)],
         )
-        registry.add_api_operation(
+        registry.add_api_route(
             path="/v1/products/{product_id}",
+            endpoint=self.update_product,
             methods=["PATCH"],
-            view_func=self.update_product,
-            auth=self._jwt_auth,
-            throttle=AuthRateThrottle(rate="30/min"),
+            response_model=ProductSchema,
+            dependencies=[Depends(self._jwt_auth)],
         )
-        registry.add_api_operation(
+        registry.add_api_route(
             path="/v1/products/{product_id}",
+            endpoint=self.delete_product,
             methods=["DELETE"],
-            view_func=self.delete_product,
-            auth=self._jwt_auth,
-            throttle=AuthRateThrottle(rate="30/min"),
+            status_code=HTTPStatus.NO_CONTENT,
+            dependencies=[Depends(self._jwt_auth)],
         )
 
     def list_products(
         self,
-        request: AuthenticatedHttpRequest,
+        request: AuthenticatedRequest,
     ) -> list[ProductSchema]:
         products = self._product_service.list_products()
         return [
@@ -279,7 +277,7 @@ class ProductController(Controller):
 
     def create_product(
         self,
-        request: AuthenticatedHttpRequest,
+        request: AuthenticatedRequest,
         body: CreateProductRequest,
     ) -> ProductSchema:
         product = self._product_service.create_product(
@@ -291,7 +289,7 @@ class ProductController(Controller):
 
     def get_product(
         self,
-        request: AuthenticatedHttpRequest,
+        request: AuthenticatedRequest,
         product_id: int,
     ) -> ProductSchema:
         product = self._product_service.get_product_by_id(product_id)
@@ -299,7 +297,7 @@ class ProductController(Controller):
 
     def update_product(
         self,
-        request: AuthenticatedHttpRequest,
+        request: AuthenticatedRequest,
         product_id: int,
         body: UpdateProductRequest,
     ) -> ProductSchema:
@@ -313,16 +311,16 @@ class ProductController(Controller):
 
     def delete_product(
         self,
-        request: AuthenticatedHttpRequest,
+        request: AuthenticatedRequest,
         product_id: int,
     ) -> None:
         self._product_service.delete_product(product_id)
 
     def handle_exception(self, exception: Exception) -> Any:
         if isinstance(exception, ProductNotFoundError):
-            raise HttpError(
+            raise HTTPException(
                 status_code=HTTPStatus.NOT_FOUND,
-                message=str(exception),
+                detail=str(exception),
             ) from exception
 
         return super().handle_exception(exception)
@@ -343,7 +341,7 @@ def _register_http_controllers(container: Container) -> None:
     container.register(ProductController, scope=Scope.singleton)
 ```
 
-### Step 10: Update NinjaAPIFactory
+### Step 10: Update FastAPIFactory
 
 Edit `src/delivery/http/factories.py`:
 
@@ -351,34 +349,32 @@ Edit `src/delivery/http/factories.py`:
 from delivery.http.products.controllers import ProductController
 
 
-class NinjaAPIFactory:
-    def __init__(
-        self,
-        settings: ApplicationSettings,
-        health_controller: HealthController,
-        user_token_controller: UserTokenController,
-        user_controller: UserController,
-        product_controller: ProductController,  # Add this
-    ) -> None:
-        self._settings = settings
-        self._health_controller = health_controller
-        self._user_token_controller = user_token_controller
-        self._user_controller = user_controller
-        self._product_controller = product_controller  # Add this
+@dataclass
+class FastAPIFactory:
+    _settings: ApplicationSettings
+    _health_controller: HealthController
+    _user_token_controller: UserTokenController
+    _user_controller: UserController
+    _product_controller: ProductController  # Add this
 
-    def __call__(
-        self,
-        urls_namespace: str | None = None,
-    ) -> NinjaAPI:
-        # ... existing code
+    def __call__(self) -> FastAPI:
+        app = FastAPI(
+            title=self._settings.project_name,
+            debug=self._settings.debug,
+        )
 
-        # Add product router
-        product_router = Router(tags=["products"])
-        ninja_api.add_router("/", product_router)
-        self._product_controller.register(registry=product_router)
+        # All controllers register to single api_router with /api prefix
+        api_router = APIRouter(prefix="/api")
+        self._health_controller.register(api_router)
+        self._user_controller.register(api_router)
+        self._user_token_controller.register(api_router)
+        self._product_controller.register(api_router)  # Add this
+        app.include_router(api_router)
 
-        return ninja_api
+        return app
 ```
+
+> **Note:** This example is simplified for clarity. The production implementation in `src/delivery/http/factories.py` includes additional configuration for middleware, CORS, telemetry, and lifespan management.
 
 ## Phase 3: Finalization
 
@@ -418,9 +414,8 @@ def test_list_products(
     product: Product,
 ) -> None:
     user = user_factory()
-    test_client = test_client_factory(auth_for_user=user)
-
-    response = test_client.get("/v1/products/")
+    with test_client_factory(auth_for_user=user) as test_client:
+        response = test_client.get("/api/v1/products/")
 
     assert response.status_code == HTTPStatus.OK
     data = response.json()
@@ -434,16 +429,15 @@ def test_create_product(
     user_factory: TestUserFactory,
 ) -> None:
     user = user_factory()
-    test_client = test_client_factory(auth_for_user=user)
-
-    response = test_client.post(
-        "/v1/products/",
-        json={
-            "name": "New Product",
-            "description": "A new product",
-            "price": 49.99,
-        },
-    )
+    with test_client_factory(auth_for_user=user) as test_client:
+        response = test_client.post(
+            "/api/v1/products/",
+            json={
+                "name": "New Product",
+                "description": "A new product",
+                "price": 49.99,
+            },
+        )
 
     assert response.status_code == HTTPStatus.OK
     data = response.json()
@@ -456,9 +450,8 @@ def test_get_product_not_found(
     user_factory: TestUserFactory,
 ) -> None:
     user = user_factory()
-    test_client = test_client_factory(auth_for_user=user)
-
-    response = test_client.get("/v1/products/999")
+    with test_client_factory(auth_for_user=user) as test_client:
+        response = test_client.get("/api/v1/products/999")
 
     assert response.status_code == HTTPStatus.NOT_FOUND
 ```

@@ -11,7 +11,7 @@ The template is built around five interconnected architectural patterns:
 
 ### [Service Layer](service-layer.md)
 
-The Service Layer enforces a strict separation between your delivery mechanisms (HTTP, Celery, Telegram) and your business logic. This pattern ensures that:
+The Service Layer enforces a strict separation between your delivery mechanisms (HTTP, Celery) and your business logic. This pattern ensures that:
 
 - Controllers never access database models directly
 - Business logic remains reusable across different entry points
@@ -62,8 +62,8 @@ Configuration management using Pydantic BaseSettings provides:
 +-------------------+     +-------------------+     +-------------------+
 |                   |     |                   |     |                   |
 |  HTTP Controllers |---->|    Services       |<----|  JWT Service      |
-|  Bot Controllers  |     |    Models         |     |  Auth Middleware  |
-|  Task Controllers |     |    Exceptions     |     |  Settings         |
+|  Task Controllers |     |    Models         |     |  Auth Middleware  |
+|                   |     |    Exceptions     |     |  Settings         |
 |                   |     |                   |     |                   |
 +-------------------+     +-------------------+     +-------------------+
          |                        ^                        |
@@ -107,7 +107,7 @@ HTTP Request
 |---------|-------------------|
 | **Testability** | IoC container allows mocking any dependency |
 | **Maintainability** | Clear boundaries between layers |
-| **Reusability** | Services work across HTTP, Celery, and Telegram |
+| **Reusability** | Services work across HTTP and Celery |
 | **Type Safety** | Pydantic validates all data flow |
 | **Flexibility** | Factories enable environment-specific configuration |
 

@@ -6,10 +6,9 @@ The application uses Docker Compose for containerized deployment.
 
 | Service | Image | Purpose | Ports |
 |---------|-------|---------|-------|
-| `api` | `base:local` | Django Ninja HTTP API | 8009:8000 |
+| `api` | `base:local` | FastAPI HTTP API | 8009:8000 |
 | `celery-worker` | `base:local` | Background task processing | - |
 | `celery-beat` | `base:local` | Periodic task scheduler | - |
-| `bot` | `base:local` | Telegram bot | - |
 | `migrations` | `base:local` | Database migrations (run-once) | - |
 | `collectstatic` | `base:local` | Static file collection (run-once) | - |
 | `postgres` | `postgres:18-alpine` | Primary database | 5432* |
@@ -60,7 +59,6 @@ docker compose up -d
 # Start specific service
 docker compose up -d api
 docker compose up -d celery-worker
-docker compose up -d bot
 ```
 
 ### View Logs
@@ -98,7 +96,7 @@ docker compose up -d --build api
 
 ### api
 
-Django Ninja HTTP API served by Gunicorn.
+FastAPI HTTP API served by Gunicorn.
 
 | Setting | Value |
 |---------|-------|
@@ -112,7 +110,7 @@ Production command:
 gunicorn delivery.http.app:wsgi --workers=4 --bind=0.0.0.0 --timeout=120
 ```
 
-Local development uses Django's runserver with volume mounts.
+Local development uses uvicorn with FastAPI (`make dev`).
 
 ### celery-worker
 
@@ -127,10 +125,6 @@ Background task processor.
 ### celery-beat
 
 Periodic task scheduler for scheduled jobs.
-
-### bot
-
-Telegram bot running in long-polling mode.
 
 ### postgres
 
@@ -231,8 +225,4 @@ celery-beat
   -> pgbouncer
   -> migrations
   -> redis
-
-bot
-  -> pgbouncer
-  -> migrations
 ```

@@ -1,11 +1,12 @@
 import logging.config
+from dataclasses import dataclass
 from typing import Any
 
 from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class LoggingConfig(BaseSettings):
+class LoggingSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="LOGGING_")
 
     level: str = "INFO"
@@ -44,6 +45,9 @@ class LoggingConfig(BaseSettings):
         }
 
 
-def configure_logging() -> None:
-    config = LoggingConfig()
-    logging.config.dictConfig(config.settings)  # type: ignore[arg-type, bad-argument-type]
+@dataclass
+class LoggingConfigurator:
+    _settings: LoggingSettings
+
+    def configure(self) -> None:
+        logging.config.dictConfig(self._settings.settings)  # type: ignore[arg-type, bad-argument-type]

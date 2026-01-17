@@ -1,14 +1,14 @@
-# Modern API Template
+# Fast Django
 
-A production-ready Django + aiogram + Celery application template with dependency injection, designed for building scalable APIs and background task processing.
+A production-ready **FastAPI** application template with **Django ORM**, admin panel, and **Celery** background tasks — featuring dependency injection and comprehensive observability.
 
 ## Key Features
 
+- **FastAPI HTTP Layer** - High-performance async API with automatic OpenAPI documentation
+- **Django ORM & Admin** - Battle-tested ORM and admin panel for data management
 - **Service Layer Architecture** - Clean separation between controllers and business logic
 - **Dependency Injection** - Testable, loosely-coupled components using punq
-- **Modern HTTP API** - Django Ninja with automatic OpenAPI documentation
 - **Background Tasks** - Celery with Redis broker and typed task registry
-- **Telegram Bot Ready** - aiogram integration with async controller pattern
 - **Observability** - Logfire/OpenTelemetry integration for tracing and logging
 - **Type Safety** - Full type hints with mypy strict mode
 
@@ -55,12 +55,12 @@ A production-ready Django + aiogram + Celery application template with dependenc
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Entry Points                             │
-├───────────────┬───────────────────────┬─────────────────────────┤
-│   HTTP API    │     Celery Worker     │     Telegram Bot        │
-│ (Django Ninja)│                       │      (aiogram)          │
-├───────────────┴───────────────────────┴─────────────────────────┤
-│                     Controllers (delivery/)                     │
-│              HTTP Controllers │ Task Controllers                │
+├─────────────────────────────────┬───────────────────────────────┤
+│           HTTP API              │         Celery Worker         │
+│          (FastAPI)              │                               │
+├─────────────────────────────────┴───────────────────────────────┤
+│                   Controllers (delivery/)                       │
+│           HTTP Controllers │ Task Controllers                   │
 ├─────────────────────────────────────────────────────────────────┤
 │                      Services (core/)                           │
 │              Business Logic │ Database Operations               │
@@ -68,10 +68,12 @@ A production-ready Django + aiogram + Celery application template with dependenc
 │                    IoC Container (ioc/)                         │
 │                   Dependency Resolution                         │
 ├─────────────────────────────────────────────────────────────────┤
-│                   Infrastructure (infrastructure/)              │
-│              JWT │ Settings │ Base Classes                      │
+│                   Infrastructure Layer                          │
+│         Django ORM │ Django Admin │ Settings │ JWT              │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+**Note:** FastAPI handles all HTTP requests. Django provides the ORM for database operations and the admin panel for data management.
 
 ## The Golden Rule
 
@@ -84,7 +86,7 @@ Controller → Service → Model
 This ensures:
 
 - **Testability** - Mock services in tests instead of patching ORM calls
-- **Reusability** - Services can be shared across HTTP, Celery, and Bot controllers
+- **Reusability** - Services can be shared across HTTP and Celery controllers
 - **Maintainability** - Business logic stays in one place
 
 ## Requirements

@@ -1,19 +1,17 @@
-import uuid
 from abc import ABC, abstractmethod
 from contextlib import AbstractContextManager
-from typing import Any, cast
+from typing import Any
 
 from celery.contrib.testing import worker
 from celery.worker import WorkController
-from django.contrib.auth.models import AbstractUser
-from ninja.testing import TestClient
-from punq import Container
+from fastapi.testclient import TestClient
 
 from core.user.models import User
-from delivery.http.factories import NinjaAPIFactory
+from delivery.http.factories import FastAPIFactory
+from delivery.services.jwt import JWTService
 from delivery.tasks.factories import CeleryAppFactory, TasksRegistryFactory
 from delivery.tasks.registry import TasksRegistry
-from infrastructure.jwt.services import JWTService
+from infrastructure.punq.container import AutoRegisteringContainer
 
 
 class BaseFactory(ABC):
@@ -27,7 +25,7 @@ class BaseFactory(ABC):
 class ContainerBasedFactory(BaseFactory, ABC):
     def __init__(
         self,
-        container: Container,
+        container: AutoRegisteringContainer,
     ) -> None:
         self._container = container
 
@@ -39,7 +37,7 @@ class TestClientFactory(ContainerBasedFactory):
         headers: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> TestClient:
-        api_factory = self._container.resolve(NinjaAPIFactory)
+        api_factory = self._container.resolve(FastAPIFactory)
         jwt_service = self._container.resolve(JWTService)
 
         headers = headers or {}
@@ -48,9 +46,16 @@ class TestClientFactory(ContainerBasedFactory):
             token = jwt_service.issue_access_token(user_id=auth_for_user.pk)
             headers["Authorization"] = f"Bearer {token}"
 
+        app = api_factory(
+            include_django=False,
+            add_trusted_hosts_middleware=False,
+            add_cors_middleware=False,
+        )
+
         return TestClient(
-            api_factory(urls_namespace=str(uuid.uuid7())),
+            app=app,
             headers=headers,
+            base_url="http://testserver/api",
             **kwargs,
         )
 
@@ -61,16 +66,16 @@ class TestUserFactory(ContainerBasedFactory):
         username: str = "test_user",
         password: str = "password123",  # noqa: S107
         email: str = "user@test.com",
+        *,
+        is_staff: bool = False,
+        **kwargs: Any,
     ) -> User:
-        user_model = cast(
-            type[User],
-            self._container.resolve(type[AbstractUser]),  # type: ignore[arg-type, invalid-argument-type]
-        )
-
-        return user_model.objects.create_user(
+        return User.objects.create_user(
             username=username,
             email=email,
             password=password,
+            is_staff=is_staff,
+            **kwargs,
         )
 
 

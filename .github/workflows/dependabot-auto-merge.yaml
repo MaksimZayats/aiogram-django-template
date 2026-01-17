@@ -58,7 +58,7 @@ jobs:
           CHECK_RUNS=$(gh api "/repos/${REPO}/commits/${{ github.event.workflow_run.head_sha }}/check-runs" --jq '.check_runs')
 
           # Define required checks
-          REQUIRED_CHECKS=("check-code" "integration-test (production)" "integration-test (local)")
+          REQUIRED_CHECKS=("check-code" "integration-health-check (production)" "integration-health-check (local)")
 
           ALL_PASSED=true
           for check in "${REQUIRED_CHECKS[@]}"; do

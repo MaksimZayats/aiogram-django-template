@@ -5,10 +5,10 @@ Understanding the codebase organization is essential for effective development. 
 ## High-Level Overview
 
 ```
-modern-django-template/
+fastdjango/
 ├── src/                    # Application source code
 │   ├── core/               # Business logic and domain models
-│   ├── delivery/           # External interfaces (HTTP, Celery, Bot)
+│   ├── delivery/           # External interfaces (HTTP, Celery)
 │   ├── infrastructure/     # Cross-cutting concerns
 │   └── ioc/                # Dependency injection container
 ├── tests/                  # Test suite
@@ -23,21 +23,31 @@ modern-django-template/
 
 All application code lives under `src/`. This is structured as a Python namespace package with four main modules.
 
+### `configs/` - Application Configuration
+
+The configs module contains all application configuration and Pydantic settings classes.
+
+```
+src/configs/
+├── core.py             # Core settings (environment, application settings)
+├── django.py           # Django settings module
+├── infrastructure.py   # Infrastructure settings (S3, Redis)
+└── logging.py          # Logging configuration
+```
+
 ### `core/` - Business Logic
 
 The core module contains your domain models, business rules, and services. This is where the heart of your application logic resides.
 
 ```
 src/core/
-├── configs/                # Application configuration
-│   ├── core.py             # Core settings (environment, logging)
-│   ├── django.py           # Django settings module
-│   └── infrastructure.py   # Infrastructure settings (S3, Redis)
 ├── health/                 # Health check domain
 │   └── services.py         # Health check service
 ├── user/                   # User domain
-│   ├── models.py           # User model (extends Django AbstractUser)
-│   ├── services.py         # User business logic
+│   ├── models.py           # User and RefreshSession models
+│   ├── services/           # User domain services
+│   │   ├── user.py         # User business logic
+│   │   └── refresh_session.py  # Refresh token management
 │   └── migrations/         # Database migrations
 └── exceptions.py           # Base domain exceptions
 ```
@@ -51,41 +61,51 @@ The delivery module handles all external communication. Each sub-module is a sep
 
 ```
 src/delivery/
-├── http/                   # HTTP API (Django Ninja)
+├── http/                   # HTTP API (FastAPI)
 │   ├── app.py              # WSGI application factory
-│   ├── settings.py         # HTTP-specific settings
+│   ├── factories.py        # FastAPI factory
+│   ├── auth/               # Authentication components
+│   │   └── jwt.py          # JWT auth for FastAPI
 │   ├── health/             # Health check endpoints
 │   │   └── controllers.py
 │   └── user/               # User endpoints
 │       └── controllers.py
-├── tasks/                  # Celery background tasks
-│   ├── app.py              # Celery application factory
-│   ├── registry.py         # Task name registry
-│   ├── settings.py         # Celery settings
-│   └── tasks/              # Task controllers
-│       └── ping.py
-└── bot/                    # Telegram bot (aiogram)
-    ├── __main__.py         # Bot entry point
-    ├── settings.py         # Bot settings
-    └── controllers/        # Bot command handlers
+├── services/               # Delivery-specific services
+│   └── jwt.py              # JWT token service
+└── tasks/                  # Celery background tasks
+    ├── app.py              # Celery application factory
+    ├── registry.py         # Task name registry
+    ├── factories.py        # Celery factory
+    └── tasks/              # Task controllers
+        └── ping.py
 ```
 
 #### HTTP Controllers
 
-HTTP controllers define API endpoints using Django Ninja's routing:
+HTTP controllers define API endpoints using FastAPI's routing:
 
 ```python
 # src/delivery/http/user/controllers.py
-class UserController(Controller):
-    def __init__(self, user_service: UserService) -> None:
-        self._user_service = user_service
+from dataclasses import dataclass, field
+from fastapi import APIRouter, Depends
+from delivery.http.auth.jwt import JWTAuth, JWTAuthFactory
 
-    def register(self, registry: Router) -> None:
-        registry.add_api_operation(
+@dataclass
+class UserController(Controller):
+    _jwt_auth_factory: JWTAuthFactory
+    _user_service: UserService
+    _jwt_auth: JWTAuth = field(init=False)
+
+    def __post_init__(self) -> None:
+        self._jwt_auth = self._jwt_auth_factory()
+
+    def register(self, registry: APIRouter) -> None:
+        registry.add_api_route(
             path="/v1/users/me",
+            endpoint=self.get_current_user,
             methods=["GET"],
-            view_func=self.get_current_user,
-            auth=self._jwt_auth,
+            dependencies=[Depends(self._jwt_auth)],
+            response_model=UserSchema,
         )
 ```
 
@@ -103,43 +123,28 @@ class PingTaskController(Controller):
         return "pong"
 ```
 
-#### Bot Controllers
-
-Telegram bot controllers use aiogram's routing:
-
-```python
-# src/delivery/bot/controllers/__init__.py
-class CommandsController(AsyncController):
-    def register(self, registry: Router) -> None:
-        registry.message.register(
-            self.handle_start_command,
-            Command(commands=["start"]),
-        )
-```
-
 ### `infrastructure/` - Cross-Cutting Concerns
 
 Infrastructure code supports the application but is not domain-specific.
 
 ```
 src/infrastructure/
+├── anyio/                  # AnyIO configuration
+│   └── configurator.py     # Thread pool configuration
 ├── celery/                 # Celery utilities
 │   └── registry.py         # Base task registry
 ├── delivery/               # Controller base classes
-│   └── controllers.py      # Controller and AsyncController
+│   ├── controllers.py      # Controller base class
+│   └── request.py          # Request info service
 ├── django/                 # Django extensions
-│   ├── auth.py             # JWT authentication
-│   ├── refresh_sessions/   # Refresh token management
-│   │   ├── models.py
-│   │   └── services.py
+│   ├── configurator.py     # Django setup
 │   └── settings/           # Settings adapters
 │       └── pydantic_adapter.py
-├── jwt/                    # JWT token service
-│   └── services.py
-├── logging/                # Logging configuration
-│   └── configuration.py
-├── otel/                   # OpenTelemetry integration
-│   └── logfire.py
+├── punq/                   # IoC container extension
+│   └── container.py        # AutoRegisteringContainer
+├── telemetry/              # OpenTelemetry/Logfire integration
+│   ├── configurator.py     # Logfire configuration
+│   └── instrumentor.py     # Library instrumentation
 └── settings/               # Settings type definitions
     └── types.py
 ```
@@ -165,7 +170,7 @@ def get_container() -> Container:
     container = Container()
     register_core(container)           # Domain services
     register_infrastructure(container) # JWT, auth, etc.
-    register_delivery(container)       # HTTP, Celery, Bot controllers
+    register_delivery(container)       # HTTP and Celery controllers
     return container
 ```
 
