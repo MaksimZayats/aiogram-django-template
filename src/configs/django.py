@@ -92,19 +92,27 @@ class DjangoStorageSettings(BaseSettings):
 
     @computed_field()
     def storages(self) -> dict[str, Any]:
-        s3_storage_config = {
-            "BACKEND": "storages.backends.s3.S3Storage",
-            "OPTIONS": {
-                "bucket_name": self.s3_settings.protected_bucket_name,
-                "access_key": self.s3_settings.access_key_id,
-                "secret_key": self.s3_settings.secret_access_key.get_secret_value(),
-                "endpoint_url": self.s3_settings.endpoint_url,
-            },
+        base_options = {
+            "access_key": self.s3_settings.access_key_id,
+            "secret_key": self.s3_settings.secret_access_key.get_secret_value(),
+            "endpoint_url": self.s3_settings.endpoint_url,
         }
 
         return {
-            "staticfiles": s3_storage_config,
-            "default": s3_storage_config,
+            "staticfiles": {
+                "BACKEND": "storages.backends.s3.S3Storage",
+                "OPTIONS": {
+                    **base_options,
+                    "bucket_name": self.s3_settings.public_bucket_name,
+                },
+            },
+            "default": {
+                "BACKEND": "storages.backends.s3.S3Storage",
+                "OPTIONS": {
+                    **base_options,
+                    "bucket_name": self.s3_settings.protected_bucket_name,
+                },
+            },
         }
 
 
