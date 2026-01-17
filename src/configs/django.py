@@ -108,6 +108,24 @@ class DjangoStorageSettings(BaseSettings):
         }
 
 
+class DjangoTemplatesSettings(BaseSettings):
+    templates: tuple[dict[str, Any], ...] = (
+        {
+            "BACKEND": "django.template.backends.django.DjangoTemplates",
+            "DIRS": [],
+            "APP_DIRS": True,
+            "OPTIONS": {
+                "context_processors": [
+                    "django.template.context_processors.debug",
+                    "django.template.context_processors.request",
+                    "django.contrib.auth.context_processors.auth",
+                    "django.contrib.messages.context_processors.messages",
+                ],
+            },
+        },
+    )
+
+
 adapter = PydanticSettingsAdapter()
 adapter.adapt(
     DjangoSettings(),
@@ -116,6 +134,7 @@ adapter.adapt(
     DjangoAuthSettings(),
     DjangoSecuritySettings(),  # type: ignore[call-arg, missing-argument]
     DjangoStorageSettings(),
+    DjangoTemplatesSettings(),
     LoggingSettings(),
     settings_locals=locals(),
 )

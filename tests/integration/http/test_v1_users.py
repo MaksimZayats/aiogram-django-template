@@ -15,109 +15,106 @@ def user(user_factory: TestUserFactory) -> User:
 
 
 @pytest.mark.django_db(transaction=True)
-def test_create_user(
-    test_client_factory: TestClientFactory,
-) -> None:
-    test_client = test_client_factory()
+class TestUserController:
+    """Tests for UserController endpoints."""
 
-    response = test_client.post(
-        "/v1/users/",
-        json={
-            "username": "test_new_user",
-            "email": "new_user@test.com",
-            "password": _TEST_PASSWORD,
-            "first_name": "Test",
-            "last_name": "User",
-        },
-    )
+    def test_create_user(self, test_client_factory: TestClientFactory) -> None:
+        test_client = test_client_factory()
 
-    response_data = UserSchema.model_validate(response.json())
-    assert response.status_code == HTTPStatus.OK
-    assert response_data.username == "test_new_user"
+        response = test_client.post(
+            "/v1/users/",
+            json={
+                "username": "test_new_user",
+                "email": "new_user@test.com",
+                "password": _TEST_PASSWORD,
+                "first_name": "Test",
+                "last_name": "User",
+            },
+        )
 
+        response_data = UserSchema.model_validate(response.json())
+        assert response.status_code == HTTPStatus.OK
+        assert response_data.username == "test_new_user"
 
-@pytest.mark.django_db(transaction=True)
-def test_jwt_token_generation(
-    test_client_factory: TestClientFactory,
-    user: User,
-) -> None:
-    test_client = test_client_factory()
+    def test_jwt_token_generation(
+        self,
+        test_client_factory: TestClientFactory,
+        user: User,
+    ) -> None:
+        test_client = test_client_factory()
 
-    response = test_client.post(
-        "/v1/users/me/token",
-        json={"username": user.username, "password": _TEST_PASSWORD},
-    )
+        response = test_client.post(
+            "/v1/users/me/token",
+            json={"username": user.username, "password": _TEST_PASSWORD},
+        )
 
-    response_data = TokenResponseSchema.model_validate(response.json())
-    assert response.status_code == HTTPStatus.OK
+        response_data = TokenResponseSchema.model_validate(response.json())
+        assert response.status_code == HTTPStatus.OK
 
-    response = test_client.get(
-        "/v1/users/me",
-        headers={"Authorization": f"Bearer {response_data.access_token}"},
-    )
+        response = test_client.get(
+            "/v1/users/me",
+            headers={"Authorization": f"Bearer {response_data.access_token}"},
+        )
 
-    user_data = UserSchema.model_validate(response.json())
-    assert response.status_code == HTTPStatus.OK
+        user_data = UserSchema.model_validate(response.json())
+        assert response.status_code == HTTPStatus.OK
 
-    assert user_data.id == user.pk
-    assert user_data.username == user.username
-    assert user_data.email == user.email
+        assert user_data.id == user.pk
+        assert user_data.username == user.username
+        assert user_data.email == user.email
 
+    def test_jwt_token_generation_for_invalid_password(
+        self,
+        test_client_factory: TestClientFactory,
+        user: User,
+    ) -> None:
+        test_client = test_client_factory()
 
-@pytest.mark.django_db(transaction=True)
-def test_jwt_token_generation_for_invalid_password(
-    test_client_factory: TestClientFactory,
-    user: User,
-) -> None:
-    test_client = test_client_factory()
+        response = test_client.post(
+            "/v1/users/me/token",
+            json={"username": user.username, "password": "invalid-password"},
+        )
 
-    response = test_client.post(
-        "/v1/users/me/token",
-        json={"username": user.username, "password": "invalid-password"},
-    )
+        assert response.status_code == HTTPStatus.UNAUTHORIZED
 
-    assert response.status_code == HTTPStatus.UNAUTHORIZED
+    def test_jwt_token_refresh_revoke_flow(
+        self,
+        test_client_factory: TestClientFactory,
+        user: User,
+    ) -> None:
+        test_client = test_client_factory()
 
+        response = test_client.post(
+            "/v1/users/me/token",
+            json={"username": user.username, "password": _TEST_PASSWORD},
+        )
+        token_response = TokenResponseSchema.model_validate(response.json())
 
-@pytest.mark.django_db(transaction=True)
-def test_jwt_token_refresh_revoke_flow(
-    test_client_factory: TestClientFactory,
-    user: User,
-) -> None:
-    test_client = test_client_factory()
+        response = test_client.post(
+            "/v1/users/me/token/refresh",
+            json={"refresh_token": token_response.refresh_token},
+        )
+        token_response = TokenResponseSchema.model_validate(response.json())
 
-    response = test_client.post(
-        "/v1/users/me/token",
-        json={"username": user.username, "password": _TEST_PASSWORD},
-    )
-    token_response = TokenResponseSchema.model_validate(response.json())
+        response = test_client.post(
+            "/v1/users/me/token/revoke",
+            json={"refresh_token": token_response.refresh_token},
+            headers={"Authorization": f"Bearer {token_response.access_token}"},
+        )
+        assert response.status_code == HTTPStatus.OK
 
-    response = test_client.post(
-        "/v1/users/me/token/refresh",
-        json={"refresh_token": token_response.refresh_token},
-    )
-    token_response = TokenResponseSchema.model_validate(response.json())
+        response = test_client.post(
+            "/v1/users/me/token/refresh",
+            json={"refresh_token": token_response.refresh_token},
+        )
+        assert response.status_code == HTTPStatus.UNAUTHORIZED
 
-    response = test_client.post(
-        "/v1/users/me/token/revoke",
-        json={"refresh_token": token_response.refresh_token},
-        headers={"Authorization": f"Bearer {token_response.access_token}"},
-    )
-    assert response.status_code == HTTPStatus.OK
+    def test_auth_for_user(
+        self,
+        test_client_factory: TestClientFactory,
+        user: User,
+    ) -> None:
+        test_client = test_client_factory(auth_for_user=user)
 
-    response = test_client.post(
-        "/v1/users/me/token/refresh",
-        json={"refresh_token": token_response.refresh_token},
-    )
-    assert response.status_code == HTTPStatus.UNAUTHORIZED
-
-
-@pytest.mark.django_db(transaction=True)
-def test_auth_for_user(
-    test_client_factory: TestClientFactory,
-    user: User,
-) -> None:
-    test_client = test_client_factory(auth_for_user=user)
-
-    response = test_client.get("/v1/users/me")
-    assert response.status_code == HTTPStatus.OK
+        response = test_client.get("/v1/users/me")
+        assert response.status_code == HTTPStatus.OK
