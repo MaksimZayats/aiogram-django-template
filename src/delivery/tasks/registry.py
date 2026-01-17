@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
@@ -13,6 +14,7 @@ class TaskName(StrEnum):
     PING = "ping"
 
 
+@dataclass
 class TasksRegistry(BaseTasksRegistry):
     @property
     def ping(self) -> Task[[], PingResult]:

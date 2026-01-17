@@ -2,6 +2,7 @@ import hashlib
 import ipaddress
 import secrets
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import NamedTuple, Protocol
 
@@ -50,14 +51,10 @@ class ExpiredRefreshTokenError(RefreshTokenError):
     pass
 
 
+@dataclass
 class RefreshSessionService:
-    def __init__(
-        self,
-        settings: RefreshSessionServiceSettings,
-        refresh_session_model: type[BaseRefreshSession],
-    ) -> None:
-        self._settings = settings
-        self._refresh_session_model = refresh_session_model
+    _settings: RefreshSessionServiceSettings
+    _refresh_session_model: type[BaseRefreshSession]
 
     def create_refresh_session(
         self,

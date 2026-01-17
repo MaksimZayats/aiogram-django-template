@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 
 import logfire
 from logfire import ScrubbingOptions
@@ -21,14 +22,10 @@ class LogfireSettings(BaseSettings):
         return self.enabled and self.token is not None
 
 
+@dataclass
 class LogfireConfigurator:
-    def __init__(
-        self,
-        application_settings: ApplicationSettings,
-        logfire_settings: LogfireSettings,
-    ) -> None:
-        self._application_settings = application_settings
-        self._logfire_settings = logfire_settings
+    _application_settings: ApplicationSettings
+    _logfire_settings: LogfireSettings
 
     def configure(
         self,

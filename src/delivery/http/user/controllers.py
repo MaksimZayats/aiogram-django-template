@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass, field
 from http import HTTPStatus
 from typing import Annotated, Any
 
@@ -14,7 +15,7 @@ from infrastructure.django.refresh_sessions.services import (
     RefreshSessionService,
     RefreshTokenError,
 )
-from infrastructure.fastapi.auth import AuthenticatedRequest, JWTAuthFactory
+from infrastructure.fastapi.auth import AuthenticatedRequest, JWTAuth, JWTAuthFactory
 from infrastructure.jwt.services import JWTService
 
 logger = logging.getLogger(__name__)
@@ -34,18 +35,16 @@ class TokenResponseSchema(BaseModel):
     refresh_token: str
 
 
+@dataclass
 class UserTokenController(Controller):
-    def __init__(
-        self,
-        jwt_auth_factory: JWTAuthFactory,
-        jwt_service: JWTService,
-        refresh_token_service: RefreshSessionService,
-        user_service: UserService,
-    ) -> None:
-        self._jwt_auth = jwt_auth_factory()
-        self._jwt_service = jwt_service
-        self._refresh_token_service = refresh_token_service
-        self._user_service = user_service
+    _jwt_auth_factory: JWTAuthFactory
+    _jwt_service: JWTService
+    _refresh_token_service: RefreshSessionService
+    _user_service: UserService
+    _jwt_auth: JWTAuth = field(init=False)
+
+    def __post_init__(self) -> None:
+        self._jwt_auth = self._jwt_auth_factory()
 
     def register(self, registry: APIRouter) -> None:
         registry.add_api_route(
@@ -163,14 +162,14 @@ class UserSchema(BaseModel):
     is_superuser: bool
 
 
+@dataclass
 class UserController(Controller):
-    def __init__(
-        self,
-        jwt_auth_factory: JWTAuthFactory,
-        user_service: UserService,
-    ) -> None:
-        self._jwt_auth = jwt_auth_factory()
-        self._user_service = user_service
+    _jwt_auth_factory: JWTAuthFactory
+    _user_service: UserService
+    _jwt_auth: JWTAuth = field(init=False)
+
+    def __post_init__(self) -> None:
+        self._jwt_auth = self._jwt_auth_factory()
 
     def register(self, registry: APIRouter) -> None:
         registry.add_api_route(

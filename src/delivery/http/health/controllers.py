@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from http import HTTPStatus
 from typing import Literal
 
@@ -15,12 +16,9 @@ class HealthCheckResponseSchema(BaseModel):
     status: Literal["ok"]
 
 
+@dataclass
 class HealthController(Controller):
-    def __init__(
-        self,
-        health_service: HealthService,
-    ) -> None:
-        self._health_service = health_service
+    _health_service: HealthService
 
     def register(self, registry: APIRouter) -> None:
         registry.add_api_route(

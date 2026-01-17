@@ -1,3 +1,5 @@
+from dataclasses import dataclass, field
+
 from celery import Celery
 
 from configs.core import ApplicationSettings
@@ -7,17 +9,12 @@ from delivery.tasks.settings import CelerySettings
 from delivery.tasks.tasks.ping import PingTaskController
 
 
+@dataclass
 class CeleryAppFactory:
-    def __init__(
-        self,
-        application_settings: ApplicationSettings,
-        celery_settings: CelerySettings,
-        redis_settings: RedisSettings,
-    ) -> None:
-        self._instance: Celery | None = None
-        self._application_settings = application_settings
-        self._celery_settings = celery_settings
-        self._redis_settings = redis_settings
+    _application_settings: ApplicationSettings
+    _celery_settings: CelerySettings
+    _redis_settings: RedisSettings
+    _instance: Celery | None = field(default=None, init=False)
 
     def __call__(self) -> Celery:
         if self._instance is not None:
@@ -51,22 +48,18 @@ class CeleryAppFactory:
         }
 
 
+@dataclass
 class TasksRegistryFactory:
-    def __init__(
-        self,
-        celery_app_factory: CeleryAppFactory,
-        ping_controller: PingTaskController,
-    ) -> None:
-        self._instance: TasksRegistry | None = None
-        self._celery_app_factory = celery_app_factory
-        self._ping_controller = ping_controller
+    _celery_app_factory: CeleryAppFactory
+    _ping_controller: PingTaskController
+    _instance: TasksRegistry | None = field(default=None, init=False)
 
     def __call__(self) -> TasksRegistry:
         if self._instance is not None:
             return self._instance
 
         celery_app = self._celery_app_factory()
-        registry = TasksRegistry(app=celery_app)
+        registry = TasksRegistry(_celery_app=celery_app)
         self._ping_controller.register(celery_app)
 
         self._instance = registry

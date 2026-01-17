@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -18,12 +19,12 @@ class JWTServiceSettings(BaseSettings):
         return timedelta(minutes=self.access_token_expire_minutes)
 
 
+@dataclass
 class JWTService:
     EXPIRED_SIGNATURE_ERROR = jwt.ExpiredSignatureError
     INVALID_TOKEN_ERROR = jwt.InvalidTokenError
 
-    def __init__(self, settings: JWTServiceSettings) -> None:
-        self._settings = settings
+    _settings: JWTServiceSettings
 
     def issue_access_token(
         self,

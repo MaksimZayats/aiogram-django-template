@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 
 import anyio
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -12,9 +13,9 @@ class AnyIOSettings(BaseSettings):
     thread_limiter_tokens: int = 40
 
 
+@dataclass
 class AnyIOConfigurator:
-    def __init__(self, settings: AnyIOSettings) -> None:
-        self._settings = settings
+    _settings: AnyIOSettings
 
     def configure(self) -> None:
         limiter = anyio.to_thread.current_default_thread_limiter()  # type: ignore[unresolved-attribute]

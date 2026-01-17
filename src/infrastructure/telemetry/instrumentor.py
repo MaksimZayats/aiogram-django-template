@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import logfire
 from fastapi import FastAPI
 from logfire.integrations.psycopg import CommenterOptions
@@ -15,14 +17,10 @@ class InstrumentorSettings(BaseSettings):
     )
 
 
+@dataclass
 class OpenTelemetryInstrumentor:
-    def __init__(
-        self,
-        instrumentor_settings: InstrumentorSettings,
-        logfire_settings: LogfireSettings,
-    ) -> None:
-        self._instrumentor_settings = instrumentor_settings
-        self._logfire_settings = logfire_settings
+    _instrumentor_settings: InstrumentorSettings
+    _logfire_settings: LogfireSettings
 
     def instrument_libraries(self) -> None:
         if not self._logfire_settings.is_enabled:
