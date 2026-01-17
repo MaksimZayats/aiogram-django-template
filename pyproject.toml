@@ -25,6 +25,7 @@ dependencies = [
     "pyjwt>=2.10.1",
     "python-dotenv>=1.2.1",
     "redis>=7.1.0",
+    "throttled-py>=3.1.1",
     "uvicorn[standard]>=0.34.0",
     "watchdog[watchmedo]>=6.0.0",
 ]
