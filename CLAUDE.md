@@ -6,22 +6,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Install dependencies
-uv sync --locked --all-extras --dev
+uv sync --locked --all-groups
 
 # Configure environment (includes COMPOSE_FILE for local development, see .env.example)
 cp .env.example .env
 
 # Start infrastructure (PostgreSQL, Redis, MinIO)
-docker compose up -d postgres redis minio
+docker compose up -d postgres redis minio minio-create-buckets
 
-# Create MinIO buckets, run migrations, and collect static files
-docker compose up minio-create-buckets migrations collectstatic
+# Run migrations and collect static files
+docker compose up migrations collectstatic
 
 # Run development server
 make dev
 
 # Run Celery worker
 make celery-dev
+
+# Run Celery beat scheduler (for scheduled tasks)
+make celery-beat-dev
 
 # Manual database migrations (alternative to docker compose)
 make makemigrations
@@ -31,16 +34,17 @@ make migrate
 make format    # ruff format + fix
 make lint      # ruff, ty, pyrefly, mypy
 make test      # pytest with 80% coverage requirement
+
+# Documentation
+make docs      # Serve docs with live reload
+make docs-build # Build static documentation
 ```
 
 ## Python Version
 
 **Minimum Required:** Python 3.14+
 
-This project leverages Python 3.14 features including:
-- Deferred evaluation of annotations (PEP 649)
-- Template string literals (PEP 750) - available for custom string processing
-- Improved type inference and static analysis support
+The project requires Python 3.14+ and uses standard Python typing patterns including union operators (`|`), `Annotated`, and PEP 695 type parameters.
 
 All code must be compatible with `mypy --strict` mode.
 
@@ -171,7 +175,7 @@ The container is created via `ContainerFactory` in `src/ioc/container.py`:
 from ioc.container import ContainerFactory
 
 container_factory = ContainerFactory()
-container_factory = container_factory()  # Creates AutoRegisteringContainer
+container = container_factory()  # Creates AutoRegisteringContainer
 ```
 
 ### AutoRegisteringContainer
@@ -194,12 +198,20 @@ The container:
 
 ### Explicit Registration (Special Cases Only)
 
-Only protocol/interface mappings need explicit registration in `src/ioc/registries.py`:
+Explicit registration in `src/ioc/registries.py` is needed for:
+- Protocol/interface mappings
+- Special factory classes resolved by string key
 
 ```python
 class Registry:
     def register(self, container: Container) -> None:
-        # Map protocols to concrete implementations
+        # Factory class resolved by string key
+        container.register(
+            "FastAPIFactory",
+            factory=lambda: container.resolve(FastAPIFactory),
+            scope=Scope.singleton,
+        )
+        # Protocol to concrete implementation mapping
         container.register(
             ApplicationSettingsProtocol,
             factory=lambda: container.resolve(ApplicationSettings),
@@ -370,7 +382,7 @@ class ContainerBasedFactory(BaseFactory, ABC):
 
 ### Per-Test Container Isolation
 
-Each test gets a fresh container (function-scoped fixtures):
+Each test gets a fresh container (function-scoped fixtures in `tests/integration/conftest.py`):
 
 ```python
 @pytest.fixture(scope="function")
