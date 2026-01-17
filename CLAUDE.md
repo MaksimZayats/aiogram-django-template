@@ -232,6 +232,52 @@ class Controller(ABC):
 
 Controllers auto-wrap public methods with exception handling. Override `handle_exception()` to customize error responses.
 
+### Sync vs Async Handlers
+
+**Always use synchronous handler methods.** FastAPI automatically runs sync handlers in a thread pool using `anyio.to_thread.run_sync()`, providing proper parallelism for Django's synchronous ORM.
+
+```python
+# ✅ CORRECT - Sync handler (recommended)
+def get_user(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
+    user = self._user_service.get_user_by_id(user_id)
+    return UserSchema.model_validate(user, from_attributes=True)
+
+# ❌ WRONG - Async handler calling sync service directly (blocks event loop)
+async def get_user(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
+    user = self._user_service.get_user_by_id(user_id)  # Blocks the event loop!
+    return UserSchema.model_validate(user, from_attributes=True)
+```
+
+**Thread pool configuration:** Control parallelism via `ANYIO_THREAD_LIMITER_TOKENS` environment variable (default: 40 concurrent threads per worker). See `src/infrastructure/anyio/configurator.py`.
+
+### Async Handlers (Advanced)
+
+In rare cases where you need async handlers (e.g., calling external async APIs), use `asgiref.sync_to_async` to call services:
+
+```python
+from asgiref.sync import sync_to_async
+
+async def get_user_async(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
+    # thread_sensitive=False for read-only operations (parallel execution)
+    user = await sync_to_async(
+        self._user_service.get_user_by_id,
+        thread_sensitive=False,
+    )(user_id)
+    return UserSchema.model_validate(user, from_attributes=True)
+
+async def create_user_async(self, request: AuthenticatedRequest, body: CreateUserRequest) -> UserSchema:
+    # thread_sensitive=True for write operations (transaction safety)
+    user = await sync_to_async(
+        self._user_service.create_user,
+        thread_sensitive=True,
+    )(**body.model_dump())
+    return UserSchema.model_validate(user, from_attributes=True)
+```
+
+**Thread sensitivity rules:**
+- `thread_sensitive=False` - Read-only operations (SELECT) - allows parallel execution
+- `thread_sensitive=True` - Write operations (INSERT/UPDATE/DELETE) - ensures transaction safety
+
 ### HTTP Controller Registration
 
 ```python
@@ -416,6 +462,7 @@ Uses Pydantic BaseSettings with environment variable prefixes:
 - `JWT_` - JWT configuration (SECRET_KEY, algorithm, expiry)
 - `AWS_S3_` - S3/MinIO storage
 - `CELERY_` - Celery settings
+- `ANYIO_` - Thread pool settings (THREAD_LIMITER_TOKENS for parallelism)
 
 Settings classes are registered in IoC and injected into services.
 

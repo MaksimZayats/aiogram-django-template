@@ -1,6 +1,6 @@
 # Development Environment
 
-Configure your development environment for the best experience with the Modern Django API Template.
+Configure your development environment for the best experience with Fast Django.
 
 ## IDE Setup
 
@@ -307,7 +307,6 @@ Tests use `.env.test` which is loaded automatically by `tests/conftest.py`.
 | `make dev` | Run development server |
 | `make celery-dev` | Run Celery worker |
 | `make celery-beat-dev` | Run Celery beat scheduler |
-| `make bot-dev` | Run Telegram bot |
 | `make format` | Format code with Ruff |
 | `make lint` | Run all linters and type checkers |
 | `make test` | Run tests with coverage |

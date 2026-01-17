@@ -1,6 +1,6 @@
 # Reference
 
-Technical reference documentation for the Modern Django API Template.
+Technical reference documentation for Fast Django.
 
 ## Contents
 

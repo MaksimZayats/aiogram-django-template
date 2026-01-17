@@ -118,15 +118,10 @@ def delete_completed_todos_older_than(self, days: int) -> int:
 
 Register the new controller in the IoC container so it can be resolved with its dependencies.
 
-```python title="src/ioc/registries/delivery.py" hl_lines="14 47"
+```python title="src/ioc/registries/delivery.py" hl_lines="8 41"
 from punq import Container, Scope
 
-from delivery.bot.bot_factory import BotFactory
-from delivery.bot.controllers.commands import CommandsController
-from delivery.bot.controllers.events import LifecycleEventsController
-from delivery.bot.dispatcher_factory import DispatcherFactory
-from delivery.bot.settings import TelegramBotSettings
-from delivery.http.factories import AdminSiteFactory, NinjaAPIFactory, URLPatternsFactory
+from delivery.http.factories import AdminSiteFactory, FastAPIFactory, URLPatternsFactory
 from delivery.http.health.controllers import HealthController
 from delivery.http.user.controllers import UserController, UserTokenController
 from delivery.tasks.factories import CeleryAppFactory, TasksRegistryFactory
@@ -142,12 +137,9 @@ def register_delivery(container: Container) -> None:
     _register_celery(container)
     _register_celery_controllers(container)
 
-    _register_bot(container)
-    _register_bot_controllers(container)
-
 
 def _register_http(container: Container) -> None:
-    container.register(NinjaAPIFactory, scope=Scope.singleton)
+    container.register(FastAPIFactory, scope=Scope.singleton)
     container.register(AdminSiteFactory, scope=Scope.singleton)
     container.register(URLPatternsFactory, scope=Scope.singleton)
 
@@ -167,9 +159,6 @@ def _register_celery(container: Container) -> None:
 def _register_celery_controllers(container: Container) -> None:
     container.register(PingTaskController, scope=Scope.singleton)
     container.register(TodoCleanupTaskController, scope=Scope.singleton)
-
-
-# ... rest of bot registrations
 ```
 
 !!! note "Automatic Dependency Resolution"

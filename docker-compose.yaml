@@ -31,9 +31,10 @@ services:
       - "8009:8000"
     command:
       - gunicorn
-      - delivery.http.app:wsgi
+      - delivery.http.app:app
       - --workers=4
-      - --bind=0.0.0.0
+      - --worker-class=uvicorn.workers.UvicornWorker
+      - --bind=0.0.0.0:8000
       - --timeout=120
     depends_on:
       - pgbouncer
@@ -67,14 +68,6 @@ services:
       - pgbouncer
       - migrations
       - redis
-    restart: always
-
-  bot:
-    <<: *common
-    command: python -m delivery.bot
-    depends_on:
-      - pgbouncer
-      - migrations
     restart: always
 
   migrations:

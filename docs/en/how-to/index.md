@@ -1,6 +1,6 @@
 # How-To Guides
 
-Task-oriented guides for accomplishing specific goals with the Modern Django API Template.
+Task-oriented guides for accomplishing specific goals with Fast Django.
 
 ## Available Guides
 

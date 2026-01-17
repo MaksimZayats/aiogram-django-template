@@ -5,10 +5,10 @@ Understanding the codebase organization is essential for effective development. 
 ## High-Level Overview
 
 ```
-modern-django-template/
+fast-django/
 ├── src/                    # Application source code
 │   ├── core/               # Business logic and domain models
-│   ├── delivery/           # External interfaces (HTTP, Celery, Bot)
+│   ├── delivery/           # External interfaces (HTTP, Celery)
 │   ├── infrastructure/     # Cross-cutting concerns
 │   └── ioc/                # Dependency injection container
 ├── tests/                  # Test suite
@@ -51,7 +51,7 @@ The delivery module handles all external communication. Each sub-module is a sep
 
 ```
 src/delivery/
-├── http/                   # HTTP API (Django Ninja)
+├── http/                   # HTTP API (FastAPI)
 │   ├── app.py              # WSGI application factory
 │   ├── settings.py         # HTTP-specific settings
 │   ├── health/             # Health check endpoints
@@ -68,20 +68,30 @@ src/delivery/
 
 #### HTTP Controllers
 
-HTTP controllers define API endpoints using Django Ninja's routing:
+HTTP controllers define API endpoints using FastAPI's routing:
 
 ```python
 # src/delivery/http/user/controllers.py
-class UserController(Controller):
-    def __init__(self, user_service: UserService) -> None:
-        self._user_service = user_service
+from dataclasses import dataclass, field
+from fastapi import APIRouter, Depends
+from infrastructure.fastapi.auth import JWTAuth, JWTAuthFactory
 
-    def register(self, registry: Router) -> None:
-        registry.add_api_operation(
+@dataclass
+class UserController(Controller):
+    _jwt_auth_factory: JWTAuthFactory
+    _user_service: UserService
+    _jwt_auth: JWTAuth = field(init=False)
+
+    def __post_init__(self) -> None:
+        self._jwt_auth = self._jwt_auth_factory()
+
+    def register(self, registry: APIRouter) -> None:
+        registry.add_api_route(
             path="/v1/users/me",
+            endpoint=self.get_current_user,
             methods=["GET"],
-            view_func=self.get_current_user,
-            auth=self._jwt_auth,
+            dependencies=[Depends(self._jwt_auth)],
+            response_model=UserSchema,
         )
 ```
 
@@ -147,7 +157,7 @@ def get_container() -> Container:
     container = Container()
     register_core(container)           # Domain services
     register_infrastructure(container) # JWT, auth, etc.
-    register_delivery(container)       # HTTP, Celery, Bot controllers
+    register_delivery(container)       # HTTP and Celery controllers
     return container
 ```
 

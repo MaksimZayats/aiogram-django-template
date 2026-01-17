@@ -1,6 +1,6 @@
 # Quick Start
 
-Get the Modern Django API Template running locally in under 5 minutes.
+Get Fast Django running locally in under 5 minutes.
 
 ## Prerequisites
 
@@ -13,8 +13,8 @@ Ensure you have installed:
 ## Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/MaksimZayats/modern-django-template.git
-cd modern-django-template
+git clone https://github.com/MaksimZayats/fast-django.git
+cd fast-django
 ```
 
 ## Step 2: Configure Environment
@@ -103,14 +103,6 @@ In another terminal:
 
 ```bash
 make celery-beat-dev
-```
-
-### Telegram Bot
-
-If you have configured a bot token in `.env`:
-
-```bash
-make bot-dev
 ```
 
 ## Verify Everything Works

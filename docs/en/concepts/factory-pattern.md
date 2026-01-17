@@ -1,6 +1,6 @@
 # Factory Pattern
 
-Factories encapsulate complex object construction, especially when objects require configuration, caching, or composition of multiple dependencies. This pattern is essential for creating framework-specific objects like Django-Ninja APIs and Celery apps.
+Factories encapsulate complex object construction, especially when objects require configuration, caching, or composition of multiple dependencies. This pattern is essential for creating framework-specific objects like FastAPI apps and Celery apps.
 
 ## Why Factories?
 
@@ -28,14 +28,14 @@ class CeleryAppFactory:
 Objects may need different configurations based on environment:
 
 ```python
-class NinjaAPIFactory:
-    def __call__(self) -> NinjaAPI:
+class FastAPIFactory:
+    def __call__(self) -> FastAPI:
         if self._settings.environment == Environment.PRODUCTION:
-            docs_decorator = staff_member_required
+            docs_url = None  # Disable docs in production
         else:
-            docs_decorator = None
+            docs_url = "/docs"
 
-        return NinjaAPI(docs_decorator=docs_decorator)
+        return FastAPI(docs_url=docs_url)
 ```
 
 ### 3. Caching (Singleton-like Behavior)
@@ -130,51 +130,45 @@ class TasksRegistryFactory:
 
 ## Real-World Examples
 
-### NinjaAPIFactory
+### FastAPIFactory
 
-Creates and configures the Django-Ninja API with all controllers:
+Creates and configures the FastAPI application with all controllers:
 
 ```python
-class NinjaAPIFactory:
-    def __init__(
-        self,
-        settings: ApplicationSettings,
-        health_controller: HealthController,
-        user_token_controller: UserTokenController,
-        user_controller: UserController,
-    ) -> None:
-        self._settings = settings
-        self._health_controller = health_controller
-        self._user_token_controller = user_token_controller
-        self._user_controller = user_controller
+from dataclasses import dataclass
+from fastapi import APIRouter, FastAPI
 
-    def __call__(
-        self,
-        urls_namespace: str | None = None,
-    ) -> NinjaAPI:
+@dataclass
+class FastAPIFactory:
+    _settings: ApplicationSettings
+    _health_controller: HealthController
+    _user_token_controller: UserTokenController
+    _user_controller: UserController
+
+    def __call__(self) -> FastAPI:
         # Environment-specific configuration
         if self._settings.environment == Environment.PRODUCTION:
-            docs_decorator = staff_member_required
+            docs_url = None  # Disable docs in production
         else:
-            docs_decorator = None
+            docs_url = "/docs"
 
-        ninja_api = NinjaAPI(
-            urls_namespace=urls_namespace,
-            docs_decorator=docs_decorator,
-        )
+        app = FastAPI(docs_url=docs_url)
 
         # Register all controllers
-        health_router = Router(tags=["health"])
-        ninja_api.add_router("/", health_router)
+        health_router = APIRouter(tags=["health"])
         self._health_controller.register(registry=health_router)
+        app.include_router(health_router)
 
-        user_router = Router(tags=["user"])
-        ninja_api.add_router("/", user_router)
+        user_router = APIRouter(tags=["user"])
         self._user_controller.register(registry=user_router)
         self._user_token_controller.register(registry=user_router)
+        app.include_router(user_router)
 
-        return ninja_api
+        return app
 ```
+
+!!! note "Simplified Example"
+    This example is simplified for clarity. The production implementation in `src/delivery/http/factories.py` includes additional configuration for middleware, CORS, telemetry, and lifespan management.
 
 ### CeleryAppFactory
 
@@ -257,7 +251,7 @@ Factories can depend on other factories, forming a construction hierarchy:
 ```
 URLPatternsFactory
     |
-    +-- NinjaAPIFactory
+    +-- FastAPIFactory
     |       |
     |       +-- HealthController
     |       +-- UserController
@@ -267,14 +261,12 @@ URLPatternsFactory
 ```
 
 ```python
+from dataclasses import dataclass
+
+@dataclass
 class URLPatternsFactory:
-    def __init__(
-        self,
-        api_factory: NinjaAPIFactory,
-        admin_site_factory: AdminSiteFactory,
-    ) -> None:
-        self._api_factory = api_factory
-        self._admin_site_factory = admin_site_factory
+    _api_factory: FastAPIFactory
+    _admin_site_factory: AdminSiteFactory
 
     def __call__(self) -> list[URLResolver]:
         api = self._api_factory()
@@ -293,7 +285,7 @@ Factories are registered as singletons in the IoC container:
 ```python
 # ioc/registries/delivery.py
 def _register_http(container: Container) -> None:
-    container.register(NinjaAPIFactory, scope=Scope.singleton)
+    container.register(FastAPIFactory, scope=Scope.singleton)
     container.register(AdminSiteFactory, scope=Scope.singleton)
     container.register(URLPatternsFactory, scope=Scope.singleton)
 
@@ -319,18 +311,13 @@ registry = registry_factory()  # Creates the actual registry
 Factories enable test isolation by allowing custom configurations:
 
 ```python
-class NinjaAPIFactory:
-    def __call__(
-        self,
-        urls_namespace: str | None = None,  # Allows unique namespace per test
-    ) -> NinjaAPI:
-        ...
+from fastapi.testclient import TestClient
 
 # In tests:
 def test_create_user(container: Container) -> None:
-    api_factory = container.resolve(NinjaAPIFactory)
-    api = api_factory(urls_namespace="test_create_user")  # Unique namespace
-    client = TestClient(api)
+    api_factory = container.resolve(FastAPIFactory)
+    app = api_factory()
+    client = TestClient(app)
     ...
 ```
 
@@ -357,7 +344,7 @@ container.register(UserService, scope=Scope.singleton)
 
 ```python
 # Complex construction, caching, or composition needed
-container.register(NinjaAPIFactory, scope=Scope.singleton)
+container.register(FastAPIFactory, scope=Scope.singleton)
 ```
 
 ## Summary

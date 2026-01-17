@@ -60,15 +60,6 @@ All configuration is managed through environment variables using Pydantic Settin
 
 *Required when using S3 storage backend.
 
-## Telegram Bot
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `TELEGRAM_BOT_TOKEN` | Yes* | - | Telegram bot API token |
-| `TELEGRAM_BOT_PARSE_MODE` | No | `HTML` | Default message parse mode |
-
-*Required when running the bot.
-
 ## Celery
 
 | Variable | Required | Default | Description |
@@ -97,7 +88,7 @@ All configuration is managed through environment variables using Pydantic Settin
 |----------|----------|---------|-------------|
 | `CORS_ALLOW_CREDENTIALS` | No | `true` | Allow credentials in CORS |
 | `CORS_ALLOWED_ORIGINS` | No | `["http://localhost"]` | JSON list of allowed CORS origins |
-| `NINJA_NUM_PROXIES` | No | `0` | Number of reverse proxies |
+| `NUMBER_OF_PROXIES` | No | `0` | Number of reverse proxies |
 
 ## Observability (Logfire)
 

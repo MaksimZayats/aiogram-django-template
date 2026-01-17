@@ -1,6 +1,6 @@
 # Getting Started
 
-Welcome to the Modern Django API Template. This section will help you get up and running quickly.
+Welcome to Fast Django. This section will help you get up and running quickly.
 
 ## What You Will Learn
 
@@ -30,7 +30,7 @@ Before you begin, ensure you have:
 
 The template provides a production-ready foundation for building APIs with:
 
-- **Django Ninja** - Fast, async-ready HTTP API framework
+- **FastAPI** - Fast, async-ready HTTP API framework
 - **Celery** - Distributed task queue for background jobs
 - **punq** - Lightweight dependency injection container
 - **PostgreSQL + Redis + MinIO** - Battle-tested infrastructure stack

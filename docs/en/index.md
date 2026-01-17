@@ -1,4 +1,4 @@
-# Modern API Template
+# Fast Django
 
 A production-ready Django + Celery application template with dependency injection, designed for building scalable APIs and background task processing.
 
@@ -6,7 +6,7 @@ A production-ready Django + Celery application template with dependency injectio
 
 - **Service Layer Architecture** - Clean separation between controllers and business logic
 - **Dependency Injection** - Testable, loosely-coupled components using punq
-- **Modern HTTP API** - Django Ninja with automatic OpenAPI documentation
+- **Modern HTTP API** - FastAPI with automatic OpenAPI documentation
 - **Background Tasks** - Celery with Redis broker and typed task registry
 - **Observability** - Logfire/OpenTelemetry integration for tracing and logging
 - **Type Safety** - Full type hints with mypy strict mode
@@ -56,7 +56,7 @@ A production-ready Django + Celery application template with dependency injectio
 │                        Entry Points                             │
 ├───────────────┬───────────────────────┬─────────────────────────┤
 │      HTTP API       │        Celery Worker        │
-│   (Django Ninja)    │                             │
+│     (FastAPI)       │                             │
 ├─────────────────────┴─────────────────────────────┤
 │              Controllers (delivery/)              │
 │       HTTP Controllers │ Task Controllers         │
@@ -83,7 +83,7 @@ Controller → Service → Model
 This ensures:
 
 - **Testability** - Mock services in tests instead of patching ORM calls
-- **Reusability** - Services can be shared across HTTP, Celery, and Bot controllers
+- **Reusability** - Services can be shared across HTTP and Celery controllers
 - **Maintainability** - Business logic stays in one place
 
 ## Requirements

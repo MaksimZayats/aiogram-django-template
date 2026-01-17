@@ -1,6 +1,6 @@
 # Controller Pattern
 
-Controllers are the entry points for handling requests in this template. They provide a unified interface for HTTP endpoints, Celery tasks, and Telegram bot handlers while automatically handling exceptions.
+Controllers are the entry points for handling requests in this template. They provide a unified interface for HTTP endpoints and Celery tasks while automatically handling exceptions.
 
 ## Two Base Classes
 
@@ -11,22 +11,23 @@ The template provides two abstract base classes depending on whether your handle
 Used for HTTP endpoints and Celery tasks:
 
 ```python
+from dataclasses import dataclass
+from fastapi import APIRouter, Request
 from infrastructure.delivery.controllers import Controller
 
+@dataclass
 class HealthController(Controller):
-    def __init__(self, health_service: HealthService) -> None:
-        self._health_service = health_service
+    _health_service: HealthService
 
-    def register(self, registry: Router) -> None:
-        registry.add_api_operation(
+    def register(self, registry: APIRouter) -> None:
+        registry.add_api_route(
             path="/v1/health",
+            endpoint=self.health_check,
             methods=["GET"],
-            view_func=self.health_check,
-            response=HealthCheckResponseSchema,
-            auth=None,
+            response_model=HealthCheckResponseSchema,
         )
 
-    def health_check(self, request: HttpRequest) -> HealthCheckResponseSchema:
+    def health_check(self) -> HealthCheckResponseSchema:
         self._health_service.check_system_health()
         return HealthCheckResponseSchema(status="ok")
 ```
@@ -47,12 +48,12 @@ This means every handler method is automatically wrapped in a try-except block t
 
 ```python
 # What you write:
-def health_check(self, request: HttpRequest) -> HealthCheckResponseSchema:
+def health_check(self) -> HealthCheckResponseSchema:
     self._health_service.check_system_health()
     return HealthCheckResponseSchema(status="ok")
 
 # What actually executes:
-def health_check(self, request: HttpRequest) -> HealthCheckResponseSchema:
+def health_check(self) -> HealthCheckResponseSchema:
     try:
         self._health_service.check_system_health()
         return HealthCheckResponseSchema(status="ok")
@@ -76,27 +77,35 @@ Every controller must implement `register()`. This method connects the controlle
 
 ### HTTP Controllers
 
-Register handlers with a Django-Ninja Router:
+Register handlers with a FastAPI APIRouter:
 
 ```python
+from dataclasses import dataclass, field
+from fastapi import APIRouter, Depends
+from infrastructure.fastapi.auth import JWTAuth, JWTAuthFactory
+
+@dataclass
 class UserController(Controller):
-    def register(self, registry: Router) -> None:
-        registry.add_api_operation(
+    _jwt_auth_factory: JWTAuthFactory
+    _jwt_auth: JWTAuth = field(init=False)
+
+    def __post_init__(self) -> None:
+        self._jwt_auth = self._jwt_auth_factory()
+
+    def register(self, registry: APIRouter) -> None:
+        registry.add_api_route(
             path="/v1/users/",
+            endpoint=self.create_user,
             methods=["POST"],
-            view_func=self.create_user,
-            response=UserSchema,
-            auth=None,
-            throttle=AnonRateThrottle(rate="30/min"),
+            response_model=UserSchema,
         )
 
-        registry.add_api_operation(
+        registry.add_api_route(
             path="/v1/users/me",
+            endpoint=self.get_current_user,
             methods=["GET"],
-            view_func=self.get_current_user,
-            response=UserSchema,
-            auth=self._jwt_auth,
-            throttle=AuthRateThrottle(rate="30/min"),
+            response_model=UserSchema,
+            dependencies=[Depends(self._jwt_auth)],
         )
 ```
 
@@ -120,18 +129,21 @@ class PingTaskController(Controller):
 Override `handle_exception()` to convert domain exceptions into appropriate responses:
 
 ```python
+from fastapi import HTTPException
+from http import HTTPStatus
+
 class UserTokenController(Controller):
     def handle_exception(self, exception: Exception) -> Any:
         if isinstance(exception, InvalidRefreshTokenError):
-            raise HttpError(
+            raise HTTPException(
                 status_code=HTTPStatus.UNAUTHORIZED,
-                message="Invalid refresh token",
+                detail="Invalid refresh token",
             ) from exception
 
         if isinstance(exception, ExpiredRefreshTokenError):
-            raise HttpError(
+            raise HTTPException(
                 status_code=HTTPStatus.UNAUTHORIZED,
-                message="Refresh token expired or revoked",
+                detail="Refresh token expired or revoked",
             ) from exception
 
         # Re-raise unknown exceptions
@@ -146,41 +158,46 @@ class UserTokenController(Controller):
 A typical controller follows this structure:
 
 ```python
+from dataclasses import dataclass, field
+from fastapi import APIRouter, Depends, HTTPException
+from http import HTTPStatus
+from infrastructure.fastapi.auth import AuthenticatedRequest, JWTAuth, JWTAuthFactory
+
+@dataclass
 class ItemController(Controller):
-    # 1. Dependencies injected via __init__
-    def __init__(
-        self,
-        jwt_auth_factory: JWTAuthFactory,
-        item_service: ItemService,
-    ) -> None:
-        self._jwt_auth = jwt_auth_factory()
-        self._item_service = item_service
+    # 1. Dependencies injected via dataclass fields
+    _jwt_auth_factory: JWTAuthFactory
+    _item_service: ItemService
+    _jwt_auth: JWTAuth = field(init=False)
+
+    def __post_init__(self) -> None:
+        self._jwt_auth = self._jwt_auth_factory()
 
     # 2. Registration connects handlers to framework
-    def register(self, registry: Router) -> None:
-        registry.add_api_operation(
+    def register(self, registry: APIRouter) -> None:
+        registry.add_api_route(
             path="/v1/items",
+            endpoint=self.list_items,
             methods=["GET"],
-            view_func=self.list_items,
-            response=list[ItemSchema],
-            auth=self._jwt_auth,
+            response_model=list[ItemSchema],
+            dependencies=[Depends(self._jwt_auth)],
         )
-        registry.add_api_operation(
+        registry.add_api_route(
             path="/v1/items/{item_id}",
+            endpoint=self.get_item,
             methods=["GET"],
-            view_func=self.get_item,
-            response=ItemSchema,
-            auth=self._jwt_auth,
+            response_model=ItemSchema,
+            dependencies=[Depends(self._jwt_auth)],
         )
 
     # 3. Handler methods implement business logic calls
-    def list_items(self, request: AuthenticatedHttpRequest) -> list[ItemSchema]:
+    def list_items(self, request: AuthenticatedRequest) -> list[ItemSchema]:
         items = self._item_service.list_items()
         return [ItemSchema.model_validate(item, from_attributes=True) for item in items]
 
     def get_item(
         self,
-        request: AuthenticatedHttpRequest,
+        request: AuthenticatedRequest,
         item_id: int,
     ) -> ItemSchema:
         item = self._item_service.get_item_by_id(item_id)
@@ -189,9 +206,9 @@ class ItemController(Controller):
     # 4. Exception handling converts domain errors to responses
     def handle_exception(self, exception: Exception) -> Any:
         if isinstance(exception, ItemNotFoundError):
-            raise HttpError(
+            raise HTTPException(
                 status_code=HTTPStatus.NOT_FOUND,
-                message=str(exception),
+                detail=str(exception),
             ) from exception
 
         return super().handle_exception(exception)
@@ -220,26 +237,29 @@ Only public methods (not starting with `_`) that are not in the exclusion list g
 ### HTTP Health Check Controller
 
 ```python
-class HealthController(Controller):
-    def __init__(self, health_service: HealthService) -> None:
-        self._health_service = health_service
+from dataclasses import dataclass
+from fastapi import APIRouter, HTTPException, Request
+from http import HTTPStatus
 
-    def register(self, registry: Router) -> None:
-        registry.add_api_operation(
+@dataclass
+class HealthController(Controller):
+    _health_service: HealthService
+
+    def register(self, registry: APIRouter) -> None:
+        registry.add_api_route(
             path="/v1/health",
+            endpoint=self.health_check,
             methods=["GET"],
-            view_func=self.health_check,
-            response=HealthCheckResponseSchema,
-            auth=None,
+            response_model=HealthCheckResponseSchema,
         )
 
-    def health_check(self, request: HttpRequest) -> HealthCheckResponseSchema:
+    def health_check(self) -> HealthCheckResponseSchema:
         try:
             self._health_service.check_system_health()
         except HealthCheckError as e:
-            raise HttpError(
+            raise HTTPException(
                 status_code=HTTPStatus.SERVICE_UNAVAILABLE,
-                message="Service is unavailable",
+                detail="Service is unavailable",
             ) from e
 
         return HealthCheckResponseSchema(status="ok")

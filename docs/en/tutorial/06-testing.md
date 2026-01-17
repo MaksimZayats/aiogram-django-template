@@ -47,13 +47,13 @@ from typing import Any, cast
 from celery.contrib.testing import worker
 from celery.worker import WorkController
 from django.contrib.auth.models import AbstractUser
-from ninja.testing import TestClient
+from fastapi.testclient import TestClient
 from punq import Container
 
 from core.todo.models import Todo
 from core.todo.services import TodoService
 from core.user.models import User
-from delivery.http.factories import NinjaAPIFactory
+from delivery.http.factories import FastAPIFactory
 from delivery.tasks.factories import CeleryAppFactory, TasksRegistryFactory
 from delivery.tasks.registry import TasksRegistry
 from infrastructure.jwt.services import JWTService
@@ -80,7 +80,7 @@ class TestClientFactory(ContainerBasedFactory):
         headers: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> TestClient:
-        api_factory = self._container.resolve(NinjaAPIFactory)
+        api_factory = self._container.resolve(FastAPIFactory)
         jwt_service = self._container.resolve(JWTService)
 
         headers = headers or {}
@@ -90,7 +90,7 @@ class TestClientFactory(ContainerBasedFactory):
             headers["Authorization"] = f"Bearer {token}"
 
         return TestClient(
-            api_factory(urls_namespace=str(uuid.uuid7())),
+            api_factory(),
             headers=headers,
             **kwargs,
         )
