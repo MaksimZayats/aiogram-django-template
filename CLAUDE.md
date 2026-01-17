@@ -150,41 +150,69 @@ Direct model imports are acceptable ONLY in:
 
 ### Entry Points
 
-1. **HTTP API**: `src/manage.py` → `delivery/http/api.py` (Django-Ninja)
+1. **HTTP API**: `delivery/http/app.py` (FastAPI)
 2. **Celery Worker**: `delivery/tasks/app.py`
 
 All entry points share the same IoC container for consistent dependency resolution.
 
 ## IoC Container Pattern
 
-The container is configured in `src/ioc/container.py`:
+The container uses **auto-registration** - services are automatically registered when resolved based on their `__init__` type annotations.
+
+### Container Setup
+
+The container is created via `ContainerFactory` in `src/ioc/container.py`:
 
 ```python
-def get_container() -> Container:
-    container = Container()
-    register_core(container)           # Settings, models, services
-    register_infrastructure(container)  # JWT, auth, refresh sessions
-    register_delivery(container)        # HTTP, bot, Celery controllers
-    return container
+from ioc.container import ContainerFactory
+
+container_factory = ContainerFactory()
+container_factory = container_factory()  # Creates AutoRegisteringContainer
 ```
 
-### Registering Components
+### AutoRegisteringContainer
+
+The `AutoRegisteringContainer` automatically registers services when resolved:
 
 ```python
-# Type-based (auto-resolves dependencies from __init__ signature)
-container.register(UserController, scope=Scope.singleton)
+# No explicit registration needed - just resolve
+user_service = container.resolve(UserService)  # Auto-registered as singleton
 
-# Factory-based (for settings that load from env)
-container.register(JWTServiceSettings, factory=lambda: JWTServiceSettings())
+# Pydantic Settings are auto-detected and registered with factory
+jwt_settings = container.resolve(JWTServiceSettings)  # Loads from env vars
+```
 
-# Instance (for concrete implementations of abstract types)
-container.register(type[BaseRefreshSession], instance=RefreshSession)
+The container:
+1. Inspects `__init__` type annotations
+2. Auto-registers Pydantic Settings with `factory=lambda: SettingsClass()`
+3. Auto-registers other classes as singletons
+4. Recursively registers dependencies
+
+### Explicit Registration (Special Cases Only)
+
+Only abstract type mappings need explicit registration in `src/ioc/registries.py`:
+
+```python
+class Registry:
+    def register(self, container: Container) -> None:
+        # Map abstract types to concrete implementations
+        container.register(
+            type[AbstractBaseUser],
+            instance=User,
+        )
+        container.register(
+            type[BaseRefreshSession],
+            instance=RefreshSession,
+        )
 ```
 
 ### Resolving Dependencies
 
 ```python
+# The entire dependency graph is auto-resolved
 controller = container.resolve(UserController)
+# UserController -> UserService -> (auto-registered)
+# UserController -> JWTAuthFactory -> JWTService -> JWTServiceSettings (auto from env)
 ```
 
 ## Controller Pattern
@@ -207,19 +235,25 @@ Controllers auto-wrap public methods with exception handling. Override `handle_e
 ### HTTP Controller Registration
 
 ```python
-from infrastructure.django.auth import JWTAuthFactory
+from dataclasses import dataclass, field
+from fastapi import APIRouter, Depends
+from infrastructure.fastapi.auth import JWTAuth, JWTAuthFactory
 
+@dataclass
 class UserController(Controller):
-    def __init__(self, jwt_auth_factory: JWTAuthFactory) -> None:
-        self._jwt_auth = jwt_auth_factory()
+    _jwt_auth_factory: JWTAuthFactory
+    _jwt_auth: JWTAuth = field(init=False)
 
-    def register(self, registry: Router) -> None:
-        registry.add_api_operation(
+    def __post_init__(self) -> None:
+        self._jwt_auth = self._jwt_auth_factory()
+
+    def register(self, registry: APIRouter) -> None:
+        registry.add_api_route(
             path="/v1/users/me",
+            endpoint=self.get_me,
             methods=["GET"],
-            view_func=self.get_me,
-            response=UserSchema,
-            auth=self._jwt_auth,
+            response_model=UserSchema,
+            dependencies=[Depends(self._jwt_auth)],
         )
 ```
 
@@ -228,21 +262,29 @@ class UserController(Controller):
 Use `JWTAuthFactory` for JWT authentication with optional permission checks:
 
 ```python
-from infrastructure.django.auth import JWTAuthFactory
+from dataclasses import dataclass, field
+from fastapi import APIRouter, Depends
+from infrastructure.fastapi.auth import JWTAuth, JWTAuthFactory
 
+@dataclass
 class AdminController(Controller):
-    def __init__(self, jwt_auth_factory: JWTAuthFactory) -> None:
-        self._jwt_auth = jwt_auth_factory()  # Basic auth
-        self._staff_auth = jwt_auth_factory(require_staff=True)
-        self._superuser_auth = jwt_auth_factory(require_superuser=True)
+    _jwt_auth_factory: JWTAuthFactory
+    _jwt_auth: JWTAuth = field(init=False)
+    _staff_auth: JWTAuth = field(init=False)
+    _superuser_auth: JWTAuth = field(init=False)
 
-    def register(self, registry: Router) -> None:
+    def __post_init__(self) -> None:
+        self._jwt_auth = self._jwt_auth_factory()  # Basic auth
+        self._staff_auth = self._jwt_auth_factory(require_staff=True)
+        self._superuser_auth = self._jwt_auth_factory(require_superuser=True)
+
+    def register(self, registry: APIRouter) -> None:
         # Staff-only endpoint
-        registry.add_api_operation(
+        registry.add_api_route(
             path="/v1/admin/reports",
+            endpoint=self.list_reports,
             methods=["GET"],
-            view_func=self.list_reports,
-            auth=self._staff_auth,
+            dependencies=[Depends(self._staff_auth)],
         )
 ```
 
@@ -264,70 +306,107 @@ class PingTaskController(Controller):
 
 ### Test Factories
 
-Test factories in `tests/integration/factories.py` enable isolated testing with IoC override capability:
+Test factories in `tests/integration/factories.py` are container-based and enable isolated testing:
 
-- **`TestClientFactory`** - Creates test clients with optional authentication
-- **`TestUserFactory`** - Creates test users
-- **`TestCeleryWorkerFactory`** - Manages test worker lifecycle
+- **`TestClientFactory`** - Creates FastAPI `TestClient` with optional authentication
+- **`TestUserFactory`** - Creates test users via the User model
+- **`TestCeleryWorkerFactory`** - Manages Celery worker lifecycle as context manager
 - **`TestTasksRegistryFactory`** - Creates task registry instances
+
+All factories extend `ContainerBasedFactory` and receive the container via constructor:
+
+```python
+class ContainerBasedFactory(BaseFactory, ABC):
+    def __init__(self, container: AutoRegisteringContainer) -> None:
+        self._container = container
+```
 
 ### Per-Test Container Isolation
 
-Each test gets a fresh container (function-scoped fixtures), enabling IoC overrides:
+Each test gets a fresh container (function-scoped fixtures):
 
 ```python
 @pytest.fixture(scope="function")
-def container() -> Container:
-    return get_container()
+def container() -> AutoRegisteringContainer:
+    container_factory = ContainerFactory()
+    return container_factory()
 
 @pytest.fixture(scope="function")
-def test_client_factory(api_factory: NinjaAPIFactory) -> TestClientFactory:
-    # New API + test client per test function for IoC override capability
-    return TestClientFactory(api_factory=api_factory)
-```
+def test_client_factory(container: AutoRegisteringContainer) -> TestClientFactory:
+    return TestClientFactory(container=container)
 
-### Overriding IoC Registrations in Tests
-
-To mock a component for a specific test:
-
-```python
-def test_with_mock_service(container: Container) -> None:
-    # Override before creating factories
-    mock_service = MagicMock()
-    container.register(JWTService, instance=mock_service)
-
-    api_factory = NinjaAPIFactory(container=container)
-    test_client = TestClientFactory(api_factory=api_factory)()
-    # Now all requests use mock_service
+@pytest.fixture(scope="function")
+def user_factory(
+    transactional_db: None,
+    container: AutoRegisteringContainer,
+) -> TestUserFactory:
+    return TestUserFactory(container=container)
 ```
 
 ### HTTP API Tests
 
+Use class-based tests with `@pytest.mark.django_db(transaction=True)`:
+
 ```python
+@pytest.fixture(scope="function")
+def user(user_factory: TestUserFactory) -> User:
+    return user_factory(username="test", password="test-password")
+
 @pytest.mark.django_db(transaction=True)
-def test_create_user(test_client_factory: TestClientFactory) -> None:
-    test_client = test_client_factory()
-    response = test_client.post("/v1/users/", json={...})
+class TestUserController:
+    def test_create_user(self, test_client_factory: TestClientFactory) -> None:
+        test_client = test_client_factory()
+
+        response = test_client.post(
+            "/v1/users/",
+            json={"username": "new_user", "email": "user@test.com", "password": "pass"},
+        )
+
+        assert response.status_code == HTTPStatus.OK
+
+    def test_authenticated_endpoint(
+        self,
+        test_client_factory: TestClientFactory,
+        user: User,
+    ) -> None:
+        # Use auth_for_user to auto-inject JWT token
+        test_client = test_client_factory(auth_for_user=user)
+
+        response = test_client.get("/v1/users/me")
+        assert response.status_code == HTTPStatus.OK
 ```
 
 ### Celery Task Tests
 
+Use `TestTasksRegistryFactory` to get the registry and `TestCeleryWorkerFactory` as context manager:
+
 ```python
-def test_ping_task(celery_worker_factory: CeleryWorkerFactory, container: Container) -> None:
-    registry = container.resolve(TasksRegistry)
-    with celery_worker_factory():  # Starts worker in context
-        result = registry.ping.delay().get(timeout=1)
+class TestPingTaskController:
+    def test_ping_task(
+        self,
+        celery_worker_factory: TestCeleryWorkerFactory,
+        tasks_registry_factory: TestTasksRegistryFactory,
+    ) -> None:
+        registry = tasks_registry_factory()
+        with celery_worker_factory():  # Starts worker in context
+            ping_result = registry.ping.delay().get(timeout=1)
+
+        assert ping_result == PingResult(result="pong")
 ```
 
-## API Factory Customization
+### Overriding IoC Registrations in Tests
 
-`get_ninja_api()` and `get_celery_app()` accept optional `container` parameter for test customization:
+To mock a component, register it on the container before creating factories:
 
 ```python
-def get_ninja_api(
-    container: Container | None = None,  # Custom container for tests
-    urls_namespace: str | None = None,   # Unique namespace per test
-) -> NinjaAPI:
+def test_with_mock_service(container: AutoRegisteringContainer) -> None:
+    # Override before creating test client
+    mock_service = MagicMock()
+    container.register(JWTService, instance=mock_service)
+
+    test_client_factory = TestClientFactory(container=container)
+    test_client = test_client_factory()
+    # Now all requests use mock_service
 ```
 
 ## Configuration

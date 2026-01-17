@@ -1,11 +1,11 @@
-# Modern API Template
+# Fast Django
 
-Production-ready template for building modern Python applications with **Django** and **Celery** —
+Production-ready template for building modern Python applications with **Django**, **FastAPI**, and **Celery** —
 featuring dependency injection, type-safe configuration, and comprehensive observability.
 
 ## Features
 
-- **HTTP API** — [Django Ninja](https://django-ninja.dev/) with automatic OpenAPI documentation
+- **HTTP API** — [FastAPI](https://fastapi.tiangolo.com/) with automatic OpenAPI documentation
 - **Background Tasks** — [Celery](https://docs.celeryq.dev/en/stable/) with beat scheduler
 - **Dependency Injection** — [punq](https://github.com/bobthemighty/punq) IoC container
 - **Type-Safe Config** — [Pydantic Settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) with
@@ -26,8 +26,8 @@ Before getting started, ensure you have installed:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/MaksimZayats/modern-django-template.git
-cd modern-django-template
+git clone https://github.com/MaksimZayats/fast-django.git
+cd fast-django
 ```
 
 ### 2. Rename the Project
@@ -120,7 +120,7 @@ Full documentation is available at [template.zayats.dev](https://template.zayats
 | Component       | Technology        | Documentation                                                                              |
 |-----------------|-------------------|--------------------------------------------------------------------------------------------|
 | Web Framework   | Django 6+         | [docs.djangoproject.com](https://docs.djangoproject.com/en/stable/)                        |
-| HTTP API        | Django Ninja 1.x  | [django-ninja.dev](https://django-ninja.dev/)                                              |
+| HTTP API        | FastAPI 0.128+    | [fastapi.tiangolo.com](https://fastapi.tiangolo.com/)                                      |
 | Task Queue      | Celery 5.x        | [docs.celeryq.dev](https://docs.celeryq.dev/en/stable/)                                    |
 | Validation      | Pydantic 2.x      | [docs.pydantic.dev](https://docs.pydantic.dev/latest/)                                     |
 | Settings        | Pydantic Settings | [docs.pydantic.dev/settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) |
