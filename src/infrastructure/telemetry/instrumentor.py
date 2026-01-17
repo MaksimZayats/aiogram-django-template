@@ -26,10 +26,7 @@ class OpenTelemetryInstrumentor:
         if not self._logfire_settings.is_enabled:
             return
 
-        logfire.instrument_django(
-            excluded_urls=".*/v1/health",
-            is_sql_commentor_enabled=True,
-        )
+        logfire.instrument_django(is_sql_commentor_enabled=True)
         logfire.instrument_celery(propagate_trace_context=True)
         logfire.instrument_requests()
         logfire.instrument_psycopg(
