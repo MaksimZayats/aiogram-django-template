@@ -1,6 +1,6 @@
 import pytest
-from punq import Container
 
+from infrastructure.punq.container import AutoRegisteringContainer
 from ioc.container import ContainerFactory
 from tests.integration.factories import (
     TestCeleryWorkerFactory,
@@ -11,7 +11,7 @@ from tests.integration.factories import (
 
 
 @pytest.fixture(scope="function")
-def container() -> Container:
+def container() -> AutoRegisteringContainer:
     container_factory = ContainerFactory()
     return container_factory()
 
@@ -20,25 +20,25 @@ def container() -> Container:
 
 
 @pytest.fixture(scope="function")
-def test_client_factory(container: Container) -> TestClientFactory:
+def test_client_factory(container: AutoRegisteringContainer) -> TestClientFactory:
     return TestClientFactory(container=container)
 
 
 @pytest.fixture(scope="function")
 def user_factory(
     transactional_db: None,
-    container: Container,
+    container: AutoRegisteringContainer,
 ) -> TestUserFactory:
     return TestUserFactory(container=container)
 
 
 @pytest.fixture(scope="function")
-def celery_worker_factory(container: Container) -> TestCeleryWorkerFactory:
+def celery_worker_factory(container: AutoRegisteringContainer) -> TestCeleryWorkerFactory:
     return TestCeleryWorkerFactory(container=container)
 
 
 @pytest.fixture(scope="function")
-def tasks_registry_factory(container: Container) -> TestTasksRegistryFactory:
+def tasks_registry_factory(container: AutoRegisteringContainer) -> TestTasksRegistryFactory:
     return TestTasksRegistryFactory(container=container)
 
 

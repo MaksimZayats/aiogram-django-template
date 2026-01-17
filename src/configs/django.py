@@ -9,7 +9,7 @@ from configs.core import (
 )
 from configs.infrastructure import AWSS3Settings
 from infrastructure.django.settings.pydantic_adapter import PydanticSettingsAdapter
-from infrastructure.logging.configuration import LoggingSettings
+from infrastructure.logging.configurator import LoggingSettings
 
 
 class DjangoSettings(ApplicationSettings):

@@ -1,3 +1,4 @@
+import logging.config
 from typing import Any
 
 from pydantic import computed_field
@@ -41,3 +42,11 @@ class LoggingSettings(BaseSettings):
                 },
             },
         }
+
+
+class LoggingConfigurator:
+    def __init__(self, settings: LoggingSettings) -> None:
+        self._settings = settings
+
+    def configure(self) -> None:
+        logging.config.dictConfig(self._settings.settings)  # type: ignore[arg-type, bad-argument-type]

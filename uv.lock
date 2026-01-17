@@ -670,6 +670,9 @@ django = [
     { name = "opentelemetry-instrumentation-asgi" },
     { name = "opentelemetry-instrumentation-django" },
 ]
+fastapi = [
+    { name = "opentelemetry-instrumentation-fastapi" },
+]
 httpx = [
     { name = "opentelemetry-instrumentation-httpx" },
 ]
@@ -841,7 +844,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "gunicorn" },
     { name = "httpx" },
-    { name = "logfire", extra = ["celery", "django", "httpx", "psycopg", "redis", "requests"] },
+    { name = "logfire", extra = ["celery", "django", "fastapi", "httpx", "psycopg", "redis", "requests"] },
     { name = "psycopg", extra = ["binary"] },
     { name = "punq" },
     { name = "pydantic", extra = ["email"] },
@@ -887,7 +890,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.128.0" },
     { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "logfire", extras = ["django", "celery", "requests", "psycopg", "httpx", "redis"], specifier = ">=4.18.0" },
+    { name = "logfire", extras = ["fastapi", "django", "celery", "requests", "psycopg", "httpx", "redis"], specifier = ">=4.18.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.2" },
     { name = "punq", specifier = ">=0.7.0" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.12.5" },
@@ -1073,6 +1076,22 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/56/dc/a42fb5ff5c4ea8128d7c61a322e0cfbeae0fd204fc63a679f73caeec266e/opentelemetry_instrumentation_django-0.60b1.tar.gz", hash = "sha256:765b69c7ccdea7e9ebfd0b9e68387956b8f74816f3e39775d5b06a20f16b0522", size = 26599, upload-time = "2025-12-11T13:36:56.293Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bc/05/6b348ea989f7a9e1e6311fa653e113bd39f4506771323e27a639c2a1ea54/opentelemetry_instrumentation_django-0.60b1-py3-none-any.whl", hash = "sha256:3f6b4ba201eee35406dab965b254eed0c64fa1ef42e4a7b0296ad1b30e8e3f81", size = 21172, upload-time = "2025-12-11T13:35:57.365Z" },
+]
+
+[[package]]
+name = "opentelemetry-instrumentation-fastapi"
+version = "0.60b1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-instrumentation" },
+    { name = "opentelemetry-instrumentation-asgi" },
+    { name = "opentelemetry-semantic-conventions" },
+    { name = "opentelemetry-util-http" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9c/e7/e7e5e50218cf488377209d85666b182fa2d4928bf52389411ceeee1b2b60/opentelemetry_instrumentation_fastapi-0.60b1.tar.gz", hash = "sha256:de608955f7ff8eecf35d056578346a5365015fd7d8623df9b1f08d1c74769c01", size = 24958, upload-time = "2025-12-11T13:36:59.35Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7d/cc/6e808328ba54662e50babdcab21138eae4250bc0fddf67d55526a615a2ca/opentelemetry_instrumentation_fastapi-0.60b1-py3-none-any.whl", hash = "sha256:af94b7a239ad1085fc3a820ecf069f67f579d7faf4c085aaa7bd9b64eafc8eaf", size = 13478, upload-time = "2025-12-11T13:36:00.811Z" },
 ]
 
 [[package]]

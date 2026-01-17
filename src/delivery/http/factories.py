@@ -13,18 +13,24 @@ from delivery.http.settings import HTTPSettings
 from delivery.http.user.controllers import UserController, UserTokenController
 from infrastructure.anyio.configurator import AnyIOConfigurator
 from infrastructure.settings.types import Environment
+from infrastructure.telemetry.configurator import LogfireConfigurator
+from infrastructure.telemetry.instrumentor import OpenTelemetryInstrumentor
 
 
 class Lifespan:
     def __init__(
         self,
         anyio_configurator: AnyIOConfigurator,
+        logfire_configurator: LogfireConfigurator,
     ) -> None:
         self._anyio_configurator = anyio_configurator
+        self._logfire_configurator = logfire_configurator
 
     @asynccontextmanager
     async def __call__(self, _app: FastAPI) -> AsyncIterator[None]:
         self._anyio_configurator.configure()
+        self._logfire_configurator.configure(service_name="fastapi")
+
         yield
 
 
@@ -33,14 +39,16 @@ class FastAPIFactory:
         self,
         application_settings: ApplicationSettings,
         http_settings: HTTPSettings,
+        telemetry_instrumentor: OpenTelemetryInstrumentor,
         lifespan: Lifespan,
         django_wsgi_factory: DjangoWSGIFactory,
         health_controller: HealthController,
         user_token_controller: UserTokenController,
         user_controller: UserController,
     ) -> None:
-        self._settings = application_settings
+        self._application_settings = application_settings
         self._http_settings = http_settings
+        self._telemetry_instrumentor = telemetry_instrumentor
         self._django_wsgi_factory = django_wsgi_factory
         self._lifespan = lifespan
 
@@ -51,11 +59,15 @@ class FastAPIFactory:
     def __call__(
         self,
         *,
-        include_admin: bool = True,
+        include_django: bool = True,
         add_trusted_hosts_middleware: bool = True,
         add_cors_middleware: bool = True,
     ) -> FastAPI:
-        docs_url = "/api/docs" if self._settings.environment != Environment.PRODUCTION else None
+        docs_url = (
+            "/api/docs"
+            if self._application_settings.environment != Environment.PRODUCTION
+            else None
+        )
 
         app = FastAPI(
             title="API",
@@ -63,6 +75,8 @@ class FastAPIFactory:
             docs_url=docs_url,
             redoc_url=None,
         )
+
+        self._telemetry_instrumentor.instrument_fastapi(app=app)
 
         if add_trusted_hosts_middleware:
             app.add_middleware(
@@ -85,8 +99,8 @@ class FastAPIFactory:
         self._user_token_controller.register(api_router)
         app.include_router(api_router)
 
-        if include_admin:
+        if include_django:
             django_wsgi = self._django_wsgi_factory()
-            app.mount("/admin", WSGIMiddleware(django_wsgi))  # type: ignore[arg-type, invalid-argument-type]
+            app.mount("/django", WSGIMiddleware(django_wsgi))  # type: ignore[arg-type, invalid-argument-type]
 
         return app

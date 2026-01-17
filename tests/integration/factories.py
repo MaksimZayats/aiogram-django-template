@@ -6,13 +6,13 @@ from celery.contrib.testing import worker
 from celery.worker import WorkController
 from django.contrib.auth.base_user import AbstractBaseUser
 from fastapi.testclient import TestClient
-from punq import Container
 
 from core.user.models import User
 from delivery.http.factories import FastAPIFactory
 from delivery.tasks.factories import CeleryAppFactory, TasksRegistryFactory
 from delivery.tasks.registry import TasksRegistry
 from infrastructure.jwt.services import JWTService
+from infrastructure.punq.container import AutoRegisteringContainer
 
 
 class BaseFactory(ABC):
@@ -26,7 +26,7 @@ class BaseFactory(ABC):
 class ContainerBasedFactory(BaseFactory, ABC):
     def __init__(
         self,
-        container: Container,
+        container: AutoRegisteringContainer,
     ) -> None:
         self._container = container
 
@@ -48,7 +48,7 @@ class TestClientFactory(ContainerBasedFactory):
             headers["Authorization"] = f"Bearer {token}"
 
         app = api_factory(
-            include_admin=False,
+            include_django=False,
             add_trusted_hosts_middleware=False,
             add_cors_middleware=False,
         )

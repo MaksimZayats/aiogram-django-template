@@ -10,4 +10,4 @@ _container = _container_factory()
 
 _api_factory = cast("FastAPIFactory", _container.resolve("FastAPIFactory"))
 
-app = _api_factory(include_admin=True)
+app = _api_factory(include_django=True)

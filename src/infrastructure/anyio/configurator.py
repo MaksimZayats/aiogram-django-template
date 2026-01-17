@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
 
+
 class AnyIOSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="ANYIO_")
 
@@ -16,7 +17,7 @@ class AnyIOConfigurator:
         self._settings = settings
 
     def configure(self) -> None:
-        limiter = anyio.to_thread.current_default_thread_limiter()
+        limiter = anyio.to_thread.current_default_thread_limiter()  # type: ignore[unresolved-attribute]
         limiter.total_tokens = self._settings.thread_limiter_tokens
 
         logger.info(
