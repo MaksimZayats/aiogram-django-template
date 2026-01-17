@@ -67,6 +67,9 @@ class TestUserFactory(ContainerBasedFactory):
         username: str = "test_user",
         password: str = "password123",  # noqa: S107
         email: str = "user@test.com",
+        *,
+        is_staff: bool = False,
+        **kwargs: Any,
     ) -> User:
         user_model = cast(
             type[User],
@@ -77,6 +80,8 @@ class TestUserFactory(ContainerBasedFactory):
             username=username,
             email=email,
             password=password,
+            is_staff=is_staff,
+            **kwargs,
         )
 
 

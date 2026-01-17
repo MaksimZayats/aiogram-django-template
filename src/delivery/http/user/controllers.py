@@ -170,6 +170,7 @@ class UserController(Controller):
 
     def __post_init__(self) -> None:
         self._jwt_auth = self._jwt_auth_factory()
+        self._staff_jwt_auth = self._jwt_auth_factory(require_staff=True)
 
     def register(self, registry: APIRouter) -> None:
         registry.add_api_route(
@@ -184,6 +185,14 @@ class UserController(Controller):
             endpoint=self.get_current_user,
             methods=["GET"],
             dependencies=[Depends(self._jwt_auth)],
+            response_model=UserSchema,
+        )
+
+        registry.add_api_route(
+            path="/v1/users/{user_id}",
+            endpoint=self.get_user_by_id,
+            methods=["GET"],
+            dependencies=[Depends(self._staff_jwt_auth)],
             response_model=UserSchema,
         )
 
@@ -225,3 +234,16 @@ class UserController(Controller):
 
     def get_current_user(self, request: AuthenticatedRequest) -> UserSchema:
         return UserSchema.model_validate(request.state.user, from_attributes=True)
+
+    def get_user_by_id(
+        self,
+        user_id: int,
+    ) -> UserSchema:
+        user = self._user_service.get_user_by_id(user_id=user_id)
+        if user is None:
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail="User not found",
+            )
+
+        return UserSchema.model_validate(user, from_attributes=True)
